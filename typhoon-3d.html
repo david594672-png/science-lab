@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-subject="earth">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>颱風的構造與風速</title>
+<link rel="stylesheet" href="lab-kit.css">
+<style>#plot { display: block; width: 100%; height: 150px; }</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="cv" aria-label="颱風雲系與氣流的 3D 模型"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g9">← 回課程總覽</a>
+  <h1>颱風的構造</h1>
+  <p class="sub">國三地科 · 千變萬化的天氣 ｜ <a class="back" href="typhoon-wind.html" style="display:inline">颱風過境風向 →</a></p>
+
+  <div class="body">
+    <div class="group">
+      <div class="ctrl">
+        <label for="pc">中心氣壓 <output id="pcVal"></output></label>
+        <input type="range" id="pc" min="910" max="995" step="5" value="950">
+      </div>
+      <dl class="live">
+        <dt>近中心最大風速</dt><dd id="vmax">—</dd>
+        <dt>強度</dt><dd id="cat">—</dd>
+      </dl>
+    </div>
+
+    <div class="group">
+      <div class="group-title">從颱風眼往外的風速與氣壓</div>
+      <canvas id="plot" width="640" height="300"></canvas>
+    </div>
+
+    <div class="group">
+      <div class="group-title">顯示</div>
+      <label class="sw"><input type="checkbox" id="lCloud" checked><span class="track"></span>雲帶</label>
+      <label class="sw"><input type="checkbox" id="lLow" checked><span class="track"></span>低空的風（逆時針吹進中心）</label>
+      <label class="sw"><input type="checkbox" id="lHigh"><span class="track"></span>高空的風（順時針吹出）</label>
+      <label class="sw"><input type="checkbox" id="lCut"><span class="track"></span>切開看剖面</label>
+    </div>
+
+    <div class="group">
+      <p class="note">颱風是<b>熱帶低氣壓</b>：中心氣壓最低，四周空氣往中心流入，在北半球<b>逆時針</b>旋轉。空氣在<b>眼牆</b>強烈上升，雨最大、風最強；<b>颱風眼</b>裡空氣下沉，反而風小、天氣較好。</p>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script type="module">
+import { start3D, THREE } from './lab3d.js';
+const $ = id => document.getElementById(id);
+const S = { pc: 950 };
+const EYE = 0.9, RMAX = 9;                        // 颱風眼半徑、雲系半徑（示意）
+
+const L = start3D({ background: 0x0b1626, camera: [0, 14, 18], target: [0, 0.5, 0], minDist: 6, maxDist: 40, maxPolar: Math.PI * 0.48, frame, ui });
+const { scene, renderer } = L;
+renderer.localClippingEnabled = true;
+const cut = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+
+// 海面
+const sea = new THREE.Mesh(new THREE.CircleGeometry(16, 64), L.mat(0x123e66, { roughness: 0.35, metalness: 0.1 }));
+sea.rotation.x = -Math.PI / 2; scene.add(sea);
+// 距離圈
+[3, 6, 9].forEach(r => {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.015, 4, 96), L.glow(0x5d86b0, { transparent: true, opacity: 0.4 }));
+  m.rotation.x = Math.PI / 2; m.position.y = 0.01; scene.add(m);
+});
+L.label('颱風眼', new THREE.Vector3(0, 0.2, 0), 'big');
+const eyeWallLbl = L.label('眼牆', new THREE.Vector3(EYE + 0.4, 2.6, 0));
+L.label('北', new THREE.Vector3(0, 0.1, -10.5), 'plain');
+
+// 空氣粒子：低層往內旋、在眼牆上升、高層往外旋出
+const N = 2600;
+const parts = [];
+const pos = new Float32Array(N * 3), col = new Float32Array(N * 3);
+for (let i = 0; i < N; i++) parts.push(spawn({}, true));
+function spawn(p, init) {
+  p.r = init ? EYE + Math.random() * (RMAX - EYE) : RMAX - Math.random() * 0.8;
+  // 集中在三條螺旋雲帶附近
+  const arm = Math.floor(Math.random() * 3);
+  p.a = arm * Math.PI * 2 / 3 - Math.log(Math.max(p.r, 0.5)) * 1.7 + (Math.random() - 0.5) * (Math.random() < 0.7 ? 0.7 : 3);
+  p.h = init ? (Math.random() < 0.75 ? Math.random() * 0.6 : 0.6 + Math.random() * 2.4) : Math.random() * 0.5;
+  p.up = init ? p.h > 0.6 : false;
+  p.band = Math.random();
+  return p;
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+// 柔邊圓點，看起來像雲
+const puff = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+const cloud = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.75, map: puff, vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false, clippingPlanes: [] }));
+scene.add(cloud);
+
+// 箭頭：低空吹入（逆時針）、高空吹出（順時針）
+const lowArrows = [], highArrows = [];
+for (let i = 0; i < 8; i++) {
+  lowArrows.push(L.arrow(0x5cc8ff, 0.4, 0.28));
+  highArrows.push(L.arrow(0xffa64d, 0.4, 0.28));
+}
+
+function vmax() { return 3.4 * Math.pow(Math.max(1, 1010 - S.pc), 0.644); }
+function windAt(r) {                       // 示意風速分布：眼內小，眼牆最大，往外遞減
+  const vm = vmax();
+  return r < EYE ? vm * (r / EYE) * 0.9 : vm * Math.pow(EYE / r, 0.6);
+}
+const c = new THREE.Color();
+function frame(dt) {
+  const vm = vmax();
+  const showCloud = $('lCloud').checked;
+  for (let i = 0; i < N; i++) {
+    const p = parts[i];
+    const w = windAt(p.r) / 50;              // 角速度依風速
+    if (!p.up) {                              // 低空：往中心旋入（逆時針，從上往下看）
+      p.a += w * dt * 1.6 / Math.max(p.r, 0.5) * 3;
+      p.r -= dt * (0.35 + vm / 120);
+      if (p.r < EYE * 1.15) p.up = true;
+    } else if (p.h < 3) {                     // 眼牆上升
+      p.h += dt * (1.2 + vm / 40);
+      p.a += w * dt * 2;
+    } else {                                  // 高空：往外、順時針
+      p.a -= dt * 0.25;
+      p.r += dt * 0.9;
+      if (p.r > RMAX) spawn(p, false);
+    }
+    // 螺旋雲帶：讓粒子往幾條旋臂集中
+    const spiral = p.a + Math.log(Math.max(p.r, 0.5)) * 1.7;
+    const bandY = (p.up ? p.h : 0.15 + p.band * 0.45) + 0.25 * Math.sin(spiral * 3) * (p.r > 2.5 ? 1 : 0);
+    pos[i * 3] = Math.cos(p.a) * p.r;
+    pos[i * 3 + 1] = Math.max(0.05, bandY);
+    pos[i * 3 + 2] = -Math.sin(p.a) * p.r;
+    // 顏色：低空吹入淡藍、上升白、高空吹出橘
+    if (!p.up) c.set(0x9fdcff); else if (p.h < 3) c.set(0xffffff); else c.set(0xffc58a);
+    const inBand = 0.55 + 0.45 * Math.max(0, Math.cos(spiral * 3));
+    c.multiplyScalar(inBand);
+    col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+  }
+  geo.attributes.position.needsUpdate = true;
+  geo.attributes.color.needsUpdate = true;
+  cloud.visible = showCloud;
+  cloud.material.clippingPlanes = $('lCut').checked ? [cut] : [];
+  eyeWallLbl.show = $('lCut').checked;
+  // 箭頭
+  const tmp0 = new THREE.Vector3(), tmp1 = new THREE.Vector3();
+  lowArrows.forEach((a, i) => {
+    const ang = i / 8 * Math.PI * 2, r = 6.5;
+    tmp0.set(Math.cos(ang) * r, 0.5, -Math.sin(ang) * r);
+    // 逆時針切線 + 往內
+    const tx = -Math.sin(ang), tz = -Math.cos(ang), ix = -Math.cos(ang), iz = Math.sin(ang);
+    const len = 1.2 + vm / 40;
+    tmp1.set(tmp0.x + (tx * 0.85 + ix * 0.5) * len, 0.5, tmp0.z + (tz * 0.85 + iz * 0.5) * len);
+    a.point(tmp0, tmp1); a.visible = a.visible && $('lLow').checked;
+  });
+  highArrows.forEach((a, i) => {
+    const ang = i / 8 * Math.PI * 2 + 0.4, r = 4.5;
+    tmp0.set(Math.cos(ang) * r, 3.6, -Math.sin(ang) * r);
+    const tx = Math.sin(ang), tz = Math.cos(ang), ox = Math.cos(ang), oz = -Math.sin(ang);
+    tmp1.set(tmp0.x + (tx * 0.6 + ox * 0.8) * 1.8, 3.6, tmp0.z + (tz * 0.6 + oz * 0.8) * 1.8);
+    a.point(tmp0, tmp1); a.visible = a.visible && $('lHigh').checked;
+  });
+}
+
+// 風速與氣壓剖面圖
+const pc = $('plot').getContext('2d');
+function plot() {
+  const W = 640, H = 300, x0 = 60, y0 = 20, w = W - 90, h = H - 70;
+  pc.clearRect(0, 0, W, H);
+  pc.font = '22px "Noto Sans TC","Microsoft JhengHei",sans-serif';
+  pc.strokeStyle = 'rgba(238,241,250,.3)'; pc.lineWidth = 2;
+  pc.beginPath(); pc.moveTo(x0, y0); pc.lineTo(x0, y0 + h); pc.lineTo(x0 + w, y0 + h); pc.stroke();
+  const X = r => x0 + r / RMAX * w;
+  // 眼與眼牆底色
+  pc.fillStyle = 'rgba(255,166,77,.12)'; pc.fillRect(X(EYE * 0.85), y0, X(EYE * 1.6) - X(EYE * 0.85), h);
+  // 風速
+  pc.strokeStyle = '#5cc8ff'; pc.lineWidth = 4; pc.beginPath();
+  for (let i = 0; i <= 100; i++) { const r = i / 100 * RMAX, y = y0 + h - windAt(r) / 75 * h; i ? pc.lineTo(X(r), y) : pc.moveTo(X(r), y); }
+  pc.stroke();
+  // 氣壓
+  pc.strokeStyle = '#ffa64d'; pc.setLineDash([10, 8]); pc.beginPath();
+  for (let i = 0; i <= 100; i++) {
+    const r = i / 100 * RMAX, p = S.pc + (1010 - S.pc) * (1 - Math.exp(-r / 2.2));
+    const y = y0 + h - (p - 900) / 115 * h; i ? pc.lineTo(X(r), y) : pc.moveTo(X(r), y);
+  }
+  pc.stroke(); pc.setLineDash([]);
+  pc.fillStyle = '#5cc8ff'; pc.fillText('風速', x0 + 10, y0 + 20);
+  pc.fillStyle = '#ffa64d'; pc.fillText('氣壓', x0 + 90, y0 + 20);
+  pc.fillStyle = 'rgba(238,241,250,.6)';
+  pc.fillText('眼', X(EYE * 0.3), y0 + h + 30); pc.fillText('眼牆', X(EYE * 1.1), y0 + h + 30);
+  pc.textAlign = 'right'; pc.fillText('離中心越遠 →', x0 + w, y0 + h + 30); pc.textAlign = 'left';
+}
+Lab.bindSlider('pc', x => { S.pc = x; plot(); }, x => x + ' hPa');
+
+function ui() {
+  const v = vmax();
+  $('vmax').textContent = v.toFixed(0) + ' m/s（約 ' + (v * 3.6).toFixed(0) + ' km/h）';
+  $('cat').textContent = v >= 51 ? '強烈颱風' : v >= 32.7 ? '中度颱風' : v >= 17.2 ? '輕度颱風' : '熱帶性低氣壓';
+}
+window.typhoonSim = S;
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

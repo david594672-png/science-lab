@@ -1,1009 +1,272 @@
 <!DOCTYPE html>
 <html lang="zh-Hant" data-subject="bio">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>心臟與雙循環模擬器</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>心臟與血液循環</title>
+<link rel="stylesheet" href="lab-kit.css">
 <style>
-  :root {
-    --bg: #eef3f7;
-    --ink: #1d1d1f;
-    --ink-soft: #6e6e73;
-    --card: rgba(255,255,255,.62);
-    --accent: #e0557a;
-    --blue: #3f7be8;
-    --red: #e5484d;
-    --gold: #e9a800;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; }
-  body {
-    background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  #scene { position: absolute; inset: 0; }
-  #scene canvas { display: block; }
-
-  .glass {
-    background: var(--card); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
-    border: 1px solid rgba(255,255,255,.8); box-shadow: 0 20px 50px rgba(40,60,80,.12), 0 2px 6px rgba(40,60,80,.05);
-  }
-  .panel { position: absolute; top: 18px; left: 18px; width: 320px; max-height: calc(100vh - 36px); overflow-y: auto; z-index: 10; border-radius: 26px; padding: 18px; }
-  .panel.collapsed { width: auto; min-width: 250px; }
-  .panel.collapsed .body { display: none; }
-  .collapse {
-    position: absolute; top: 18px; right: 16px; z-index: 2; cursor: pointer; border: none;
-    font: inherit; font-size: .76rem; font-weight: 600; color: var(--accent);
-    background: rgba(224,85,122,.1); border-radius: 999px; padding: 4px 12px;
-  }
-  .back { font-size: .78rem; color: var(--accent); text-decoration: none; }
-  .title { font-size: 1.15rem; font-weight: 700; margin-top: 6px; padding-right: 62px; }
-  .sub { font-size: .78rem; color: var(--ink-soft); }
-
-  .box { background: rgba(255,255,255,.78); border-radius: 18px; padding: 12px 14px; margin-top: 10px; font-size: .82rem; line-height: 1.6; }
-  .box .h { font-size: .72rem; font-weight: 700; color: var(--ink-soft); letter-spacing: .04em; margin-bottom: 6px; }
-
-  /* 三種模式 */
-  .modes { display: grid; gap: 6px; }
-  .mode {
-    display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
-    font: inherit; font-size: .86rem; font-weight: 700; padding: 10px 12px; border-radius: 14px;
-    border: 1.5px solid transparent; background: rgba(118,118,128,.1); color: var(--ink);
-    transition: background .2s, border-color .2s;
-  }
-  .mode span { font-size: 1.15rem; }
-  .mode.on { background: #fff; border-color: var(--accent); box-shadow: 0 4px 12px rgba(224,85,122,.18); }
-
-  .rate { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-  .rate .v { font-size: 1.4rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .rate .v small { font-size: .74rem; color: var(--ink-soft); font-weight: 600; margin-left: 2px; }
-  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 12px; border-radius: 999px; cursor: pointer; outline: none;
-    background: linear-gradient(90deg, #b9d6ff 0%, #ffc2d1 50%, #e0557a 100%); }
-  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
-  input[type=range]::-moz-range-thumb { width: 28px; height: 28px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
-  input[type=range]:focus-visible { box-shadow: 0 0 0 4px rgba(224,85,122,.3); }
-  .scale { display: flex; justify-content: space-between; font-size: .7rem; color: var(--ink-soft); margin-top: 6px; }
-
-  .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-  .phase { text-align: center; font-size: .72rem; font-weight: 700; padding: 7px 2px; border-radius: 12px; background: rgba(118,118,128,.1); color: var(--ink-soft); transition: background .2s, color .2s; }
-  .phase.on { background: var(--accent); color: #fff; }
-  .valves { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-  .valve { border-radius: 12px; padding: 7px 10px; background: rgba(255,255,255,.9); font-size: .74rem; }
-  .valve b { display: block; font-size: .9rem; }
-  .valve b.open { color: #16a34a; } .valve b.shut { color: #94a3b8; }
-
-  .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-  .btn { border: none; border-radius: 14px; padding: 10px; cursor: pointer; font: inherit; font-size: .84rem; font-weight: 700; color: var(--accent); background: rgba(224,85,122,.1); }
-  .btn:hover { background: rgba(224,85,122,.18); }
-  .btn.primary { color: #fff; background: var(--accent); box-shadow: 0 6px 16px rgba(224,85,122,.3); }
-
-  .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; font-size: .76rem; }
-  .legend div { display: flex; align-items: center; gap: 6px; }
-  .legend i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
-
-  /* 上方提示牌與右下觀念卡 */
-  .warn {
-    position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 9;
-    padding: 10px 18px; border-radius: 18px; font-size: .9rem; font-weight: 700; white-space: nowrap;
-    background: rgba(255,248,225,.92); border: 1.5px solid #f5b83d; color: #7a4b00; box-shadow: 0 8px 22px rgba(245,184,61,.25);
-  }
-  @media (min-width: 761px) { .warn { left: calc(50% + 170px); } }
-  .tip {
-    position: absolute; right: 18px; bottom: 18px; z-index: 9; width: 330px; border-radius: 22px; padding: 14px 16px;
-    transform: translateY(10px); opacity: 0; transition: opacity .35s, transform .35s;
-  }
-  .tip.show { opacity: 1; transform: none; }
-  .tip .t { font-size: .95rem; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-  .tip p { font-size: .8rem; line-height: 1.65; }
-  .tip .eq { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.85); font-size: .8rem; font-weight: 700; text-align: center; }
-  .tip .x { position: absolute; top: 10px; right: 12px; border: none; background: none; font-size: 1rem; cursor: pointer; color: var(--ink-soft); }
-
-  .tag {
-    position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, -50%);
-    font-size: .74rem; font-weight: 600; padding: 4px 10px; border-radius: 12px; white-space: nowrap;
-    background: rgba(255,255,255,.86); color: var(--ink); box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  }
-  .tag.b { color: var(--blue); } .tag.r { color: var(--red); } .tag.big { font-size: .82rem; font-weight: 800; }
-  .tag.ex { background: rgba(255,255,255,.95); border: 1.5px solid currentColor; }
-  .hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 5; font-size: .74rem; color: rgba(29,29,31,.45); }
-  .fallback { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ink-soft); line-height: 1.8; }
-
-  /* 3D 立體 / 循環示意圖 切換 */
-  .views { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-top: 12px; border-radius: 16px; background: rgba(118,118,128,.14); }
-  .view-btn { border: none; font: inherit; font-size: .86rem; font-weight: 700; min-height: 42px; border-radius: 12px; background: transparent; color: var(--ink-soft); cursor: pointer; }
-  .view-btn.on { background: #fff; color: var(--ink); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-
-  /* 圖層開關 */
-  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
-  .presets .btn { margin: 0; }
-  .layers { display: flex; flex-wrap: wrap; gap: 6px; }
-  .layer {
-    display: inline-flex; align-items: center; gap: 5px; cursor: pointer; font: inherit; font-size: .78rem; font-weight: 600;
-    min-height: 36px; padding: 5px 11px; border-radius: 999px; color: var(--ink-soft);
-    border: 1.5px solid rgba(118,118,128,.25); background: rgba(255,255,255,.6);
-  }
-  .layer[aria-pressed="true"] { color: var(--ink); background: #fff; border-color: var(--accent); }
-  .layer::before { content: ""; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; }
-  .layer[aria-pressed="true"]::before { background: var(--accent); border-color: var(--accent); }
-
-  /* 循環示意圖（平面） */
-  #diagram { position: absolute; inset: 0; z-index: 1; display: none; padding: 70px 24px 20px 360px; background: var(--bg); }
-  #diagram svg { width: 100%; height: 100%; display: block; }
-  body.flat #diagram { display: block; }
-  body.flat #scene, body.flat .hint, body.flat .tag, body.flat .only3d { display: none !important; }
-  #diagram text { font-family: inherit; font-weight: 800; }
-  @media (max-width: 760px), (max-width: 1100px) and (orientation: portrait) {
-    #diagram { padding: 56px 6px 46vh 6px; }
-  }
-
-  @media (max-width: 760px) {
-    .warn { top: 8px; left: 8px; right: 8px; transform: none; white-space: normal; font-size: .78rem; padding: 7px 12px; text-align: center; }
-    .tip { left: 8px; right: 8px; width: auto; top: 56px; bottom: auto; padding: 10px 14px; }
-    .tip p { font-size: .72rem; line-height: 1.55; }
-    .tip .t { font-size: .85rem; margin-bottom: 4px; }
-    .tip .eq { font-size: .72rem; padding: 5px 8px; margin-top: 6px; }
-  }
+  .phase { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
+  .phase span { text-align: center; font-size: .78rem; padding: 6px 2px; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); }
+  .phase span.on { background: rgba(var(--accent-rgb), .2); color: var(--white); font-weight: 700; }
+  .legend { display: flex; gap: 14px; font-size: .84rem; margin-top: 8px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 </style>
-<script src="mobile.js"></script>
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
-<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
+<canvas id="cv" aria-label="心臟四個腔室與體循環、肺循環的 3D 模型"></canvas>
 
-<div id="scene"></div>
-<div class="warn">⚠️ 畫面的左邊，其實是人體的右邊喔！</div>
-
-<aside class="panel glass" id="panel">
+<aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
-  <a class="back" href="index.html#g7">‹ 課程總覽</a>
-  <div class="title">心臟與雙循環</div>
-  <div class="sub">肺循環 + 體循環 · 看穿血流與物質交換</div>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>心臟與血液循環</h1>
+  <p class="sub">國一生物 · 生物的運輸與防禦</p>
 
   <div class="body">
-    <div class="views" role="tablist" aria-label="檢視方式">
-      <button class="view-btn on" data-view="3d" role="tab" aria-selected="true">3D 立體</button>
-      <button class="view-btn" data-view="flat" role="tab" aria-selected="false">循環示意圖</button>
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="all" aria-pressed="true">完整循環</button>
+      <button class="mode" data-k="pul" aria-pressed="false">只看<br>肺循環</button>
+      <button class="mode" data-k="sys" aria-pressed="false">只看<br>體循環</button>
     </div>
 
-    <div class="box only3d">
-      <div class="h">圖層（點一下開／關）</div>
-      <div class="presets">
-        <button class="btn primary" id="onlyValves">只看瓣膜</button>
-        <button class="btn" id="allLayers">全部顯示</button>
-      </div>
-      <div class="layers" id="layers"></div>
+    <div class="group">
+      <div class="result" id="route"></div>
+      <div class="legend"><span><i style="background:#ff4d5e"></i>充氧血</span><span><i style="background:#4d7dff"></i>缺氧血</span></div>
     </div>
 
-    <div class="box">
-      <div class="h">觀察模式</div>
-      <div class="modes">
-        <button class="mode on" data-mode="flow"><span>🩸</span>純看血流</button>
-        <button class="mode" data-mode="gas"><span>🫁</span>氣體交換 O₂ / CO₂</button>
-        <button class="mode" data-mode="glucose"><span>🍬</span>葡萄糖交換</button>
+    <div class="group">
+      <div class="group-title">心跳</div>
+      <div class="ctrl">
+        <label for="bpm">心跳速率 <output id="bpmVal"></output></label>
+        <input type="range" id="bpm" min="20" max="120" step="5" value="40">
       </div>
+      <div class="row"><button class="btn grow" id="play" aria-pressed="true">❚❚ 暫停</button></div>
+      <div class="phase" id="phase"><span>心房收縮</span><span>心室收縮</span><span>舒張</span></div>
     </div>
 
-    <div class="box">
-      <div class="rate"><span>心搏速度</span><span class="v" id="bpmVal">40<small>次/分</small></span></div>
-      <input type="range" id="bpm" min="6" max="150" step="1" value="40" aria-label="心搏速度">
-      <div class="scale"><span>極慢（看瓣膜）</span><span>正常</span><span>激烈運動</span></div>
-      <div class="btns">
-        <button class="btn primary" id="playBtn">⏸ 暫停</button>
-        <button class="btn" id="viewBtn">重設視角</button>
-      </div>
+    <div class="group">
+      <div class="group-title">要看哪些部分</div>
+      <label class="sw"><input type="checkbox" id="lShell" checked><span class="track"></span>心臟外壁</label>
+      <label class="sw"><input type="checkbox" id="lValve" checked><span class="track"></span>瓣膜</label>
+      <label class="sw"><input type="checkbox" id="lVessel" checked><span class="track"></span>血管</label>
+      <label class="sw"><input type="checkbox" id="lFlow" checked><span class="track"></span>血液流動</label>
+      <label class="sw"><input type="checkbox" id="lLabel" checked><span class="track"></span>名稱</label>
+      <div class="row"><button class="btn grow" id="onlyValve">只看瓣膜</button><button class="btn grow" id="showAll">全部顯示</button></div>
     </div>
 
-    <div class="box">
-      <div class="h">心動週期</div>
-      <div class="phases">
-        <div class="phase" data-p="atrial">心房收縮</div>
-        <div class="phase" data-p="ventricular">心室收縮</div>
-        <div class="phase" data-p="diastole">全心舒張</div>
-      </div>
-      <div class="valves">
-        <div class="valve">房室瓣<b id="avState">—</b></div>
-        <div class="valve">半月瓣<b id="slState">—</b></div>
-      </div>
-    </div>
-
-    <div class="box">
-      <div class="h">圖例</div>
-      <div class="legend">
-        <div><i style="background:#3f7be8"></i>缺氧血</div>
-        <div><i style="background:#e5484d"></i>充氧血</div>
-        <div><i style="background:#fff;border:1px solid #ccc"></i>O₂ 氧氣</div>
-        <div><i style="background:#4b5563"></i>CO₂ 二氧化碳</div>
-        <div><i style="background:#f5b800;border-radius:3px"></i>葡萄糖</div>
-        <div><i style="background:#ffc56b;border-radius:3px"></i>瓣膜</div>
-      </div>
+    <div class="group">
+      <div class="group-title">點一下心臟的部位</div>
+      <div class="result" id="info">點腔室、瓣膜或血管，看它的功能。</div>
     </div>
   </div>
 </aside>
 
-<aside class="tip glass" id="tip" aria-live="polite">
-  <button class="x" id="tipClose" aria-label="關閉提示">✕</button>
-  <div class="t" id="tipTitle"></div>
-  <p id="tipText"></p>
-  <div class="eq" id="tipEq" hidden></div>
-</aside>
-
-<div class="hint">拖曳旋轉 · 滾輪縮放</div>
-
-<!-- 循環示意圖：畫面左邊 = 人體右邊（右心房、右心室在左） -->
-<div id="diagram" aria-label="血液循環示意圖">
-  <svg viewBox="0 0 1000 610" role="img" aria-label="體循環與肺循環示意圖">
-    <defs>
-      <linearGradient id="gLung" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5484d"/><stop offset="1" stop-color="#3f7be8"/></linearGradient>
-      <linearGradient id="gCap" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f7be8"/><stop offset="1" stop-color="#e5484d"/></linearGradient>
-    </defs>
-
-    <!-- 全身組織器官 -->
-    <rect x="40" y="120" width="130" height="270" rx="26" fill="#fff" stroke="#c0712b" stroke-width="5"/>
-    <g fill="#c0712b" font-size="34" text-anchor="middle"><text x="105" y="215">全身</text><text x="105" y="268">組織</text><text x="105" y="321">器官</text></g>
-    <rect x="193" y="116" width="114" height="278" rx="22" fill="none" stroke="#c0712b" stroke-width="3" stroke-dasharray="9 7"/>
-
-    <!-- 血管（外管 + 內側亮線，看起來像管子） -->
-    <g fill="none" stroke-linejoin="round" stroke-linecap="round">
-      <path d="M630 385 V530 H250 V380" stroke="#e5484d" stroke-width="30"/>
-      <path d="M630 385 V530 H250 V380" stroke="#fff" stroke-opacity=".45" stroke-width="14"/>
-      <path d="M470 385 V455 H900 V380" stroke="#eef3f7" stroke-width="42"/>
-      <path d="M470 385 V455 H900 V380" stroke="#3f7be8" stroke-width="30"/>
-      <path d="M470 385 V455 H900 V380" stroke="#fff" stroke-opacity=".45" stroke-width="14"/>
-      <path d="M250 130 V50 H470 V105" stroke="#3f7be8" stroke-width="30"/>
-      <path d="M250 130 V50 H470 V105" stroke="#fff" stroke-opacity=".45" stroke-width="14"/>
-      <path d="M900 140 V50 H630 V105" stroke="#e5484d" stroke-width="30"/>
-      <path d="M900 140 V50 H630 V105" stroke="#fff" stroke-opacity=".45" stroke-width="14"/>
-    </g>
-
-    <!-- 小靜脈 / 微血管 / 小動脈 -->
-    <rect x="208" y="128" width="84" height="122" rx="16" fill="#3f7be8"/>
-    <rect x="208" y="262" width="84" height="122" rx="16" fill="#e5484d"/>
-    <rect x="216" y="242" width="68" height="28" rx="6" fill="url(#gCap)"/>
-    <rect x="202" y="244" width="96" height="24" rx="6" fill="#1d1d1f"/>
-    <g fill="#fff" font-size="21" text-anchor="middle"><text x="250" y="200">小靜脈</text><text x="250" y="262" font-size="15">微血管</text><text x="250" y="335">小動脈</text></g>
-
-    <!-- 心臟：四個腔室 -->
-    <rect x="400" y="100" width="300" height="290" rx="38" fill="#fff6f8" stroke="#e0557a" stroke-width="8"/>
-    <g id="dgChambers" fill="#e0557a" opacity="0">
-      <rect data-c="RA" x="404" y="104" width="142" height="134" rx="30"/><rect data-c="LA" x="554" y="104" width="142" height="134" rx="30"/>
-      <rect data-c="RV" x="404" y="244" width="142" height="142" rx="30"/><rect data-c="LV" x="554" y="244" width="142" height="142" rx="30"/>
-    </g>
-    <path d="M550 100 V390" stroke="#e0557a" stroke-width="8"/>
-    <path d="M400 240 H445 M495 240 H550 M550 240 H605 M655 240 H700" stroke="#e0557a" stroke-width="8"/>
-
-    <!-- 瓣膜（由程式控制開合）：房室瓣在中段，半月瓣在心室出口 -->
-    <g stroke="#ffffff" stroke-width="7" stroke-linecap="round" id="dgValves">
-      <g stroke="#e5484d"><line data-v="av" data-h="445,240" data-s="1" x1="445" y1="240" x2="469" y2="240"/><line data-v="av" data-h="495,240" data-s="-1" x1="495" y1="240" x2="471" y2="240"/>
-      <line data-v="av" data-h="605,240" data-s="1" x1="605" y1="240" x2="629" y2="240"/><line data-v="av" data-h="655,240" data-s="-1" x1="655" y1="240" x2="631" y2="240"/>
-      <line data-v="sl" data-h="455,390" data-s="1" x1="455" y1="390" x2="469" y2="390"/><line data-v="sl" data-h="485,390" data-s="-1" x1="485" y1="390" x2="471" y2="390"/>
-      <line data-v="sl" data-h="615,390" data-s="1" x1="615" y1="390" x2="629" y2="390"/><line data-v="sl" data-h="645,390" data-s="-1" x1="645" y1="390" x2="631" y2="390"/></g>
-    </g>
-
-    <!-- 肺 -->
-    <rect x="866" y="140" width="68" height="240" rx="24" fill="url(#gLung)"/>
-    <text x="900" y="270" fill="#fff" font-size="26" text-anchor="middle">肺</text>
-
-    <!-- 血液（由程式產生） -->
-    <g id="dgBlood"></g>
-
-    <!-- 名稱標籤 -->
-    <g font-size="22" text-anchor="middle" fill="#fff">
-      <rect x="430" y="148" width="90" height="36" rx="8" fill="#3f7be8"/><text x="475" y="174">右心房</text>
-      <rect x="430" y="300" width="90" height="36" rx="8" fill="#3f7be8"/><text x="475" y="326">右心室</text>
-      <rect x="580" y="148" width="90" height="36" rx="8" fill="#e5484d"/><text x="625" y="174">左心房</text>
-      <rect x="580" y="300" width="90" height="36" rx="8" fill="#e5484d"/><text x="625" y="326">左心室</text>
-      <rect x="512" y="224" width="76" height="32" rx="8" fill="#ff3b4a"/><text x="550" y="248" font-size="19">瓣膜</text>
-      <rect x="318" y="32" width="96" height="36" rx="8" fill="#3f7be8"/><text x="366" y="58">大靜脈</text>
-      <rect x="718" y="32" width="96" height="36" rx="8" fill="#e5484d"/><text x="766" y="58">肺靜脈</text>
-      <rect x="718" y="437" width="96" height="36" rx="8" fill="#3f7be8"/><text x="766" y="463">肺動脈</text>
-      <rect x="392" y="512" width="96" height="36" rx="8" fill="#e5484d"/><text x="440" y="538">主動脈</text>
-      <rect x="400" y="566" width="96" height="36" rx="8" fill="#e5484d"/><text x="448" y="592">充氧血</text>
-      <rect x="604" y="566" width="96" height="36" rx="8" fill="#3f7be8"/><text x="652" y="592">缺氧血</text>
-    </g>
-    <g font-size="20" fill="#6e6e73" text-anchor="middle">
-      <text x="770" y="510">肺循環：右心室 → 肺 → 左心房</text>
-      <text x="250" y="580">體循環：左心室 → 全身 → 右心房</text>
-    </g>
-  </svg>
-</div>
-
+<script src="lab-kit.js"></script>
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { start3D, THREE } from './lab3d.js';
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const RED = new THREE.Color(0xff4d5e), BLUE = new THREE.Color(0x4d7dff);
+const S = { mode: 'all', bpm: 40, play: true, t: 0 };
 
-window.__heartReady = true;
+const L = start3D({ background: 0x08140f, camera: [0, 0.6, 11.5], target: [0, 0, 0], minDist: 5, maxDist: 22, frame, ui, tap });
+const { scene } = L;
 const $ = id => document.getElementById(id);
-const V3 = (x, y, z = 0) => new THREE.Vector3(x, y, z);
-const S = THREE.MathUtils.smoothstep;
+const pickables = [];
+const INFO = {};
 
-/* =========================================================
-   場景與材質（Soft 3D 果凍黏土風）
-   ========================================================= */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
-$('scene').appendChild(renderer.domElement);
-
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xedf4e7);
-scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xd6dde6, 0.6));
-const sun = new THREE.DirectionalLight(0xffffff, 2.1);
-sun.position.set(-6, 12, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 50 });
-sun.shadow.radius = 4;
-scene.add(sun);
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: 0.08 }));
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = -8;
-floor.receiveShadow = true;
-scene.add(floor);
-
-const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 120);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.minDistance = 8;
-controls.maxDistance = 50;
-
-const jelly = (color, extra = {}) => new THREE.MeshPhysicalMaterial({
-  color, transmission: 0.6, roughness: 0.2, thickness: 1.2, ior: 1.3, clearcoat: 0.4, clearcoatRoughness: 0.3,
-  metalness: 0, transparent: true, opacity: 0.95, side: THREE.DoubleSide, ...extra
-});
-const clay = (color, extra = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.55, metalness: 0.05, clearcoat: 0.4, ...extra });
-
-/* 圖層：每個物件建立時登記到所屬圖層，由面板的開關控制顯示 */
-const LAYERS = {
-  shell:  { name: '心臟外膜',   objs: [] },
-  septum: { name: '中隔',       objs: [] },
-  plates: { name: '房室隔板',   objs: [] },
-  valves: { name: '瓣膜',       objs: [] },
-  vessels:{ name: '血管',       objs: [] },
-  beds:   { name: '微血管與細胞', objs: [] },
-  blood:  { name: '血液',       objs: [] },
-  names:  { name: '名稱標籤',   objs: [] }
+// ---------- 腔室：圖上左邊是身體的右邊 ----------
+const CH = {
+  RA: { pos: V(-0.95, 0.75, 0.1),  r: 0.62, c: 0x6d86d9, name: '右心房', txt: '收集全身回來的<b>缺氧血</b>（由大靜脈流入），再送到右心室。' },
+  RV: { pos: V(-0.55, -0.7, 0.35), r: 0.78, c: 0x5872c9, name: '右心室', txt: '把缺氧血打進<b>肺動脈</b>送到肺，壁比左心室薄，因為肺很近。' },
+  LA: { pos: V(0.95, 0.8, -0.2),   r: 0.6,  c: 0xd9707c, name: '左心房', txt: '收集從肺回來的<b>充氧血</b>（由肺靜脈流入），再送到左心室。' },
+  LV: { pos: V(0.6, -0.75, 0.05),  r: 0.9,  c: 0xc95564, name: '左心室', txt: '把充氧血打進<b>主動脈</b>送到全身。壁<b>最厚</b>，因為要把血送得最遠。' }
 };
-const layerOn = Object.fromEntries(Object.keys(LAYERS).map(k => [k, true]));
-const reg = (layer, obj) => { LAYERS[layer].objs.push(obj); return obj; };
-
-/* =========================================================
-   1. 一整顆心臟：外殼 + 中隔 + 房室隔板（一個器官、四個房間）
-   ========================================================= */
-const HEART = { rx: 2.3, ry: 2.2, rz: 1.6, avY: 0.4 };
-const heart = new THREE.Group();
-scene.add(heart);
-{
-  // 外殼：略壓扁的球，下半部往心尖收窄
-  const g = new THREE.SphereGeometry(1, 96, 72);
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i);
-    const taper = 1 - 0.32 * S(-y, 0, 1);       // 越往下越窄
-    p.setXYZ(i, p.getX(i) * HEART.rx * taper, y * HEART.ry, p.getZ(i) * HEART.rz * (1 - 0.15 * S(-y, 0, 1)));
-  }
-  g.computeVertexNormals();
-  const shell = new THREE.Mesh(g, jelly(0xffdce5));
-  shell.castShadow = true;
-  heart.add(reg('shell', shell));
-  heart.userData.shell = shell;
+for (const [k, c] of Object.entries(CH)) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(c.r, 32, 20), L.mat(c.c, { transparent: true, opacity: 0.92 }));
+  m.position.copy(c.pos);
+  m.scale.set(1, k[1] === 'V' ? 1.25 : 0.9, 0.9);
+  m.userData.key = k; c.mesh = m; c.base = m.scale.clone();
+  scene.add(m); pickables.push(m);
+  INFO[k] = `<b>${c.name}</b>：${c.txt}`;
+  c.lbl = L.label(c.name, () => c.mesh.position.clone().add(V(0, 0, c.r + 0.4)));
 }
-// 外殼內任一高度 y 的截面半徑（考慮心尖收窄）
-const radiusAt = y => {
-  const u = y / HEART.ry, base = Math.sqrt(Math.max(0, 1 - u * u)), k = 1 - 0.32 * S(-u, 0, 1);
-  return { x: HEART.rx * base * k, z: HEART.rz * base * (1 - 0.15 * S(-u, 0, 1)) };
-};
+// 外壁（半透明）
+const shell = new THREE.Mesh(new THREE.SphereGeometry(1.75, 40, 28), L.mat(0xe0707e, { transparent: true, opacity: 0.18, depthWrite: false }));
+shell.scale.set(1.05, 1.25, 0.85); shell.rotation.z = -0.25;
+scene.add(shell);
+// 中隔
+const septum = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.6, 1.1), L.mat(0xf0c2b6));
+septum.position.set(0.05, -0.05, 0.1); septum.rotation.z = -0.22;
+scene.add(septum);
 
-// 中隔（不透明）：沿 YZ 平面的橢圓板，把心臟分成左右兩半
-{
-  const sh = new THREE.Shape();
-  const pts = [];
-  for (let i = 0; i <= 64; i++) {
-    const t = (i / 64) * Math.PI * 2;
-    const y = Math.sin(t) * HEART.ry * 0.96;
-    const r = radiusAt(y).z * 0.94;
-    pts.push(new THREE.Vector2(Math.cos(t) * r, y));
+// ---------- 瓣膜 ----------
+const VALVES = [
+  { key: 'tri',  name: '房室瓣（右）', at: V(-0.78, 0.05, 0.25), kind: 'av', txt: '在右心房和右心室之間，<b>防止血液倒流</b>回心房。心室收縮時關上。' },
+  { key: 'mit',  name: '房室瓣（左）', at: V(0.8, 0.05, -0.08),  kind: 'av', txt: '在左心房和左心室之間，心室收縮時關上，血才不會倒流回心房。' },
+  { key: 'pulv', name: '半月瓣（肺動脈）', at: V(-0.25, 0.55, 0.75), kind: 'sl', txt: '在右心室和肺動脈之間。心室收縮時打開，舒張時關上，防止血倒流回心室。' },
+  { key: 'aov',  name: '半月瓣（主動脈）', at: V(0.25, 0.45, 0.3),  kind: 'sl', txt: '在左心室和主動脈之間。心室收縮時打開，舒張時關上。' }
+];
+const valveGroup = new THREE.Group(); scene.add(valveGroup);
+VALVES.forEach(v => {
+  const g = new THREE.Group(); g.position.copy(v.at);
+  const leafs = [];
+  for (let i = 0; i < 3; i++) {
+    const leaf = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16, 0, Math.PI * 2 / 3), L.mat(0xffd27a, { side: THREE.DoubleSide, emissive: 0x8a5a00, depthTest: false, transparent: true }));
+    leaf.renderOrder = 10;
+    const pivot = new THREE.Group(); pivot.rotation.z = i * Math.PI * 2 / 3; pivot.add(leaf); leaf.rotation.z = 0;
+    g.add(pivot); leafs.push(leaf);
+    leaf.userData.key = v.key; pickables.push(leaf);
   }
-  sh.setFromPoints(pts);
-  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelSize: 0.04, bevelThickness: 0.04, bevelSegments: 3 });
-  g.translate(0, 0, -0.08);
-  g.rotateY(Math.PI / 2);
-  const septum = new THREE.Mesh(g, clay(0xf2c9d4));
-  septum.castShadow = true;
-  heart.add(reg('septum', septum));
-}
-
-// 房室隔板（每側一片，中間開一個瓣膜孔）
-const AV_HOLE = { R: V3(-1.15, HEART.avY, 0), L: V3(1.15, HEART.avY, 0), r: 0.52 };
-['R', 'L'].forEach(side => {
-  const s = side === 'R' ? -1 : 1;
-  const rr = radiusAt(HEART.avY);
-  const sh = new THREE.Shape();
-  const pts = [];
-  for (let i = 0; i <= 48; i++) {
-    const t = -Math.PI / 2 + (i / 48) * Math.PI;      // 半個橢圓（朝外側）
-    pts.push(new THREE.Vector2(Math.cos(t) * rr.x * 0.97 * s, Math.sin(t) * rr.z * 0.97));
-  }
-  sh.setFromPoints(pts);
-  const hole = new THREE.Path();
-  hole.absarc(AV_HOLE[side].x, 0, AV_HOLE.r, 0, Math.PI * 2, true);
-  sh.holes.push(hole);
-  const g = new THREE.ShapeGeometry(sh, 48);
-  g.rotateX(Math.PI / 2);
-  const plate = new THREE.Mesh(g, clay(0xf6dbe2, { transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-  plate.position.y = HEART.avY;
-  heart.add(reg('plates', plate));
+  g.lookAt(v.kind === 'av' ? v.at.clone().add(V(0, -1, 0.2)) : v.at.clone().add(V(0, 1, 0)));
+  v.leafs = leafs; v.g = g; valveGroup.add(g);
+  INFO[v.key] = `<b>${v.name}</b>：${v.txt}`;
+  v.lbl = L.label(v.name, () => g.getWorldPosition(V(0, 0, 0)).add(V(v.kind === 'av' ? (v.at.x < 0 ? -1.3 : 1.3) : 0, 0, 0.3)));
 });
 
-/* ----- 瓣膜（白色圓潤閘門） ----- */
-const valveMat = clay(0xffc56b, { emissive: 0xffa630, emissiveIntensity: 0.25 });   // 金黃色，拿掉外膜後也看得清楚
-function makeValve(center, width, up) {
-  const g = new THREE.Group();
-  g.position.copy(center);
-  const flaps = [-1, 1].map(s => {
-    const pivot = new THREE.Group();
-    pivot.position.x = s * width / 2;
-    const leaf = new THREE.Mesh(new RoundedBoxGeometry(width / 2, 0.07, width * 0.9, 4, 0.03), valveMat);
-    leaf.position.x = -s * width / 4;
-    leaf.castShadow = true;
-    pivot.add(leaf);
-    g.add(pivot);
-    return { pivot, s };
-  });
-  heart.add(reg('valves', g));
-  return { g, flaps, up, open: 0 };
+// ---------- 肺與全身 ----------
+function organ(pos, color, name, sx = 1, sy = 1) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.9, 24, 16), L.mat(color, { transparent: true, opacity: 0.55 }));
+  m.position.copy(pos); m.scale.set(sx, sy, 0.7); scene.add(m);
+  L.label(name, () => pos.clone().add(V(0, -0.2, 0.9)), 'big');
+  return m;
 }
-const VALVES = {
-  tri: makeValve(AV_HOLE.R, 0.98, false),          // 三尖瓣
-  mit: makeValve(AV_HOLE.L, 0.98, false),          // 二尖瓣
-  pul: makeValve(V3(-0.55, 0.55, 1.05), 0.46, true), // 肺動脈瓣
-  aor: makeValve(V3(0.55, 0.55, 1.05), 0.48, true)   // 主動脈瓣
+organ(V(-3.4, 2.4, -0.4), 0xf2a3b3, '肺（右）', 0.9, 1.3);
+organ(V(3.4, 2.4, -0.4), 0xf2a3b3, '肺（左）', 0.9, 1.3);
+organ(V(0, -4.1, -0.3), 0xd9b48f, '全身組織（微血管）', 2.6, 0.55);
+
+// ---------- 血管路徑：兩條 8 字形迴路（經右肺／左肺） ----------
+const SEG = {
+  heartR: [V(-0.95, 1.6, -0.3), V(-0.95, 0.85, 0.1), V(-0.6, -0.2, 0.3), V(-0.5, -0.9, 0.4)],          // 大靜脈→右心房→右心室
+  pa:     [V(-0.3, 0.2, 0.7), V(-0.15, 1.5, 0.5), V(0, 2.2, 0.2)],                                      // 肺動脈
+  toLungR: [V(-1.2, 2.5, 0), V(-2.6, 2.6, -0.3), V(-3.2, 2.2, -0.3)],
+  backLungR: [V(-3.0, 1.6, -0.6), V(-1.5, 1.4, -0.8), V(0.4, 1.3, -0.7)],
+  toLungL: [V(1.2, 2.5, 0), V(2.6, 2.6, -0.3), V(3.2, 2.2, -0.3)],
+  backLungL: [V(3.0, 1.6, -0.6), V(1.9, 1.4, -0.7)],
+  heartL: [V(1.0, 0.9, -0.3), V(0.85, 0.0, -0.05), V(0.6, -0.9, 0.05), V(0.45, -0.3, 0.2)],            // 左心房→左心室→
+  aorta:  [V(0.3, 0.7, 0.2), V(0.35, 2.0, 0.1), V(0.9, 2.3, -0.5), V(1.25, 1.4, -0.9), V(1.2, -1.8, -0.9), V(0.9, -3.6, -0.4)],
+  body:   [V(0, -4.1, 0.2), V(-0.9, -3.6, -0.4)],
+  vc:     [V(-1.4, -1.8, -0.7), V(-1.3, 0.2, -0.6)]
 };
-function setValve(v, k) {
-  v.open = k;
-  const ang = k * 1.25;
-  v.flaps.forEach(({ pivot, s }) => { pivot.rotation.z = (v.up ? 1 : -1) * -s * ang; });
-}
+const loopR = [...SEG.heartR, ...SEG.pa, ...SEG.toLungR, ...SEG.backLungR, ...SEG.heartL, ...SEG.aorta, ...SEG.body, ...SEG.vc];
+const loopL = [...SEG.heartR, ...SEG.pa, ...SEG.toLungL, ...SEG.backLungL, ...SEG.heartL, ...SEG.aorta, ...SEG.body, ...SEG.vc];
+const curves = [new THREE.CatmullRomCurve3(loopR, true, 'centripetal'), new THREE.CatmullRomCurve3(loopL, true, 'centripetal')];
+// 找出「到肺」和「到全身」在曲線上的位置，用來換顏色
+function uNear(curve, p) { let best = 0, bd = 1e9; for (let i = 0; i <= 400; i++) { const d = curve.getPointAt(i / 400).distanceTo(p); if (d < bd) { bd = d; best = i / 400; } } return best; }
+const marks = curves.map((c, i) => ({ lung: uNear(c, i ? V(3.2, 2.2, -0.3) : V(-3.2, 2.2, -0.3)), body: uNear(c, V(0, -4.1, 0.2)) }));
+const oxy = (k, u) => { const m = marks[k]; return u > m.lung && u < m.body; };
 
-/* =========================================================
-   2. 雙循環迴圈（8 字型）
-   ========================================================= */
-const curve = pts => new THREE.CatmullRomCurve3(pts);
-const LUNG_Y = 6.0, BODY_Y = -6.0;
-const PATHS = {
-  pa: curve([V3(-0.55, 0.65, 1.05), V3(-0.45, 2.4, 0.9), V3(-1.3, 3.9, 0.5), V3(-2.7, LUNG_Y - 0.3, 0)]),            // 肺動脈
-  pv: curve([V3(2.7, LUNG_Y - 0.3, 0), V3(3.1, 3.8, -0.4), V3(2.2, 2.3, -0.5), V3(1.3, 1.5, -0.4)]),                // 肺靜脈
-  ao: curve([V3(0.55, 0.65, 1.05), V3(0.45, 2.5, 0.9), V3(1.7, 3.5, 0.6), V3(4.1, 2.6, 0.3), V3(4.8, 0, 0), V3(4.6, -3.8, 0), V3(2.7, BODY_Y + 0.3, 0)]),  // 主動脈
-  vc: curve([V3(-2.7, BODY_Y + 0.3, 0), V3(-4.6, -3.8, 0), V3(-4.8, 0, -0.2), V3(-4.2, 1.9, -0.45), V3(-1.4, 1.45, -0.45)])                               // 上、下腔靜脈
+// 血管管子：依含氧狀態上色
+const vessels = new THREE.Group(); scene.add(vessels);
+const vesselLabels = [];
+function tubeFor(points, color, name, key, txt, at = 0.5) {
+  const c = new THREE.CatmullRomCurve3(points, false, 'centripetal');
+  const m = new THREE.Mesh(new THREE.TubeGeometry(c, 40, 0.16, 10), L.mat(color, { transparent: true, opacity: 0.55, depthWrite: false }));
+  m.userData.key = key; vessels.add(m); pickables.push(m);
+  if (name) {
+    INFO[key] = `<b>${name}</b>：${txt}`;
+    vesselLabels.push(L.label(name, () => c.getPointAt(at).add(V(0, 0.25, 0.35))));
+  }
+  return m;
+}
+const VES = {
+  pa:   tubeFor([...SEG.pa, ...SEG.toLungR], 0x4d7dff, '肺動脈', 'pa', '從右心室把<b>缺氧血</b>送到肺。是動脈，但裡面流的是缺氧血！', 0.62),
+  paL:  tubeFor([SEG.pa[2], ...SEG.toLungL], 0x4d7dff, '', 'pa', ''),
+  pv:   tubeFor([...SEG.backLungR, SEG.heartL[0]], 0xff4d5e, '肺靜脈', 'pv', '把肺裡的<b>充氧血</b>送回左心房。是靜脈，但流的是充氧血！', 0.18),
+  pvL:  tubeFor([...SEG.backLungL, SEG.heartL[0]], 0xff4d5e, '', 'pv', ''),
+  ao:   tubeFor(SEG.aorta, 0xff4d5e, '主動脈', 'ao', '人體最粗的動脈，把左心室打出的<b>充氧血</b>送往全身。'),
+  vc:   tubeFor([SEG.body[1], ...SEG.vc, SEG.heartR[0], SEG.heartR[1]], 0x4d7dff, '大靜脈', 'vc', '把全身回來的<b>缺氧血</b>送回右心房。')
 };
-const BLUE = new THREE.Color(0x3f7be8), RED = new THREE.Color(0xe5484d);
-[['pa', 0x9fb8ff], ['pv', 0xffa9b8], ['ao', 0xffa9b8], ['vc', 0x9fb8ff]].forEach(([k, c]) => {
-  const m = new THREE.Mesh(new THREE.TubeGeometry(PATHS[k], 120, 0.2, 20, false), jelly(c, { opacity: 0.6, transmission: 0.8 }));
-  m.castShadow = true;
-  scene.add(reg('vessels', m));
-});
 
-/** 微血管網：多條細分支，顏色由一端漸變到另一端 */
-function capillaryBed(y, fromX, toX, fromColor, toColor) {
-  const branches = [];
-  for (let i = 0; i < 6; i++) {
-    const z = (i - 2.5) * 0.42;
-    const pts = [];
-    for (let k = 0; k <= 8; k++) {
-      const t = k / 8;
-      const x = fromX + (toX - fromX) * t;
-      const spread = Math.sin(Math.PI * t);                       // 中間散開、兩端匯聚
-      pts.push(V3(x, y + Math.sin(t * Math.PI * 3 + i) * 0.18 * spread, z * spread));
-    }
-    const cv = curve(pts);
-    const geo = new THREE.TubeGeometry(cv, 80, 0.07, 10, false);
-    // 頂點顏色：由缺氧（藍）漸變到充氧（紅）或反之
-    const pos = geo.attributes.position, col = [];
-    for (let j = 0; j < pos.count; j++) {
-      const t = (pos.getX(j) - fromX) / (toX - fromX);
-      const c = fromColor.clone().lerp(toColor, THREE.MathUtils.clamp(t, 0, 1));
-      col.push(c.r, c.g, c.b);
-    }
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    scene.add(reg('beds', new THREE.Mesh(geo, clay(0xffffff, { vertexColors: true, transparent: true, opacity: 0.85 }))));
-    branches.push(cv);
-  }
-  // 發光平台：微血管交換區
-  const pad = new THREE.Mesh(new RoundedBoxGeometry(Math.abs(toX - fromX) + 1.2, 0.08, 3.4, 4, 0.04),
-    new THREE.MeshPhysicalMaterial({ color: 0xffffff, emissive: 0xfff1d6, emissiveIntensity: 0.5, transparent: true, opacity: 0.35, roughness: 0.4 }));
-  pad.position.set((fromX + toX) / 2, y - 0.45, 0);
-  pad.receiveShadow = true;
-  scene.add(reg('beds', pad));
-  return branches;
-}
-const LUNG_BEDS = capillaryBed(LUNG_Y, -2.7, 2.7, BLUE, RED);   // 肺：藍 → 紅
-const BODY_BEDS = capillaryBed(BODY_Y, 2.7, -2.7, RED, BLUE);   // 組織：紅 → 藍
+// ---------- 血液粒子 ----------
+const N = 170;
+const blood = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 8, 6), new THREE.MeshBasicMaterial(), N);
+const P = Array.from({ length: N }, (_, i) => ({ k: i % 2, u: Math.random() }));
+scene.add(blood);
+const dummy = new THREE.Object3D(), col = new THREE.Color();
 
-// 肺泡（上方）與組織細胞（下方）
-const alveoli = [], cells = [];
-for (let i = 0; i < 16; i++) {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(0.32 + Math.random() * 0.12, 24, 16), jelly(0xffd6e0, { opacity: 0.7 }));
-  m.position.set(-3 + (i % 8) * 0.86, LUNG_Y + 0.95 + Math.floor(i / 8) * 0.55, (i % 2 ? 0.8 : -0.8) + (Math.random() - 0.5) * 0.4);
-  scene.add(reg('beds', m)); alveoli.push(m);
-}
-for (let i = 0; i < 14; i++) {
-  const m = new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.5, 0.62, 3, 0.16), clay([0xd8f3e4, 0xe7defa, 0xfff0c9][i % 3]));
-  m.position.set(-3 + (i % 7) * 1.0, BODY_Y - 1.0 - Math.floor(i / 7) * 0.62, (i % 2 ? 0.9 : -0.9) + (Math.random() - 0.5) * 0.3);
-  m.castShadow = true;
-  scene.add(reg('beds', m)); cells.push(m);
-}
-
-/* ----- 腔室名稱（立體粗體字） ----- */
-function textSprite(text, color, w = 2.0) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 180;
-  const g = c.getContext('2d');
-  g.font = '900 120px "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif';
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (let i = 8; i > 0; i--) { g.fillStyle = 'rgba(0,0,0,0.05)'; g.fillText(text, 256 + i * 1.2, 92 + i * 1.6); }
-  g.lineWidth = 14; g.strokeStyle = '#fff'; g.lineJoin = 'round'; g.strokeText(text, 256, 90);
-  g.fillStyle = color; g.fillText(text, 256, 90);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  s.scale.set(w, w * 180 / 512, 1);
-  s.renderOrder = 20;
-  return s;
-}
-[['右心房', '#2f6ae0', V3(-3.35, 1.45, 0.8), V3(-1.2, 1.3, 0.6)], ['右心室', '#2f6ae0', V3(-3.35, -1.0, 0.8), V3(-1.1, -0.9, 0.6)],
- ['左心房', '#e03a44', V3(3.35, 1.45, 0.8), V3(1.2, 1.3, 0.6)],  ['左心室', '#e03a44', V3(3.35, -1.0, 0.8), V3(1.1, -0.9, 0.6)]]
-  .forEach(([t, col, p, target]) => {
-    const s = textSprite(t, col);
-    s.position.copy(p);
-    scene.add(reg('names', s));
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([p.clone().add(V3(-Math.sign(p.x) * 0.8, 0, 0)), target]),
-      new THREE.LineDashedMaterial({ color: col, dashSize: 0.1, gapSize: 0.08, depthTest: false }));
-    line.computeLineDistances();
-    line.renderOrder = 19;
-    scene.add(reg('names', line));
-  });
-
-/* ----- HTML 標籤 ----- */
-const labels = [];
-function addLabel(html, pos, cls = '', mode = null, layer = mode ? 'beds' : 'names') {
-  const el = document.createElement('div');
-  el.className = 'tag ' + cls;
-  el.innerHTML = html;
-  document.body.appendChild(el);
-  const L = { el, pos, mode, layer };
-  labels.push(L);
-  return L;
-}
-addLabel('🫁 肺部微血管網（肺泡）', V3(0, LUNG_Y + 2.15, 0), 'big');
-addLabel('🧫 組織微血管網（全身細胞）', V3(0, BODY_Y - 2.45, 0), 'big');
-addLabel('肺循環', V3(-4.0, 4.6, 0), 'b big');
-addLabel('體循環', V3(5.8, -1.0, 0), 'r big');
-addLabel('肺動脈', V3(-1.75, 3.6, 0.5), 'b');
-addLabel('肺靜脈', V3(3.65, 3.6, -0.4), 'r');
-addLabel('主動脈', V3(2.1, 3.95, 0.6), 'r');
-addLabel('上、下腔靜脈', V3(-5.75, 0.3, -0.2), 'b');
-// 交換模式的方向標籤
-const EXL = {
-  gas: [
-    addLabel('O₂ 進入血液 ↓', V3(-2.2, LUNG_Y + 1.7, 0), 'ex', 'gas'),
-    addLabel('CO₂ 呼出 ↑', V3(2.3, LUNG_Y + 1.7, 0), 'ex', 'gas'),
-    addLabel('O₂ 進入細胞 ↓', V3(-2.0, BODY_Y - 1.75, 0), 'ex', 'gas'),
-    addLabel('CO₂ 進入血液 ↑', V3(2.0, BODY_Y - 1.75, 0), 'ex', 'gas')
-  ],
-  glucose: [addLabel('葡萄糖 → 細胞（細胞呼吸）', V3(0, BODY_Y - 1.85, 0), 'ex', 'glucose')]
-};
-EXL.gas.forEach((L, i) => { L.el.style.color = i % 2 ? '#4b5563' : '#3f7be8'; });
-EXL.glucose[0].el.style.color = '#b98500';
-const tmpV = V3(0, 0, 0);
-function placeLabels() {
-  for (const L of labels) {
-    const show = (!L.mode || L.mode === mode) && layerOn[L.layer];
-    tmpV.copy(L.pos).project(camera);
-    L.el.style.display = show && tmpV.z < 1 ? '' : 'none';
-    L.el.style.left = ((tmpV.x + 1) / 2 * window.innerWidth) + 'px';
-    L.el.style.top = ((1 - tmpV.y) / 2 * window.innerHeight) + 'px';
-  }
-}
-
-/* =========================================================
-   心動週期（相位 φ ∈ [0,1)）
-   ========================================================= */
-const PHASE = {
-  avOpen: p => p < 0.15 || p > 0.6,
-  slOpen: p => p > 0.22 && p < 0.55,
-  name: p => p < 0.15 ? 'atrial' : p < 0.55 ? 'ventricular' : 'diastole'
-};
-const bump = (p, a, b) => (p > a && p < b) ? Math.sin(Math.PI * (p - a) / (b - a)) : 0;
-
-/* =========================================================
-   血液粒子：沿雙循環不斷流動，碰到關閉的瓣膜就在腔室等待
-   ---------------------------------------------------------
-   一圈：右心房 →(三尖瓣)→ 右心室 →(肺動脈瓣)→ 肺動脈 → 肺微血管 → 肺靜脈
-        → 左心房 →(二尖瓣)→ 左心室 →(主動脈瓣)→ 主動脈 → 組織微血管 → 腔靜脈 → 右心房
-   ========================================================= */
-const CHAMBER = {
-  RA: { c: V3(-1.15, 1.35, 0), s: V3(0.7, 0.45, 0.6) }, RV: { c: V3(-1.05, -0.75, 0), s: V3(0.65, 0.6, 0.6) },
-  LA: { c: V3(1.15, 1.35, 0), s: V3(0.7, 0.45, 0.6) },  LV: { c: V3(1.05, -0.75, 0), s: V3(0.65, 0.6, 0.6) }
-};
-const randIn = ch => {
-  const d = V3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(Math.cbrt(Math.random()));
-  return ch.c.clone().add(V3(d.x * ch.s.x, d.y * ch.s.y, d.z * ch.s.z));
-};
-const sample = (cv, n) => Array.from({ length: n + 1 }, (_, i) => cv.getPointAt(i / n));
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-function lap() {
-  const W = [];
-  const add = (p, extra = {}) => W.push({ p, ...extra });
-  add(randIn(CHAMBER.RA), { pool: true });
-  add(VALVES.tri.g.position.clone().add(V3(0, 0.15, 0)), { gate: 'av' });
-  add(VALVES.tri.g.position.clone().add(V3(0, -0.3, 0)));
-  add(randIn(CHAMBER.RV), { pool: true });
-  add(V3(-0.6, 0.2, 0.9));
-  sample(PATHS.pa, 10).forEach((p, i) => add(p, i === 0 ? { gate: 'sl', fast: true } : { fast: true }));
-  sample(pick(LUNG_BEDS), 16).forEach((p, i) => add(p, { bed: 'lung', t: i / 16 }));
-  sample(PATHS.pv, 8).forEach(p => add(p, { fast: true }));
-  add(randIn(CHAMBER.LA), { pool: true });
-  add(VALVES.mit.g.position.clone().add(V3(0, 0.15, 0)), { gate: 'av' });
-  add(VALVES.mit.g.position.clone().add(V3(0, -0.3, 0)));
-  add(randIn(CHAMBER.LV), { pool: true });
-  add(V3(0.6, 0.2, 0.9));
-  sample(PATHS.ao, 16).forEach((p, i) => add(p, i === 0 ? { gate: 'sl', fast: true } : { fast: true }));
-  sample(pick(BODY_BEDS), 16).forEach((p, i) => add(p, { bed: 'body', t: i / 16 }));
-  sample(PATHS.vc, 12).forEach(p => add(p, { fast: true }));
-  return W;
-}
-
-const N = 90;
-const pGeo = new THREE.SphereGeometry(0.11, 14, 10);
-const particles = [];
-for (let i = 0; i < N; i++) {
-  const mat = new THREE.MeshStandardMaterial({ color: BLUE, emissive: BLUE, emissiveIntensity: 1.1, roughness: 0.3 });
-  const m = new THREE.Mesh(pGeo, mat);
-  scene.add(reg('blood', m));
-  const route = lap();
-  const idx = Math.floor(Math.random() * (route.length - 1));
-  // 依開場位置決定含氧量：肺之後到組織之前是充氧血
-  const lungEnd = route.findIndex(w => w.bed === 'lung' && w.t >= 0.99);
-  const bodyStart = route.findIndex(w => w.bed === 'body');
-  const pt = { m, mat, route, idx, o: idx > lungEnd && idx < bodyStart ? 1 : 0, seed: Math.random() * 10 };
-  m.position.copy(route[idx].p);
-  particles.push(pt);
-}
-
-function stepParticles(dt, phase, speedK) {
-  const av = PHASE.avOpen(phase), sl = PHASE.slOpen(phase);
-  const ven = bump(phase, 0.22, 0.55), atr = bump(phase, 0, 0.15);
-  const t = performance.now() / 1000;
-  for (const pt of particles) {
-    const wp = pt.route[pt.idx];
-    if (wp.gate && !(wp.gate === 'av' ? av : sl)) {
-      pt.m.position.x += Math.sin(t * 2 + pt.seed) * 0.0015;
-      pt.m.position.y += Math.cos(t * 2.3 + pt.seed) * 0.0015;
-      continue;
-    }
-    let v = (wp.fast ? 2.4 : wp.bed ? 1.1 : 1.2) * speedK;
-    if (wp.gate === 'sl' || (wp.fast && pt.idx < pt.route.length / 2 + 20)) v *= 1 + 2 * ven;
-    if (wp.gate === 'av' || wp.pool) v *= 1 + 1.5 * atr;
-    const d = wp.p.clone().sub(pt.m.position);
-    const step = v * dt;
-    if (d.length() <= step) {
-      pt.m.position.copy(wp.p);
-      // 經過微血管時含氧量逐漸改變：肺 → 變紅，組織 → 變藍
-      if (wp.bed === 'lung') pt.o = Math.max(pt.o, wp.t);
-      if (wp.bed === 'body') pt.o = Math.min(pt.o, 1 - wp.t);
-      pt.idx++;
-      if (pt.idx >= pt.route.length) { pt.route = lap(); pt.idx = 0; }
-    } else pt.m.position.addScaledVector(d.normalize(), step);
-    pt.mat.color.copy(BLUE).lerp(RED, pt.o);
-    pt.mat.emissive.copy(pt.mat.color);
-  }
-}
-
-/* =========================================================
-   3. 物質交換粒子：O₂、CO₂、葡萄糖
-   ========================================================= */
-const EX = {
-  o2:  { geo: new THREE.SphereGeometry(0.1, 14, 10), mat: clay(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.35 }) },
-  co2: { geo: new THREE.SphereGeometry(0.1, 14, 10), mat: clay(0x4b5563) },
-  glu: { geo: new THREE.CylinderGeometry(0.15, 0.15, 0.07, 6), mat: clay(0xf5b800, { emissive: 0xf5a000, emissiveIntensity: 0.35 }) }
-};
-const exPool = [];
-function spawnEx(type, from, to, life = 2.2) {
-  const m = new THREE.Mesh(EX[type].geo, EX[type].mat);
-  m.position.copy(from);
-  if (type === 'glu') m.rotation.x = Math.PI / 2;
-  scene.add(m);
-  exPool.push({ m, from: from.clone(), to: to.clone(), age: 0, life, spin: Math.random() * 2 });
-}
-const bedPoint = beds => pick(beds).getPointAt(0.2 + Math.random() * 0.6);
-let spawnAcc = 0;
-function stepExchange(dt) {
-  spawnAcc += dt;
-  const interval = mode === 'glucose' ? 0.07 : 0.11;
-  while (spawnAcc > interval) {
-    spawnAcc -= interval;
-    if (mode === 'gas') {
-      // 肺：O₂ 從肺泡進入微血管；CO₂ 從微血管離開、被呼出
-      const a = pick(alveoli).position.clone();
-      spawnEx('o2', a, bedPoint(LUNG_BEDS));
-      const c = bedPoint(LUNG_BEDS);
-      spawnEx('co2', c, c.clone().add(V3((Math.random() - 0.5) * 2, 2.6 + Math.random(), (Math.random() - 0.5) * 2)));
-      // 組織：O₂ 從微血管進入細胞；CO₂ 從細胞進入微血管
-      spawnEx('o2', bedPoint(BODY_BEDS), pick(cells).position.clone());
-      spawnEx('co2', pick(cells).position.clone(), bedPoint(BODY_BEDS));
-    } else if (mode === 'glucose') {
-      // 葡萄糖：大量從組織微血管釋放、進入組織細胞
-      spawnEx('glu', bedPoint(BODY_BEDS), pick(cells).position.clone().add(V3(0, 0.1, 0)), 1.8);
-      spawnEx('glu', bedPoint(BODY_BEDS), pick(cells).position.clone().add(V3(0, 0.1, 0)), 1.8);
-    }
-  }
-  for (let i = exPool.length - 1; i >= 0; i--) {
-    const e = exPool[i];
-    e.age += dt;
-    const k = e.age / e.life;
-    if (k >= 1 || (mode === 'flow')) { scene.remove(e.m); exPool.splice(i, 1); continue; }
-    const ease = k * k * (3 - 2 * k);
-    e.m.position.copy(e.from).lerp(e.to, ease);
-    e.m.position.y += Math.sin(k * Math.PI) * 0.25;            // 微微飄起的弧線
-    e.m.scale.setScalar(Math.min(1, k * 6) * (1 - S(k, 0.82, 1)));
-    e.m.rotation.y += dt * (1 + e.spin);
-  }
-}
-
-/* =========================================================
-   觀念提示卡
-   ========================================================= */
-const TIPS = {
-  flow: {
-    t: '🩸 雙循環', eq: '',
-    p: '<b style="color:#3f7be8">肺循環</b>：右心室 → 肺動脈 → 肺 → 肺靜脈 → 左心房。<br><b style="color:#e5484d">體循環</b>：左心室 → 主動脈 → 全身 → 上、下腔靜脈 → 右心房。<br>兩個循環在心臟交會，形成 8 字形。'
-  },
-  gas: {
-    t: '🫁 氣體交換',
-    p: '<b>肺泡</b>：O₂ 擴散進入血液、CO₂ 離開血液被呼出 → 血液由<b style="color:#3f7be8">藍</b>變<b style="color:#e5484d">紅</b>。<br><b>組織</b>：O₂ 從血液擴散進入細胞、細胞產生的 CO₂ 進入血液 → 血液由<b style="color:#e5484d">紅</b>變<b style="color:#3f7be8">藍</b>。',
-    eq: '氣體總是由「濃度高」往「濃度低」的地方擴散'
-  },
-  glucose: {
-    t: '🍬 葡萄糖交換',
-    p: '小腸吸收的葡萄糖由血液運送到全身，從<b>微血管</b>進入<b>組織細胞</b>。細胞利用葡萄糖和氧氣進行<b>細胞呼吸</b>，釋放能量，同時產生二氧化碳。',
-    eq: '葡萄糖 ＋ 氧 → 二氧化碳 ＋ 水 ＋ 能量'
-  }
-};
-function showTip(m) {
-  const T = TIPS[m];
-  $('tipTitle').textContent = T.t;
-  $('tipText').innerHTML = T.p;
-  $('tipEq').hidden = !T.eq;
-  $('tipEq').textContent = T.eq;
-  $('tip').classList.remove('show');
-  void $('tip').offsetWidth;          // 重新播放彈出動畫
-  $('tip').classList.add('show');
-  // 手機畫面小：提示卡 6 秒後自動收起，不擋住心臟
-  clearTimeout(showTip.timer);
-  if (window.matchMedia('(max-width: 760px)').matches) showTip.timer = setTimeout(() => $('tip').classList.remove('show'), 6000);
-}
-$('tipClose').addEventListener('click', () => $('tip').classList.remove('show'));
-
-/* =========================================================
-   UI 與主迴圈
-   ========================================================= */
-let mode = 'flow', bpm = 40, playing = true, phase = 0.6;
-document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => {
-  mode = b.dataset.mode;
-  document.querySelectorAll('.mode').forEach(x => x.classList.toggle('on', x === b));
-  showTip(mode);
-}));
-$('bpm').addEventListener('input', e => { bpm = Number(e.target.value); $('bpmVal').innerHTML = `${bpm}<small>次/分</small>`; });
-$('playBtn').addEventListener('click', () => { playing = !playing; $('playBtn').textContent = playing ? '⏸ 暫停' : '▶ 播放'; });
-$('collapse').addEventListener('click', () => {
-  const c = $('panel').classList.toggle('collapsed');
-  $('collapse').textContent = c ? '展開' : '收合';
-});
-
-let closeView = false;     // 「只看瓣膜」時拉近到心臟
-function resetView() {
-  const pos = closeView ? V3(0, 1.6, 15) : V3(0, 2.2, 29), tgt = closeView ? V3(0, 0.3, 0) : V3(0, 0.5, 0);
-  const panel = $('panel');
-  if (!window.MobileView?.isMobile() && !panel.classList.contains('collapsed')) {
-    const visW = 2 * pos.distanceTo(tgt) * Math.tan(camera.fov * Math.PI / 360) * camera.aspect;
-    const shift = -(panel.getBoundingClientRect().right / 2) / window.innerWidth * visW;
-    pos.x += shift; tgt.x += shift;
-  }
-  camera.position.copy(pos);
-  controls.target.copy(tgt);
-  controls.update();
-  window.MobileView?.frame(camera, controls, 0.8);
-}
-$('viewBtn').addEventListener('click', resetView);
-
-/* ----- 圖層開關 ----- */
-function applyLayers() {
-  Object.entries(LAYERS).forEach(([k, L]) => L.objs.forEach(o => { o.visible = layerOn[k]; }));
-  document.querySelectorAll('.layer').forEach(b => b.setAttribute('aria-pressed', String(layerOn[b.dataset.k])));
-}
-$('layers').innerHTML = Object.entries(LAYERS).map(([k, L]) =>
-  `<button class="layer" data-k="${k}" aria-pressed="true">${L.name}</button>`).join('');
-$('layers').addEventListener('click', e => {
-  const b = e.target.closest('.layer');
-  if (!b) return;
-  layerOn[b.dataset.k] = !layerOn[b.dataset.k];
-  applyLayers();
-});
-function setLayers(keys, close) {
-  Object.keys(layerOn).forEach(k => { layerOn[k] = keys.includes(k); });
-  applyLayers();
-  closeView = close;
-  resetView();
-}
-$('onlyValves').addEventListener('click', () => setLayers(['valves', 'blood', 'names'], true));
-$('allLayers').addEventListener('click', () => setLayers(Object.keys(LAYERS), false));
-
-/* ----- 3D 立體 / 循環示意圖 ----- */
-let view = '3d';
-document.querySelectorAll('.view-btn').forEach(b => b.addEventListener('click', () => {
-  view = b.dataset.view;
-  document.querySelectorAll('.view-btn').forEach(x => {
-    x.classList.toggle('on', x === b);
-    x.setAttribute('aria-selected', String(x === b));
-  });
-  document.body.classList.toggle('flat', view === 'flat');
-}));
-
-/* =========================================================
-   循環示意圖的血流：沿一條 8 字形折線前進
-   小動脈 → 微血管 → 小靜脈 → 大靜脈 → 右心房 →(房室瓣)→ 右心室 →(半月瓣)→ 肺動脈 → 肺
-   → 肺靜脈 → 左心房 →(房室瓣)→ 左心室 →(半月瓣)→ 主動脈 → 小動脈
-   ========================================================= */
-const DG = (() => {
-  const P = [[250,380],[250,130],[250,50],[470,50],[470,240],[470,390],[470,455],[900,455],[900,380],[900,140],
-             [900,50],[630,50],[630,240],[630,390],[630,530],[250,530],[250,380]];
-  const cum = [0];
-  for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
-  const TOTAL = cum[cum.length - 1];
-  const GATES = [{ s: cum[4], v: 'av' }, { s: cum[5], v: 'sl' }, { s: cum[12], v: 'av' }, { s: cum[13], v: 'sl' }];
-  const at = s => {
-    let i = 1;
-    while (i < cum.length - 1 && cum[i] < s) i++;
-    const t = (s - cum[i - 1]) / (cum[i] - cum[i - 1]);
-    const [x0, y0] = P[i - 1], [x1, y1] = P[i];
-    return { x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, dx: Math.sign(x1 - x0), dy: Math.sign(y1 - y0) };
-  };
-  // 含氧量：微血管（小動脈→小靜脈）由紅變藍；肺由藍變紅
-  const oxy = s => s < cum[1] ? 1 - s / cum[1] : s < cum[8] ? 0 : s < cum[9] ? (s - cum[8]) / (cum[9] - cum[8]) : 1;
-  const colorOf = o => '#' + BLUE.clone().lerp(RED, o).getHexString();
-
-  const NS = 'http://www.w3.org/2000/svg';
-  const g = document.getElementById('dgBlood');
-  const dots = Array.from({ length: 64 }, (_, i) => {
-    const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('r', 8);
-    c.setAttribute('stroke', '#fff');
-    c.setAttribute('stroke-width', 2.5);
-    g.appendChild(c);
-    return { c, s: (i / 64) * TOTAL, off: (Math.random() - 0.5) * 14 };
-  });
-  const valves = [...document.querySelectorAll('#dgValves line')].map(el => {
-    const [hx, hy] = el.dataset.h.split(',').map(Number);
-    return { el, v: el.dataset.v, hx, hy, s: Number(el.dataset.s), len: el.dataset.v === 'av' ? 24 : 14 };
-  });
-  const chambers = Object.fromEntries([...document.querySelectorAll('#dgChambers rect')].map(r => [r.dataset.c, r]));
-  document.getElementById('dgChambers').setAttribute('opacity', 1);
-
-  function step(dt, phase, speedK) {
-    const open = { av: PHASE.avOpen(phase), sl: PHASE.slOpen(phase) };
-    const ven = bump(phase, 0.22, 0.55), atr = bump(phase, 0, 0.15);
-    const v = 120 * speedK * (1 + 1.2 * ven);
-    for (const d of dots) {
-      let ns = d.s + v * dt;
-      for (const gt of GATES) {           // 碰到關閉的瓣膜就在腔室裡等
-        if (!open[gt.v] && d.s <= gt.s - 3 && ns > gt.s - 3) ns = gt.s - 3 - Math.abs(d.off) * 0.4;
-      }
-      if (ns < d.s) ns = d.s;               // 排隊時不往回退
-      if (ns >= TOTAL) ns -= TOTAL;
-      d.s = ns;
-      const p = at(d.s);
-      // 沿著前進方向的垂直方向錯開，管子裡看起來有好幾排
-      d.c.setAttribute('cx', (p.x - p.dy * d.off).toFixed(1));
-      d.c.setAttribute('cy', (p.y + p.dx * d.off).toFixed(1));
-      d.c.setAttribute('fill', colorOf(oxy(d.s)));
-    }
-    // 瓣膜：關閉時水平擋住通道，打開時往血流方向（下方）擺開
-    valves.forEach(w => {
-      const k = w.v === 'av' ? VALVES.tri.open : VALVES.pul.open;
-      const a = k * 1.2;                                     // 最多約 70°
-      const x2 = w.hx + w.s * w.len * Math.cos(a), y2 = w.hy + w.len * Math.sin(a);
-      w.el.setAttribute('x2', x2.toFixed(1)); w.el.setAttribute('y2', y2.toFixed(1));
-    });
-    // 腔室收縮時微微變色
-    chambers.RA.setAttribute('fill-opacity', 0.14 * atr); chambers.LA.setAttribute('fill-opacity', 0.14 * atr);
-    chambers.RV.setAttribute('fill-opacity', 0.16 * ven); chambers.LV.setAttribute('fill-opacity', 0.16 * ven);
-  }
-  return { step, dots, TOTAL };
-})();
-
-let lastPhase = '';
-function updateUI() {
-  const n = PHASE.name(phase);
-  if (n !== lastPhase) {
-    lastPhase = n;
-    document.querySelectorAll('.phase').forEach(el => el.classList.toggle('on', el.dataset.p === n));
-  }
-  const av = PHASE.avOpen(phase), sl = PHASE.slOpen(phase);
-  $('avState').textContent = av ? '打開 ▼' : '關閉'; $('avState').className = av ? 'open' : 'shut';
-  $('slState').textContent = sl ? '打開 ▲' : '關閉'; $('slState').className = sl ? 'open' : 'shut';
-}
-
-function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(w, h);
-  camera.aspect = w / h;
-  camera.fov = 40;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', resize);
-
-const clock = new THREE.Clock();
-function animate() {
-  frame(Math.min(clock.getDelta(), 0.05));
-  requestAnimationFrame(animate);
-}
-/** 單一幀的所有更新（也供測試直接呼叫） */
+// ---------- 每一幀 ----------
+function phaseAt(f) { return f < 0.15 ? 0 : f < 0.5 ? 1 : 2; }   // 心房收縮、心室收縮、舒張
 function frame(dt) {
-  if (playing) phase = (phase + dt * bpm / 60) % 1;
-  // 心跳：心房收縮（上半部）→ 心室收縮（整顆、較強）
-  const atr = bump(phase, 0, 0.15), ven = bump(phase, 0.22, 0.55);
-  heart.scale.set(1 - 0.03 * atr - 0.07 * ven, 1 - 0.02 * atr - 0.05 * ven, 1 - 0.03 * atr - 0.07 * ven);
-  const avT = PHASE.avOpen(phase) ? 1 : 0, slT = PHASE.slOpen(phase) ? 1 : 0;
-  [['tri', avT], ['mit', avT], ['pul', slT], ['aor', slT]].forEach(([k, tg]) => {
-    const v = VALVES[k];
-    const rate = tg < v.open ? 22 : 7;
-    setValve(v, v.open + (tg - v.open) * Math.min(1, dt * rate * Math.max(0.35, bpm / 60)));
+  if (S.play) S.t += dt * S.bpm / 60;
+  const f = S.t % 1, ph = phaseAt(f);
+  // 腔室跳動
+  const atr = ph === 0 ? 1 - 0.12 * Math.sin((f / 0.15) * Math.PI) : 1;
+  const ven = ph === 1 ? 1 - 0.16 * Math.sin(((f - 0.15) / 0.35) * Math.PI) : 1;
+  for (const [k, c] of Object.entries(CH)) c.mesh.scale.copy(c.base).multiplyScalar(k[1] === 'A' ? atr : ven);
+  shell.scale.set(1.05 * (0.6 + 0.4 * ven), 1.25 * (0.6 + 0.4 * ven), 0.85);
+  // 瓣膜：葉片張開（往外翻）或關閉（平的）
+  VALVES.forEach(v => {
+    const open = v.kind === 'av' ? ph !== 1 : ph === 1;
+    v.leafs.forEach(l => { l.rotation.x = THREE.MathUtils.lerp(l.rotation.x, open ? 1.2 : 0, Math.min(1, dt * 14)); });
   });
-  updateUI();
-  if (view === 'flat') {                 // 示意圖模式：只更新平面圖，不畫 3D
-    if (playing) DG.step(dt, phase, 0.6 + bpm / 60);
-    return;
+  // 血流：心室收縮時流得快
+  const speed = S.play ? (ph === 1 ? 0.11 : 0.035) * S.bpm / 40 : 0;
+  const showFlow = $('lFlow').checked;
+  blood.visible = showFlow;
+  P.forEach((p, i) => {
+    p.u = (p.u + speed * dt) % 1;
+    const c = curves[p.k], o = oxy(p.k, p.u);
+    const inPul = p.u < marks[p.k].lung + 0.12 && p.u > 0.08;
+    const dim = (S.mode === 'pul' && !inPul && !(p.u > marks[p.k].lung && p.u < marks[p.k].lung + 0.2)) ||
+                (S.mode === 'sys' && inPul);
+    dummy.position.copy(c.getPointAt(p.u));
+    dummy.scale.setScalar(dim ? 0.001 : 1);
+    dummy.updateMatrix();
+    blood.setMatrixAt(i, dummy.matrix);
+    blood.setColorAt(i, col.copy(o ? RED : BLUE));
+  });
+  blood.instanceMatrix.needsUpdate = true;
+  blood.instanceColor.needsUpdate = true;
+  // 圖層
+  shell.visible = $('lShell').checked;
+  valveGroup.visible = $('lValve').checked;
+  vessels.visible = $('lVessel').checked;
+  const showL = $('lLabel').checked;
+  VALVES.forEach(v => { v.lbl.show = !shell.visible && valveGroup.visible; });
+  vesselLabels.forEach(l => { l.show = vessels.visible; });
+  for (const c of Object.values(CH)) c.mesh.material.opacity = shell.visible ? 0.92 : 0.3;
+  document.getElementById('labels').style.visibility = showL ? '' : 'hidden';
+  // 模式：淡化不相關的血管
+  const pul = ['pa', 'paL', 'pv', 'pvL'], sys = ['ao', 'vc'];
+  for (const [k, m] of Object.entries(VES)) {
+    const on = S.mode === 'all' || (S.mode === 'pul' ? pul.includes(k) : sys.includes(k));
+    m.material.opacity = on ? 0.6 : 0.08;
   }
-  if (playing) {
-    stepParticles(dt, phase, 0.6 + bpm / 60);
-    stepExchange(dt);
-    alveoli.forEach((a, i) => a.scale.setScalar(1 + 0.06 * Math.sin(clock.elapsedTime * 1.4 + i)));   // 肺泡呼吸起伏
-  }
-  controls.update();
-  placeLabels();
-  window.MobileView?.offset(camera);
-  renderer.render(scene, camera);
 }
 
-window.heartSim = { DG, LAYERS, layerOn, PHASE, get phase() { return phase; }, set phase(v) { phase = v; }, VALVES, particles, frame, exPool, setMode: m => document.querySelector(`.mode[data-mode="${m}"]`).click() };
+const ROUTE = {
+  all: '<b>體循環</b>：左心室 → 主動脈 → 全身微血管 → 大靜脈 → 右心房<br><b>肺循環</b>：右心室 → 肺動脈 → 肺部微血管 → 肺靜脈 → 左心房',
+  pul: '<b>肺循環</b>：右心室 → 肺動脈 → 肺 → 肺靜脈 → 左心房<br>在肺部微血管<b>放出二氧化碳、得到氧</b>，缺氧血變成充氧血。',
+  sys: '<b>體循環</b>：左心室 → 主動脈 → 全身 → 大靜脈 → 右心房<br>在全身微血管<b>把氧和養分交給細胞</b>，充氧血變成缺氧血。'
+};
+Lab.bindGroup('.mode', k => { S.mode = k; $('route').innerHTML = ROUTE[k]; });
+Lab.bindSlider('bpm', x => { S.bpm = x; }, x => x + ' 次/分（放慢）');
+$('play').addEventListener('click', e => {
+  S.play = !S.play;
+  e.currentTarget.setAttribute('aria-pressed', String(S.play));
+  e.currentTarget.textContent = S.play ? '❚❚ 暫停' : '▶ 繼續跳動';
+});
+const setLayers = on => ['lShell', 'lValve', 'lVessel', 'lFlow', 'lLabel'].forEach(id => { $(id).checked = on.includes(id); });
+$('onlyValve').addEventListener('click', () => { setLayers(['lValve', 'lLabel']); L.fly([0, 0.8, 6.5], [0, 0.2, 0]); });
+$('showAll').addEventListener('click', () => { setLayers(['lShell', 'lValve', 'lVessel', 'lFlow', 'lLabel']); L.fly([0, 0.6, 11.5], [0, 0, 0]); });
 
-resize();
-resetView();
-showTip('flow');
-animate();
-</script>
-
-<script>
-setTimeout(() => {
-  if (!window.__heartReady) {
-    document.getElementById('scene').innerHTML = '<div class="fallback">無法載入 Three.js。<br>請確認電腦已連上網路後重新整理。</div>';
-  }
-}, 6000);
+function tap(x, y) {
+  const visible = pickables.filter(m => { let o = m; while (o) { if (!o.visible) return false; o = o.parent; } return true; });
+  const hit = L.pick(x, y, visible);
+  if (hit && INFO[hit.object.userData.key]) $('info').innerHTML = INFO[hit.object.userData.key];
+}
+const phaseEls = [...$('phase').children];
+function ui() {
+  const ph = phaseAt(S.t % 1);
+  phaseEls.forEach((e, i) => e.classList.toggle('on', i === ph));
+}
+window.heartSim = S;
 </script>
 <script src="lesson.js" defer></script>
 </body>

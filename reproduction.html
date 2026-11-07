@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-subject="bio">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>有性生殖與無性生殖</title>
+<link rel="stylesheet" href="lab-kit.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="cv" aria-label="受精與無性生殖的 3D 動畫"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>生殖</h1>
+  <p class="sub">國一生物 · 生殖 ｜ <a class="back" href="cell-division.html" style="display:inline">細胞分裂 →</a></p>
+
+  <div class="body">
+    <div class="modes" style="--n:2">
+      <button class="mode" data-k="sex" aria-pressed="true">有性生殖<br><small>受精與發育</small></button>
+      <button class="mode" data-k="asex" aria-pressed="false">無性生殖<br><small>分裂、出芽</small></button>
+    </div>
+
+    <div data-mode="sex">
+      <div class="group">
+        <div class="ctrl">
+          <label for="sexP">過程 <output id="sexPVal"></output></label>
+          <input type="range" id="sexP" min="0" max="5" step="0.01" value="0">
+        </div>
+        <div class="row"><button class="btn primary grow" id="sexPlay">▶ 播放</button></div>
+        <div class="result" id="sexInfo" style="margin-top:10px"></div>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt>精子（人）</dt><dd>n = 23 條</dd>
+          <dt>卵（人）</dt><dd>n = 23 條</dd>
+          <dt>受精卵</dt><dd>2n = 46 條</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div data-mode="asex" hidden>
+      <div class="group">
+        <div class="seg" style="--n:2" id="asexSeg">
+          <button data-k="fission" aria-pressed="true">分裂生殖</button>
+          <button data-k="bud" aria-pressed="false">出芽生殖</button>
+        </div>
+        <div class="ctrl" style="margin-top:10px">
+          <label for="asexP">過程 <output id="asexPVal"></output></label>
+          <input type="range" id="asexP" min="0" max="2" step="0.01" value="0">
+        </div>
+        <div class="row"><button class="btn primary grow" id="asexPlay">▶ 播放</button></div>
+        <div class="result" id="asexInfo" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="note"><b>有性生殖</b>：精子和卵結合（受精），子代的遺傳物質一半來自父、一半來自母，<b>和親代不完全相同</b>。<br><b>無性生殖</b>：不經過受精，由一個親代產生子代，子代和親代的遺傳物質<b>相同</b>。</p>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script type="module">
+import { start3D, THREE } from './lab3d.js';
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const $ = id => document.getElementById(id);
+const S = { mode: 'sex', p: 0, q: 0, kind: 'fission', play: false };
+
+const L = start3D({ background: 0x08140f, camera: [0, 2, 10], target: [0, 0, 0], minDist: 4, maxDist: 20, frame, ui });
+const { scene } = L;
+const sexG = new THREE.Group(), asexG = new THREE.Group();
+scene.add(sexG, asexG);
+
+// ================= 有性生殖 =================
+const egg = new THREE.Mesh(new THREE.SphereGeometry(1.4, 40, 28), L.mat(0xffd9a8, { transparent: true, opacity: 0.85 }));
+const coat = new THREE.Mesh(new THREE.SphereGeometry(1.65, 40, 28), L.mat(0xfff2d9, { transparent: true, opacity: 0.15, depthWrite: false }));
+const eggNuc = new THREE.Mesh(new THREE.SphereGeometry(0.38, 24, 16), L.mat(0xff5d6c));
+eggNuc.position.set(-0.35, 0.2, 0.9);
+sexG.add(egg, coat, eggNuc);
+const eggLbl = L.label('卵（n）', () => V(0, 2.1, 0));
+// 精子
+const sperms = [];
+for (let i = 0; i < 9; i++) {
+  const g = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), L.mat(0x4d8dff));
+  head.scale.set(1.4, 1, 1);
+  const tailPts = Array.from({ length: 16 }, (_, k) => V(0.2 + k * 0.08, 0, 0));
+  const tail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tailPts), new THREE.LineBasicMaterial({ color: 0xbcd2ff }));
+  g.add(head, tail);
+  const ang = (i / 9) * Math.PI * 1.4 - 0.2;
+  g.userData = { start: V(Math.cos(ang) * 6.5, Math.sin(ang * 1.7) * 2.2, Math.sin(ang) * 2.5), tail, phase: i };
+  sexG.add(g); sperms.push(g);
+}
+const spermLbl = L.label('精子（n）', () => sperms[0].position.clone().add(V(0, 0.5, 0)));
+// 胚胎細胞
+const embryo = new THREE.Group(); sexG.add(embryo);
+const cellGeo = new THREE.SphereGeometry(1, 24, 16);
+const embryoCells = [];
+for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(cellGeo, L.mat(0xffc38a, { roughness: 0.6 })); embryo.add(m); embryoCells.push(m); }
+// 細胞排列：1、2、4、8、16 顆
+function arrangement(n) {
+  if (n === 1) return [[V(0, 0, 0), 1.3]];
+  if (n === 2) return [[V(-0.65, 0, 0), 0.95], [V(0.65, 0, 0), 0.95]];
+  if (n === 4) return [V(-0.6, 0.6, 0), V(0.6, 0.6, 0), V(-0.6, -0.6, 0), V(0.6, -0.6, 0)].map(p => [p, 0.75]);
+  if (n === 8) { const r = []; for (const x of [-0.55, 0.55]) for (const y of [-0.55, 0.55]) for (const z of [-0.55, 0.55]) r.push([V(x, y, z), 0.62]); return r; }
+  const r = []; for (let i = 0; i < 16; i++) { const p = new THREE.Vector3().setFromSphericalCoords(0.95, Math.acos(1 - 2 * (i + 0.5) / 16), i * 2.4); r.push([p, 0.48]); } return r;
+}
+const SEX_STEPS = [
+  ['精子游向卵', '許多<b>精子</b>游向<b>卵</b>，精子和卵都是減數分裂產生的配子，只有 <b>n</b> 條染色體。'],
+  ['受精', '只有<b>一個精子</b>能進入卵，精子的細胞核和卵的細胞核<b>結合</b>。'],
+  ['受精卵', '形成<b>受精卵（2n）</b>：染色體一半來自父親、一半來自母親。'],
+  ['開始分裂', '受精卵進行<b>細胞分裂</b>：1 → 2 → 4 …，每個細胞的染色體數目都是 2n。'],
+  ['胚胎', '細胞繼續分裂、分化，發育成<b>胚胎</b>，最後長成新個體。'],
+  ['胚胎', '細胞繼續分裂、分化，發育成<b>胚胎</b>，最後長成新個體。']
+];
+
+// ================= 無性生殖 =================
+const parentMat = L.mat(0x6fd3a0, { transparent: true, opacity: 0.85 });
+const blobA = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), parentMat);
+const blobB = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), parentMat);
+const nucA = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), L.mat(0x2e8b57));
+const nucB = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 12), L.mat(0x2e8b57));
+asexG.add(blobA, blobB, nucA, nucB);
+const asexLblA = L.label('親代', () => blobA.position.clone().add(V(0, blobA.scale.y + 0.4, 0)));
+const asexLblB = L.label('子代', () => blobB.position.clone().add(V(0, blobB.scale.y + 0.4, 0)));
+const ASEX = {
+  fission: ['分裂生殖（例：細菌、草履蟲、變形蟲）', '親代<b>一分為二</b>，變成兩個大小相近的新個體。', '分開後兩個個體<b>一模一樣</b>，都和親代相同。'],
+  bud: ['出芽生殖（例：酵母菌、水螅）', '親代身上長出一個<b>小芽</b>，芽慢慢長大。', '芽脫離親代，成為新個體，遺傳物質和親代<b>相同</b>。']
+};
+
+// ================= 每一幀 =================
+const ease = t => THREE.MathUtils.smoothstep(t, 0, 1);
+function frame(dt, t) {
+  sexG.visible = S.mode === 'sex'; asexG.visible = S.mode === 'asex';
+  eggLbl.show = spermLbl.show = false; asexLblA.show = asexLblB.show = false;
+  if (S.mode === 'sex') {
+    if (S.play) { S.p = Math.min(5, S.p + dt * 0.45); if (S.p >= 5) setPlay(false); syncSlider('sexP', S.p); }
+    const p = S.p;
+    // 0~1：精子游近；1~2：一個進入、核融合
+    sperms.forEach((g, i) => {
+      const u = ease(Math.min(1, p));
+      const target = g.userData.start.clone().normalize().multiplyScalar(i === 0 ? 1.0 : 1.85);
+      g.position.lerpVectors(g.userData.start, target, u);
+      if (i === 0 && p > 1) g.position.lerpVectors(target, eggNuc.position, ease(Math.min(1, (p - 1) * 1.4)));
+      g.lookAt(0, 0, 0); g.rotateY(Math.PI / 2);
+      g.visible = p < 2.2 && !(i === 0 && p > 1.75);
+      // 尾巴擺動
+      const arr = g.userData.tail.geometry.attributes.position;
+      for (let k = 0; k < arr.count; k++) arr.setY(k, Math.sin(t * 12 + k * 0.7 + g.userData.phase) * 0.06 * k / arr.count * 2);
+      arr.needsUpdate = true;
+    });
+    // 受精後：卵核變成 2n 色（紫）
+    const fused = THREE.MathUtils.clamp((p - 1.6) * 2.5, 0, 1);
+    eggNuc.material.color.setRGB(1 - 0.45 * fused, 0.36 + 0.1 * fused, 0.42 + 0.5 * fused);
+    eggNuc.scale.setScalar(1 + 0.4 * fused);
+    // 3 以後：細胞分裂
+    const showEmb = p >= 3;
+    embryo.visible = showEmb; egg.visible = eggNuc.visible = !showEmb;
+    coat.visible = true;
+    if (showEmb) {
+      const stage = Math.min(4, Math.floor((p - 3) * 2.5));     // 0..4 → 1,2,4,8,16
+      const n = [1, 2, 4, 8, 16][stage], arr = arrangement(n), next = arrangement(Math.min(16, n * 2));
+      const f = ease(((p - 3) * 2.5) % 1);
+      embryoCells.forEach((m, i) => {
+        const a = arr[Math.floor(i * arr.length / 16)], b = next[Math.floor(i * next.length / 16)];
+        m.visible = i < Math.max(arr.length, next.length) || i < 16;
+        m.position.lerpVectors(a[0], stage < 4 ? b[0] : a[0], stage < 4 ? f * 0.5 : 0);
+        m.scale.setScalar(a[1]);
+      });
+      embryo.rotation.y += dt * 0.3;
+    }
+    eggLbl.show = p < 3; spermLbl.show = p < 1.2;
+    eggLbl.set(p < 1.8 ? '卵（n）' : '受精卵（2n）');
+  } else {
+    if (S.play) { S.q = Math.min(2, S.q + dt * 0.4); if (S.q >= 2) setPlay(false); syncSlider('asexP', S.q); }
+    const q = S.q;
+    if (S.kind === 'fission') {
+      // 拉長 → 中間凹陷 → 分開
+      const s = ease(Math.min(1, q)), d = ease(Math.max(0, q - 1));
+      blobA.scale.set(1.2 - 0.25 * s, 1, 1); blobB.scale.copy(blobA.scale);
+      blobA.position.set(-0.6 * s - 1.2 * d, 0, 0); blobB.position.set(0.6 * s + 1.2 * d, 0, 0);
+      blobB.visible = q > 0.05;
+      nucA.position.copy(blobA.position); nucB.position.copy(blobB.position);
+      nucB.visible = q > 0.4;
+      asexLblA.show = true; asexLblB.show = q > 1;
+      asexLblA.set(q > 1 ? '子代' : '親代');
+    } else {
+      // 芽長大 → 脫離
+      const g = ease(Math.min(1, q)), d = ease(Math.max(0, q - 1));
+      blobA.scale.setScalar(1.2); blobA.position.set(-0.8, 0, 0);
+      const r = 0.15 + 0.6 * g;
+      blobB.scale.setScalar(r);
+      blobB.position.set(-0.8 + 1.2 + r * 0.6 + 1.6 * d, 0.5 + 0.6 * d, 0);
+      blobB.visible = true;
+      nucA.position.copy(blobA.position); nucB.position.copy(blobB.position);
+      nucB.scale.setScalar(Math.max(0.3, r));
+      nucB.visible = g > 0.3;
+      asexLblA.show = true; asexLblB.show = q > 0.3;
+      asexLblA.set('親代');
+    }
+  }
+}
+
+// ================= 面板 =================
+function syncSlider(id, v) { const el = $(id); el.value = v; Lab.paint(el); }
+function setPlay(on) {
+  S.play = on;
+  ['sexPlay', 'asexPlay'].forEach(id => { $(id).textContent = on ? '❚❚ 暫停' : '▶ 播放'; });
+}
+Lab.bindSlider('sexP', x => { S.p = x; }, () => '');
+Lab.bindSlider('asexP', x => { S.q = x; }, () => '');
+$('sexPlay').addEventListener('click', () => { if (S.p >= 5) S.p = 0; setPlay(!S.play); });
+$('asexPlay').addEventListener('click', () => { if (S.q >= 2) S.q = 0; setPlay(!S.play); });
+Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); setPlay(false); });
+Lab.bindGroup('#asexSeg button', k => { S.kind = k; S.q = 0; syncSlider('asexP', 0); setPlay(false); });
+
+function ui() {
+  const st = SEX_STEPS[Math.min(5, Math.floor(S.p))];
+  $('sexPVal').textContent = st[0];
+  $('sexInfo').innerHTML = st[1];
+  const a = ASEX[S.kind];
+  $('asexPVal').textContent = S.q < 1 ? '進行中' : '完成';
+  $('asexInfo').innerHTML = `<b>${a[0]}</b><br>${S.q < 1 ? a[1] : a[2]}`;
+}
+window.reproSim = S;
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>
