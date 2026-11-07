@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>等速圓周運動與向心力</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --white: #eef1fa;
+    --muted: rgba(238,241,250,.6);
+    --border: rgba(255,255,255,.12);
+    --v: #4cc9f0;      /* 速度 */
+    --a: #ff5d8f;      /* 向心加速度 / 向心力 */
+    --dv: #ffd166;     /* Δv */
+    --accent: #5b9cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(900px 600px at 30% 40%, #121a36, var(--bg) 70%) fixed, var(--bg);
+    color: var(--white);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    letter-spacing: .02em; -webkit-font-smoothing: antialiased; overscroll-behavior: none;
+  }
+  button, input { font: inherit; color: inherit; touch-action: manipulation; }
+
+  /* 畫布只放在面板以外的區域，毛玻璃底下是靜止背景，平板上比較順 */
+  #cv { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+
+  /* ===== 右側毛玻璃控制面板 ===== */
+  .panel {
+    position: absolute; top: 16px; right: 16px; bottom: 16px; width: 360px; z-index: 10;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 22px; border: 1px solid var(--border);
+    background: rgba(16,20,40,.55);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 60px rgba(0,0,0,.5);
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
+  }
+  .back { font-size: .82rem; color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; min-height: 32px; }
+  .back:hover { color: var(--white); }
+  h1 { font-size: 1.18rem; letter-spacing: .06em; margin-top: 2px; }
+  .sub { font-size: .8rem; color: var(--muted); margin: 2px 0 14px; }
+  .collapse {
+    position: absolute; top: 16px; right: 16px; min-height: 34px; padding: 4px 14px; cursor: pointer;
+    font-size: .78rem; color: var(--accent); background: rgba(91,156,255,.1); border: 1px solid rgba(91,156,255,.4); border-radius: 999px;
+  }
+  .panel.collapsed .body { display: none; }
+  .panel.collapsed { bottom: auto; }
+
+  .group { padding: 14px 0; border-top: 1px solid var(--border); }
+  .group-title { font-size: .72rem; letter-spacing: .2em; color: var(--muted); margin-bottom: 10px; }
+
+  .row { display: flex; gap: 8px; }
+  .btn {
+    min-height: 46px; padding: 0 16px; cursor: pointer; border-radius: 12px; font-size: .9rem;
+    border: 1px solid rgba(91,156,255,.5); background: rgba(91,156,255,.12); color: var(--white);
+  }
+  .btn.primary { flex: 1; background: var(--accent); border-color: var(--accent); color: #0b1020; font-weight: 700; }
+  .btn.cut { flex: 1; border-color: rgba(255,93,143,.6); background: rgba(255,93,143,.12); }
+  .row + .row { margin-top: 8px; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-top: 8px; border-radius: 12px; background: rgba(255,255,255,.06); }
+  .seg button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: .86rem; }
+  .seg button[aria-pressed="true"] { background: rgba(255,255,255,.14); color: var(--white); font-weight: 700; }
+
+  /* 拉桿：40px 高的觸控熱區，軌道只畫 6px；圓鈕 28px */
+  .ctrl { margin-bottom: 10px; }
+  .ctrl label { display: flex; justify-content: space-between; align-items: baseline; font-size: .9rem; }
+  .ctrl output { font-family: Consolas, "SFMono-Regular", monospace; font-size: 1rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 40px; background: transparent; cursor: pointer; touch-action: pan-y; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent) var(--fill, 50%), rgba(255,255,255,.14) var(--fill, 50%));
+  }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.14); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
+    background: #0b1020; border: 3px solid var(--accent); box-shadow: 0 0 12px rgba(91,156,255,.6);
+  }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #0b1020; border: 3px solid var(--accent); }
+  input[type=range]:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; border-radius: 8px; }
+
+  .derived { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; }
+  .derived div { text-align: center; padding: 8px 4px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: .74rem; color: var(--muted); }
+  .derived b { display: block; font-size: 1rem; color: var(--white); font-family: Consolas, "SFMono-Regular", monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .derived .hl b { color: var(--a); }
+  .derived .hl2 b { color: #7ee0b4; }
+  .formula { margin-top: 8px; font-size: .8rem; color: var(--muted); text-align: center; line-height: 1.7; }
+
+  /* 疊層開關 */
+  .sw { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; user-select: none; font-size: .92rem; }
+  .sw input { position: absolute; opacity: 0; pointer-events: none; }
+  .sw .track { position: relative; width: 48px; height: 28px; flex: none; border-radius: 999px; background: rgba(255,255,255,.16); transition: background .2s; }
+  .sw .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .sw input:checked + .track { background: var(--c, var(--accent)); }
+  .sw input:checked + .track::after { transform: translateX(20px); }
+  .sw input:focus-visible + .track { outline: 2px solid var(--white); outline-offset: 2px; }
+  .sw i { width: 18px; height: 4px; border-radius: 2px; background: var(--c); flex: none; }
+  .sw small { margin-left: auto; color: var(--muted); font-size: .76rem; }
+
+  .live { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: .86rem; }
+  .live dt { color: var(--muted); }
+  .live dd { text-align: right; font-family: Consolas, "SFMono-Regular", monospace; font-variant-numeric: tabular-nums; }
+  .note { font-size: .8rem; color: var(--muted); line-height: 1.7; }
+  .note b { color: var(--white); font-weight: 600; }
+
+  /* 直式平板／手機：面板改為底部抽屜 */
+  @media (orientation: portrait) and (max-width: 1100px), (max-width: 760px) {
+    .panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 46vh; max-height: 46dvh; border-radius: 22px 22px 0 0; padding-top: 14px; }
+    .panel.collapsed { max-height: none; }
+  }
+  @media (max-width: 1180px) and (orientation: landscape) { .panel { width: 330px; } }
+</style>
+</head>
+<body>
+
+<canvas id="cv" aria-label="等速圓周運動俯視動畫"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#h11">← 回課程總覽</a>
+  <h1>等速圓周運動與向心力</h1>
+  <p class="sub">選修物理 I · 4-5 等速圓周運動與向心力</p>
+
+  <div class="body">
+    <div class="group">
+      <div class="row">
+        <button class="btn primary" id="playBtn">暫停</button>
+        <button class="btn cut" id="cutBtn">✂ 剪斷繩子</button>
+      </div>
+      <div class="seg" role="group" aria-label="播放速度">
+        <button data-speed="0.25" aria-pressed="false">0.25×</button>
+        <button data-speed="0.5" aria-pressed="true">0.5× 慢動作</button>
+        <button data-speed="1" aria-pressed="false">1×</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">變因</div>
+      <div class="seg" id="modeSeg" role="group" aria-label="要調整的量" style="grid-template-columns:1fr 1fr;margin:0 0 10px">
+        <button data-mode="v" aria-pressed="true">調速率 v</button>
+        <button data-mode="w" aria-pressed="false">調角速度 ω</button>
+      </div>
+      <div class="ctrl">
+        <label for="rr">半徑 r <output id="rVal"></output></label>
+        <input type="range" id="rr" min="0.5" max="2" step="0.1" value="1">
+      </div>
+      <div class="ctrl" id="vCtrl">
+        <label for="vv">速率 v <output id="vVal"></output></label>
+        <input type="range" id="vv" min="0.5" max="4" step="0.1" value="2">
+      </div>
+      <div class="ctrl" id="wCtrl" hidden>
+        <label for="ww">角速度 ω <output id="wVal"></output></label>
+        <input type="range" id="ww" min="0.5" max="6" step="0.1" value="2">
+      </div>
+      <div class="ctrl">
+        <label for="mm">質量 m <output id="mVal"></output></label>
+        <input type="range" id="mm" min="0.2" max="2" step="0.1" value="0.5">
+      </div>
+      <div class="derived">
+        <div>週期 T<b id="dT"></b></div>
+        <div class="hl2">角速度 ω<b id="dW"></b></div>
+        <div>頻率 f<b id="dF"></b></div>
+        <div class="hl">向心加速度<b id="dA"></b></div>
+        <div class="hl">向心力<b id="dFc"></b></div>
+        <div class="hl2">速率 v<b id="dV"></b></div>
+      </div>
+      <p class="formula">ω = Δθ / Δt = 2π / T　v = rω = 2πr / T<br>a꜀ = v² / r = rω²　F꜀ = m·v² / r</p>
+    </div>
+
+    <div class="group">
+      <div class="group-title">輔助疊層</div>
+      <label class="sw" style="--c:var(--v)"><input type="checkbox" id="showV" checked><span class="track"></span><i></i>速度 v（切線）</label>
+      <label class="sw" style="--c:var(--a)"><input type="checkbox" id="showA" checked><span class="track"></span><i></i>向心加速度 a꜀／向心力 F꜀</label>
+      <label class="sw" style="--c:var(--dv)"><input type="checkbox" id="showDv"><span class="track"></span><i></i>Δv 作圖<small>為什麼指向圓心</small></label>
+      <label class="sw" style="--c:#7ee0b4"><input type="checkbox" id="showSweep" checked><span class="track"></span><i></i>1 秒掃過的角度<small>就是 ω</small></label>
+      <label class="sw" style="--c:#c9d3ee"><input type="checkbox" id="showInner"><span class="track"></span><i></i>同軸比較<small>r/2 處同 ω</small></label>
+      <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showGrid" checked><span class="track"></span>半徑與角度</label>
+    </div>
+
+    <div class="group">
+      <div class="group-title">即時數值</div>
+      <dl class="live">
+        <dt>位置角 θ</dt><dd id="lTheta"></dd>
+        <dt style="color:var(--v)">速度方向</dt><dd id="lDir"></dd>
+        <dt style="color:var(--v)">速率 |v|</dt><dd id="lV"></dd>
+        <dt style="color:#7ee0b4">已轉角度</dt><dd id="lRad"></dd>
+        <dt style="color:#7ee0b4">已走弧長 s = rθ</dt><dd id="lArc"></dd>
+        <dt style="color:var(--a)">加速度方向</dt><dd>指向圓心</dd>
+      </dl>
+    </div>
+
+    <div class="group">
+      <p class="note">
+        速率不變，但<b>速度的方向一直在改變</b>，所以等速圓周運動仍然有加速度。
+        打開「Δv 作圖」：把兩個時刻的速度平移到同一起點，Δv 指向<b>圓心</b>，這就是向心加速度的方向。<br>
+        暫停後可以<b>拖曳小球</b>改變位置；按「剪斷繩子」看小球往哪裡飛。
+      </p>
+    </div>
+  </div>
+</aside>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const COL = { v: '#4cc9f0', a: '#ff5d8f', dv: '#ffd166', ring: '#5b9cff', dim: 'rgba(238,241,250,.35)', text: '#eef1fa' };
+  const R_MAX = 2;            // 半徑上限（m），用來固定比例尺
+  const KV = 0.32, KA = 0.06; // 向量箭頭比例：像素 = 數值 × 每公尺像素 × K
+  const DV_STEP = Math.PI / 6;  // Δv 作圖取 30° 的時間間隔，看得比較清楚
+
+  const S = { r: 1, v: 2, w: 2, mode: 'v', m: 0.5, theta: 0, total: 0, playing: true, speed: 0.5, cut: null, drag: false };
+  // 調速率時 ω = v / r；調角速度時 v = rω
+  const omega = () => S.mode === 'v' ? S.v / S.r : S.w;
+  const vel = () => S.mode === 'v' ? S.v : S.w * S.r;
+
+  /* ===== 版面：畫布只佔面板以外的區域 ===== */
+  let W = 0, H = 0, dpr = 1, L = {};
+  function layout() {
+    const pr = $('panel').getBoundingClientRect();
+    const portrait = pr.left < 40;
+    W = portrait ? window.innerWidth : Math.max(200, pr.left - 8);
+    H = portrait ? Math.max(200, pr.top - 4) : window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    Object.assign(cv.style, { width: W + 'px', height: H + 'px' });
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const ppm = Math.max(40, Math.min(W, H) * 0.36 / R_MAX);          // 每公尺像素
+    L = { ppm, cx: W / 2, cy: H / 2 + 10 };
+  }
+
+  /* ===== 繪圖工具 ===== */
+  function line(x0, y0, x1, y1, color, w = 1.5, dash = null) {
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.setLineDash([]);
+  }
+  function arrow(x0, y0, x1, y1, color, { w = 4, label = '', dash = false } = {}) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 4) return;
+    const ux = dx / len, uy = dy / len, h = Math.min(14, len * 0.5);
+    line(x0, y0, x1 - ux * h * 0.7, y1 - uy * h * 0.7, color, w, dash ? [6, 5] : null);
+    ctx.fillStyle = color; ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - ux * h - uy * h * 0.55, y1 - uy * h + ux * h * 0.55);
+    ctx.lineTo(x1 - ux * h + uy * h * 0.55, y1 - uy * h - ux * h * 0.55);
+    ctx.closePath(); ctx.fill();
+    if (label) {
+      ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tx = x1 + ux * 18, ty = y1 + uy * 18;
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,16,32,.85)'; ctx.strokeText(label, tx, ty);
+      ctx.fillText(label, tx, ty);
+    }
+  }
+  function text(str, x, y, color = COL.dim, size = 13, align = 'left', weight = '') {
+    ctx.font = `${weight} ${size}px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif`;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(str, x, y);
+  }
+
+  /* ===== 主畫面（俯視圖，逆時針轉；畫面 y 向下，所以用 −sin） ===== */
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const { ppm, cx, cy } = L;
+    const R = S.r * ppm, w = omega();
+    const c = Math.cos(S.theta), s = Math.sin(S.theta);
+    const px = cx + R * c, py = cy - R * s;
+    const show = { v: $('showV').checked, a: $('showA').checked, dv: $('showDv').checked, grid: $('showGrid').checked };
+
+    // 軌道與圓心
+    ctx.strokeStyle = 'rgba(91,156,255,.45)'; ctx.lineWidth = 2; ctx.setLineDash([8, 7]);
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#c9d3ee'; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+    text('圓心', cx + 10, cy + 16, COL.dim, 12);
+    if (show.grid) {
+      line(cx - R - 20, cy, cx + R + 20, cy, 'rgba(238,241,250,.12)', 1, [3, 6]);
+      line(cx, cy - R - 20, cx, cy + R + 20, 'rgba(238,241,250,.12)', 1, [3, 6]);
+      const th = ((S.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      ctx.strokeStyle = 'rgba(238,241,250,.45)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, 28, 0, -th, true); ctx.stroke();
+      text('θ', cx + 40 * Math.cos(th / 2), cy - 40 * Math.sin(th / 2), COL.text, 13, 'center');
+      text(`r = ${S.r.toFixed(1)} m`, cx + R / 2 * c - s * 14, cy - R / 2 * s - c * 14, COL.dim, 12, 'center');
+    }
+
+    // 剪斷繩子後：小球沿切線等速直線飛出
+    if (S.cut) {
+      const { x0, y0, vx, vy, t } = S.cut;
+      const bx = x0 + vx * t * ppm, by = y0 + vy * t * ppm;
+      line(x0, y0, bx, by, 'rgba(76,201,240,.35)', 2, [6, 6]);
+      line(cx, cy, x0 + (cx - x0) * 0.15, y0 + (cy - y0) * 0.15, 'rgba(238,241,250,.5)', 2);   // 斷掉的繩頭
+      if (show.v) arrow(bx, by, bx + vx * ppm * KV, by + vy * ppm * KV, COL.v, { label: 'v' });
+      ball(bx, by);
+      text('繩子斷了：沒有向心力，小球沿「切線」做等速直線運動', 18, 24, COL.text, 14, 'left', 'bold');
+      return;
+    }
+
+    // 1 秒掃過的角度：扇形的張角就是 ω（rad），弧長就是 v（m）
+    if ($('showSweep').checked) {
+      const sweep = Math.min(w, Math.PI * 2 - 0.01);
+      ctx.fillStyle = 'rgba(126,224,180,.16)';
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, -S.theta + sweep, -S.theta, true); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7ee0b4'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, R, -S.theta + sweep, -S.theta, true); ctx.stroke();
+      const mid = S.theta - sweep / 2, lr = R * 0.62;
+      text(`1 秒轉 ${w.toFixed(2)} rad`, cx + lr * Math.cos(mid), cy - lr * Math.sin(mid) - 9, '#7ee0b4', 13, 'center', 'bold');
+      text(`弧長 ${vel().toFixed(2)} m`, cx + lr * Math.cos(mid), cy - lr * Math.sin(mid) + 10, '#7ee0b4', 12, 'center');
+    }
+
+    // 繩子
+    line(cx, cy, px, py, 'rgba(238,241,250,.7)', 2.5);
+
+    // 同軸比較：同一條半徑上 r/2 處的小球，角速度相同、線速度只有一半
+    if ($('showInner').checked) {
+      const qx = cx + R / 2 * c, qy = cy - R / 2 * s;
+      ctx.strokeStyle = 'rgba(201,211,238,.25)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 6]);
+      ctx.beginPath(); ctx.arc(cx, cy, R / 2, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      if (show.v) arrow(qx, qy, qx - s * vel() / 2 * ppm * KV, qy - c * vel() / 2 * ppm * KV, COL.v, { w: 3, label: 'v/2' });
+      ctx.fillStyle = '#c9d3ee'; ctx.beginPath(); ctx.arc(qx, qy, 8, 0, Math.PI * 2); ctx.fill();
+      text('內圈：ω 相同，v 只有一半', 18, H - 22, '#c9d3ee', 13);
+    }
+
+    // 速度（切線，逆時針方向）與向心加速度（指向圓心）
+    const vx = -s * vel(), vy = -c * vel();                     // 畫面座標（y 向下）
+    if (show.v) arrow(px, py, px + vx * ppm * KV, py + vy * ppm * KV, COL.v, { label: 'v' });
+    if (show.a) {
+      const aMag = Math.min(vel() * w * ppm * KA, R * 0.85);  // 不超過圓心
+      arrow(px, py, px - c * aMag, py + s * aMag, COL.a, { label: 'a꜀, F꜀' });
+    }
+    ball(px, py);
+
+    if (show.dv) drawDv();
+    if (!S.playing && !S.drag) text('已暫停：可以拖曳小球改變位置', 18, 24, COL.dim, 13);
+  }
+  function ball(x, y) {
+    const rr = 10 + S.m * 6;                                 // 質量越大球越大
+    ctx.fillStyle = 'rgba(91,156,255,.22)'; ctx.beginPath(); ctx.arc(x, y, rr + 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, rr, 0, Math.PI * 2); ctx.fill();
+  }
+
+  /** Δv 作圖：圓上標出兩個時刻的位置，右上角把兩個速度平移到同一起點 */
+  function drawDv() {
+    const { ppm, cx, cy } = L;
+    const R = S.r * ppm, t1 = S.theta - DV_STEP, t2 = S.theta;
+    const P = t => ({ x: cx + R * Math.cos(t), y: cy - R * Math.sin(t) });
+    const Vv = t => ({ x: -Math.sin(t) * vel() * ppm * KV, y: -Math.cos(t) * vel() * ppm * KV });
+    // 圓上：前一個時刻的位置與速度（淡色）
+    const p1 = P(t1), v1 = Vv(t1);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 7, 0, Math.PI * 2); ctx.fill();
+    arrow(p1.x, p1.y, p1.x + v1.x, p1.y + v1.y, COL.v, { w: 3, label: 'v₁' });
+    ctx.globalAlpha = 1;
+    // 作圖區（畫面角落）
+    const box = Math.min(200, W * 0.3), bx = W - box - 18, by = 18;
+    ctx.fillStyle = 'rgba(16,20,40,.8)'; ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, box, box + 30, 14) : ctx.rect(bx, by, box, box + 30); ctx.fill(); ctx.stroke();
+    text('Δv = v₂ − v₁', bx + 12, by + 18, COL.dv, 13, 'left', 'bold');
+    const ox = bx + box / 2, oy = by + 30 + box / 2;
+    const k = (box * 0.38) / (vel() * ppm * KV);              // 讓箭頭塞進方框
+    const v2 = Vv(t2);
+    arrow(ox, oy, ox + v1.x * k, oy + v1.y * k, COL.v, { w: 3, label: 'v₁' });
+    arrow(ox, oy, ox + v2.x * k, oy + v2.y * k, COL.v, { w: 3, label: 'v₂' });
+    arrow(ox + v1.x * k, oy + v1.y * k, ox + v2.x * k, oy + v2.y * k, COL.dv, { w: 3.5, label: 'Δv' });
+    // Δv 平移回圓上兩點中間：方向指向圓心
+    const tm = (t1 + t2) / 2, pm = P(tm), dvx = (v2.x - v1.x), dvy = (v2.y - v1.y);
+    arrow(pm.x, pm.y, pm.x + dvx, pm.y + dvy, COL.dv, { w: 3, dash: true, label: 'Δv' });
+    line(pm.x, pm.y, cx, cy, 'rgba(255,209,102,.25)', 1, [3, 5]);
+  }
+
+  /* ===== 主迴圈 ===== */
+  let last = performance.now(), lastUI = 0;
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    if (S.playing && !S.drag) {
+      if (S.cut) {
+        S.cut.t += dt * S.speed;
+        const { x0, y0, vx, vy, t } = S.cut, x = x0 + vx * t * L.ppm, y = y0 + vy * t * L.ppm;
+        if (x < -80 || x > W + 80 || y < -80 || y > H + 80) resetCut();     // 飛出畫面就重新綁好
+      } else { const d = omega() * dt * S.speed; S.theta += d; S.total += d; }
+    }
+    draw();
+    if (now - lastUI > 100) { updateLive(); lastUI = now; }
+    requestAnimationFrame(loop);
+  }
+
+  /* ===== 面板 ===== */
+  function updateLive() {
+    const th = ((S.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    $('lTheta').textContent = (th * 180 / Math.PI).toFixed(0) + '°';
+    $('lDir').textContent = (((th * 180 / Math.PI) + 90) % 360).toFixed(0) + '°（一直在變）';
+    $('lV').textContent = vel().toFixed(2) + ' m/s（不變）';
+    $('lRad').textContent = S.total.toFixed(2) + ' rad';
+    $('lArc').textContent = (S.r * S.total).toFixed(2) + ' m';
+  }
+  function updateDerived() {
+    const w = omega(), T = 2 * Math.PI / w;
+    $('rVal').textContent = S.r.toFixed(1) + ' m';
+    $('vVal').textContent = S.v.toFixed(1) + ' m/s';
+    $('wVal').textContent = S.w.toFixed(1) + ' rad/s';
+    $('dV').textContent = vel().toFixed(2) + ' m/s';
+    $('mVal').textContent = S.m.toFixed(1) + ' kg';
+    $('dT').textContent = T.toFixed(2) + ' s';
+    $('dW').textContent = w.toFixed(2) + ' rad/s';
+    $('dF').textContent = (1 / T).toFixed(2) + ' Hz';
+    $('dA').textContent = (vel() * vel() / S.r).toFixed(2) + ' m/s²';
+    $('dFc').textContent = (S.m * vel() * vel() / S.r).toFixed(2) + ' N';
+  }
+  function paint(el) { el.style.setProperty('--fill', ((el.value - el.min) / (el.max - el.min) * 100) + '%'); }
+  [['rr', 'r'], ['vv', 'v'], ['ww', 'w'], ['mm', 'm']].forEach(([id, key]) => {
+    const el = $(id);
+    paint(el);
+    el.addEventListener('input', () => { S[key] = Number(el.value); paint(el); updateDerived(); });
+  });
+
+  // 切換「調 v／調 ω」：換模式時保持目前的運動，不會突然跳動
+  document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+    const m = b.dataset.mode;
+    if (m === S.mode) return;
+    if (m === 'w') { S.w = Math.min(6, Math.max(0.5, +(S.v / S.r).toFixed(1))); $('ww').value = S.w; paint($('ww')); }
+    else { S.v = Math.min(4, Math.max(0.5, +(S.w * S.r).toFixed(1))); $('vv').value = S.v; paint($('vv')); }
+    S.mode = m;
+    document.querySelectorAll('#modeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    $('vCtrl').hidden = m !== 'v'; $('wCtrl').hidden = m !== 'w';
+    updateDerived();
+  }));
+
+  function setPlaying(p) { S.playing = p; $('playBtn').textContent = p ? '暫停' : '播放'; }
+  $('playBtn').addEventListener('click', () => setPlaying(!S.playing));
+  function resetCut() { S.cut = null; $('cutBtn').textContent = '✂ 剪斷繩子'; }
+  $('cutBtn').addEventListener('click', () => {
+    if (S.cut) return resetCut();
+    const R = S.r * L.ppm, c = Math.cos(S.theta), s = Math.sin(S.theta);
+    S.cut = { x0: L.cx + R * c, y0: L.cy - R * s, vx: -s * vel(), vy: -c * vel(), t: 0 };
+    $('cutBtn').textContent = '↺ 重新綁好';
+    setPlaying(true);
+  });
+  document.querySelectorAll('.seg[aria-label="播放速度"] button').forEach(b => b.addEventListener('click', () => {
+    S.speed = Number(b.dataset.speed);
+    document.querySelectorAll('.seg[aria-label="播放速度"] button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  $('collapse').addEventListener('click', () => {
+    const c = $('panel').classList.toggle('collapsed');
+    $('collapse').textContent = c ? '展開' : '收合';
+    requestAnimationFrame(layout);
+  });
+
+  /* ===== 拖曳小球：沿圓周改變位置 ===== */
+  function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  cv.addEventListener('pointerdown', e => {
+    if (S.cut) return;
+    const p = pos(e), R = S.r * L.ppm;
+    const px = L.cx + R * Math.cos(S.theta), py = L.cy - R * Math.sin(S.theta);
+    const near = Math.hypot(p.x - px, p.y - py) < 48 || Math.abs(Math.hypot(p.x - L.cx, p.y - L.cy) - R) < 28;
+    if (!near) return;
+    S.drag = { wasPlaying: S.playing };
+    cv.setPointerCapture(e.pointerId);
+    S.theta = Math.atan2(L.cy - p.y, p.x - L.cx);
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!S.drag) return;
+    const p = pos(e);
+    S.theta = Math.atan2(L.cy - p.y, p.x - L.cx);
+  });
+  const end = () => { if (S.drag) { setPlaying(S.drag.wasPlaying); S.drag = false; } };
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+
+  /* ===== 啟動 ===== */
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+  layout();
+  updateDerived();
+  updateLive();
+  requestAnimationFrame(loop);
+  window.ucm = { S, L: () => L, omega };     // 除錯／驗證用
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>
