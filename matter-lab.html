@@ -1,919 +1,217 @@
 <!DOCTYPE html>
 <html lang="zh-Hant" data-subject="chem">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>探索物質組成實驗室</title>
-<style>
-  :root {
-    --bg: #f5f1e7;
-    --ink: #3b3127;
-    --ink-soft: #7a6e60;
-    --card: rgba(255,252,245,.62);
-    --accent: #c0703f;
-    --ok: #2f8a5b;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; }
-  body {
-    background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  #scene { position: absolute; inset: 0; }
-  #scene canvas { display: block; touch-action: none; }
-  .glass {
-    background: var(--card); backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
-    border: 1px solid rgba(255,255,255,.85); box-shadow: 0 20px 50px rgba(90,60,30,.12), 0 2px 6px rgba(90,60,30,.06);
-  }
-  .panel { position: absolute; top: 18px; left: 18px; width: 316px; max-height: calc(100vh - 36px); overflow-y: auto; z-index: 10; border-radius: 26px; padding: 18px; }
-  .panel.collapsed { width: auto; min-width: 240px; }
-  .panel.collapsed .body { display: none; }
-  .collapse { position: absolute; top: 18px; right: 16px; z-index: 2; cursor: pointer; border: none; font: inherit; font-size: .76rem; font-weight: 600; color: var(--accent); background: rgba(192,112,63,.13); border-radius: 999px; padding: 4px 12px; }
-  .back { font-size: .78rem; color: var(--accent); text-decoration: none; }
-  .title { font-size: 1.15rem; font-weight: 800; margin-top: 6px; padding-right: 62px; }
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin: 12px 0 10px; }
-  .tab { border: none; cursor: pointer; font: inherit; font-size: .74rem; font-weight: 800; padding: 8px 2px; border-radius: 14px; color: var(--ink); background: rgba(255,255,255,.62); line-height: 1.35; }
-  .tab:hover { background: rgba(255,255,255,.92); }
-  .tab.on { color: #fff; background: #5b8a72; box-shadow: 0 6px 16px rgba(91,138,114,.35); }
-  .sec[hidden] { display: none; }
-  .concept { background: #fff; border-radius: 16px; padding: 10px 12px; margin: 2px 0 8px; box-shadow: 0 4px 14px rgba(90,60,30,.08); border-left: 5px solid var(--cc, #5b8a72); }
-  .concept .ct { font-size: 1rem; font-weight: 900; color: var(--cc, #5b8a72); }
-  .concept .cd { font-size: .82rem; font-weight: 800; margin-top: 2px; line-height: 1.6; }
-  .desc { font-size: .78rem; color: var(--ink-soft); line-height: 1.65; margin: 6px 0; }
-  .desc b { color: var(--ink); }
-  .btn {
-    width: 100%; border: none; border-radius: 14px; padding: 9px 6px; cursor: pointer; margin-top: 6px;
-    font: inherit; font-size: .8rem; font-weight: 700; color: var(--accent); background: rgba(192,112,63,.13);
-    transition: background .2s, transform .1s;
-  }
-  .btn:hover { background: rgba(192,112,63,.22); }
-  .btn:active { transform: scale(.98); }
-  .btn.on { color: #fff; background: #5b8a72; box-shadow: 0 6px 16px rgba(91,138,114,.3); }
-  .btn small { display: block; font-size: .66rem; font-weight: 600; opacity: .85; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .stat { background: rgba(255,255,255,.78); border-radius: 14px; padding: 9px 11px; margin-top: 8px; font-size: .8rem; line-height: 1.75; }
-  .stat b { font-size: .95rem; }
-  .legend { display: grid; gap: 4px; font-size: .76rem; color: var(--ink-soft); background: rgba(255,255,255,.7); border-radius: 14px; padding: 8px 10px; margin-top: 8px; }
-  .legend i { display: inline-block; width: 13px; height: 13px; border-radius: 4px; margin-right: 6px; vertical-align: -2px; }
-  .note { background: #fff4d8; border: 1.5px solid #ecc46a; color: #6b4b00; font-weight: 600; border-radius: 14px; padding: 8px 11px; margin-top: 10px; font-size: .77rem; line-height: 1.6; }
-  .note b { color: #9a3b00; }
-
-  .dock { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9; border-radius: 24px; padding: 12px 20px; text-align: center;
-          width: max-content; max-width: min(820px, calc(100vw - 380px)); min-width: 300px; }
-  .cap { font-size: .98rem; font-weight: 700; line-height: 1.6; }
-  .cap small { display: block; font-size: .72rem; color: var(--ink-soft); font-weight: 700; letter-spacing: .08em; }
-  .cap b { color: #9a3b00; }
-  .cap .bad { color: #d0453a; } .cap .good { color: #1f6b43; }
-
-  .tag {
-    position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, -50%);
-    font-size: .74rem; font-weight: 800; padding: 4px 10px; border-radius: 12px; white-space: nowrap; text-align: center; line-height: 1.45;
-    background: rgba(255,253,248,.92); color: var(--ink); box-shadow: 0 4px 12px rgba(90,60,30,.1);
-  }
-  .tag small { font-size: .66rem; color: var(--ink-soft); font-weight: 700; }
-  .tag.bin { font-size: .95rem; padding: 6px 14px; background: rgba(255,255,255,.95); }
-  .tag.plus { background: #2fbf71; color: #fff; font-size: 1.2rem; transition: opacity .3s; }
-  .tag.bad { background: #e5484d; color: #fff; }
-  .tag.card { white-space: normal; width: 250px; text-align: left; padding: 12px 14px; border-radius: 16px; font-size: .82rem; line-height: 1.6;
-    background: rgba(255,252,245,.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1.5px solid rgba(255,255,255,.9); transform: translate(0, -50%); }
-  .tag.card b { display: block; font-size: 1.05rem; color: var(--cc, #c0703f); margin-bottom: 2px; }
-  .tag.formula { font-size: 2.2rem; font-weight: 900; padding: 6px 18px; background: rgba(255,250,232,.95); border: 2px solid #f2c75c; color: #8a5a00; border-radius: 18px; line-height: 1.2; }
-  .tag.formula small { display: block; font-size: .78rem; color: #8a6a3a; }
-  .fallback { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ink-soft); line-height: 1.8; }
-
-  @media (max-width: 760px), (max-width: 1100px) and (orientation: portrait) {
-    .tabs { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; }
-    .dock { top: 8px; bottom: auto; left: 8px; right: 8px; transform: none; max-width: none; min-width: 0; width: auto; padding: 8px 10px; border-radius: 18px; }
-    .cap { font-size: .8rem; }
-    .tag { font-size: .62rem; padding: 3px 7px; }
-    .tag.bin { font-size: .74rem; }
-    .tag.card { width: 180px; font-size: .7rem; }
-    .tag.formula { font-size: 1.4rem; }
-  }
-</style>
-<script src="mobile.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>探索物質組成</title>
+<link rel="stylesheet" href="lab-kit.css">
+<style>.formula { font-size: 1.6rem; font-weight: 800; color: var(--accent); text-align: center; letter-spacing: .05em; }</style>
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
 </script>
-<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
+<canvas id="cv" aria-label="分子模型、純物質與混合物、原子結構的 3D 模型"></canvas>
 
-<div id="scene"></div>
-
-<aside class="panel glass" id="panel">
+<aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
-  <a class="back" href="index.html#g8">‹ 課程總覽</a>
-  <div class="title">探索物質組成實驗室</div>
+  <a class="back" href="index.html#g8">← 回課程總覽</a>
+  <h1>探索物質組成</h1>
+  <p class="sub">國二理化 · 原子、分子與元素</p>
+
   <div class="body">
-    <div class="tabs">
-      <button class="tab on" data-tab="sort">♻️<br>粒子<br>分類機</button>
-      <button class="tab" data-tab="table">🧱<br>週期表<br>探索牆</button>
-      <button class="tab" data-tab="ion">🧩<br>離子<br>樂高</button>
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="mol" aria-pressed="true">分子模型</button>
+      <button class="mode" data-k="mix" aria-pressed="false">純物質與<br>混合物</button>
+      <button class="mode" data-k="atom" aria-pressed="false">原子結構</button>
     </div>
 
-    <!-- Tab 1 -->
-    <section class="sec" data-tab="sort">
-      <div class="concept" style="--cc:#2f8a5b"><div class="ct">微觀粒子分類機</div><div class="cd">元素：只由<b>一種</b>原子組成<br>化合物：由<b>兩種以上</b>原子組成（純物質）<br>混合物：<b>不同的粒子</b>混在一起</div></div>
-      <div class="stat" id="sortStat"></div>
-      <div class="legend">
-        <span>⚪ 單顆球：單原子元素（Ne）</span>
-        <span>🔴🔴 兩顆同色：雙原子元素分子（O₂）</span>
-        <span>🔴⚪⚪ 一大兩小異色：化合物分子（H₂O）</span>
-        <span>🟣🟢 雙色方陣：離子化合物（NaCl 晶體）</span>
-        <span>🫧 一團不同分子：混合物</span>
+    <div data-mode="mol">
+      <div class="group">
+        <div class="chips" style="--n:3" id="molSeg"></div>
+        <div class="formula" id="formula" style="margin-top:12px"></div>
+        <div class="result" id="molInfo" style="margin-top:8px"></div>
       </div>
-      <button class="btn" id="sortReset">↺ 分數歸零、重新開始</button>
-      <p class="desc">用滑鼠<b>拖曳</b>輸送帶上的粒子，丟進下方正確的玻璃回收桶。</p>
-    </section>
+    </div>
 
-    <!-- Tab 2 -->
-    <section class="sec" data-tab="table" hidden>
-      <div class="concept" style="--cc:#c0703f"><div class="ct">3D 週期表探索牆</div><div class="cd">同一直行（族）的元素，化學性質相似</div></div>
-      <div class="row2">
-        <button class="btn" data-fam="1">1A 鹼金屬<small>第 1 族</small></button>
-        <button class="btn" data-fam="2">2A 鹼土金屬<small>第 2 族</small></button>
-        <button class="btn" data-fam="17">7A 鹵素<small>第 17 族</small></button>
-        <button class="btn" data-fam="18">8A 惰性氣體<small>第 18 族</small></button>
+    <div data-mode="mix" hidden>
+      <div class="group">
+        <div class="chips" style="--n:3" id="mixSeg"></div>
+        <div class="result" id="mixInfo" style="margin-top:10px"></div>
       </div>
-      <button class="btn" id="famReset">↺ 全部收回、看全景</button>
-      <div class="legend">
-        <span><i style="background:#f3b483"></i>金屬</span>
-        <span><i style="background:#8fd6b3"></i>非金屬</span>
-        <span><i style="background:#b9a3e8"></i>類金屬</span>
-      </div>
-      <p class="desc">滑鼠移到磚塊上，它會浮起發亮。點上面的族群按鈕，整個<b>直行</b>會向前突出。</p>
-    </section>
+    </div>
 
-    <!-- Tab 3 -->
-    <section class="sec" data-tab="ion" hidden>
-      <div class="concept" style="--cc:#3d6fd8"><div class="ct">離子樂高</div><div class="cd">正電總數 ＝ 負電總數，才能組成離子化合物<br>一個凸起 ＝ +1、一個凹槽 ＝ −1</div></div>
-      <div class="legend">
-        <span><i style="background:#5b8def"></i>陽離子（藍，凸起）<br>+1：Na⁺ K⁺ Ag⁺ NH₄⁺<br>+2：Ca²⁺ Mg²⁺ Hg²⁺ Zn²⁺ Cu²⁺<br>+3：Al³⁺ Fe³⁺</span>
-        <span><i style="background:#e5605a"></i>陰離子（紅，凹槽）<br>−1：Cl⁻ I⁻ OH⁻ CH₃COO⁻ NO₃⁻<br>−2：O²⁻ SO₄²⁻ CO₃²⁻</span>
+    <div data-mode="atom" hidden>
+      <div class="group">
+        <div class="ctrl">
+          <label for="z">原子序 <output id="zVal"></output></label>
+          <input type="range" id="z" min="1" max="12" step="1" value="6">
+        </div>
+        <dl class="live">
+          <dt>質子（＋）</dt><dd id="np">—</dd>
+          <dt>中子（不帶電）</dt><dd id="nn">—</dd>
+          <dt>電子（－）</dt><dd id="ne">—</dd>
+          <dt>電子排列</dt><dd id="shell">—</dd>
+        </dl>
+        <p class="note" style="margin-top:8px">原子中<b>質子數 = 電子數</b>，所以原子不帶電。<b>原子序 = 質子數</b>，決定它是哪一種元素。（模型不按比例：原子核其實非常非常小。）</p>
       </div>
-      <div class="stat" id="ionStat"></div>
-      <button class="btn" id="ionReset">↺ 清空組合區</button>
-      <div class="note">📝 化學式規則<br>① 陽離子在前，陰離子在後；數量 1 不寫<br>② 原子團（NH₄⁺、OH⁻、NO₃⁻、SO₄²⁻、CO₃²⁻、CH₃COO⁻）超過 1 個要加<b>括號</b>：Mg(OH)₂、Al₂(SO₄)₃、(NH₄)₂CO₃<br>③ <b>醋酸根寫在前面</b>：CH₃COONa、(CH₃COO)₂Ca</div>
-      <p class="desc">從兩側<b>供應站</b>把積木拖到中間的<b>組合區</b>、放在彼此旁邊（拿走一塊會自動補貨，拖回供應站＝回收）。凸起數 ＝ 凹槽數時會自動卡合；不相等就會閃紅光。一次只用<b>一種</b>陽離子和<b>一種</b>陰離子。</p>
-    </section>
+    </div>
 
-    <button class="btn" id="viewBtn" style="margin-top:10px">重設視角</button>
+    <div class="group">
+      <p class="note"><b>元素</b>：只由一種原子組成的純物質。<b>化合物</b>：由兩種以上的原子以固定比例結合的純物質。<b>混合物</b>：由兩種以上的物質混在一起，沒有固定組成。</p>
+    </div>
   </div>
 </aside>
 
-<div class="dock glass" id="dock"><div class="cap" id="cap"></div></div>
-
+<script src="lab-kit.js"></script>
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-
-window.__labReady = true;
+import { start3D, THREE } from './lab3d.js';
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const $ = id => document.getElementById(id);
-const V3 = (x, y, z = 0) => new THREE.Vector3(x, y, z);
-const clamp = THREE.MathUtils.clamp, lerp = THREE.MathUtils.lerp;
-const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-const rnd = (a, b) => a + Math.random() * (b - a);
+const S = { mode: 'mol', mol: 'H2O', mix: 'air', z: 6 };
 
-/* =========================================================
-   共用：場景、燈光、原木桌面、材質
-   ========================================================= */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
-$('scene').appendChild(renderer.domElement);
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf3eff8);
-const pmrem = new THREE.PMREMGenerator(renderer);
-const envScene = new THREE.Scene();
-envScene.background = new THREE.Color(0xf6efe2);
-const envLight = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-envLight.position.set(3, 5, 4); envLight.scale.setScalar(2.6); envScene.add(envLight);
-scene.environment = pmrem.fromScene(envScene, 0.04).texture;
-scene.add(new THREE.HemisphereLight(0xfffaf0, 0xd8c3a0, 1.05));
-const sun = new THREE.DirectionalLight(0xfff1dc, 1.9);
-sun.position.set(-6, 15, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -8, near: 1, far: 60 });
-sun.shadow.radius = 6;
-scene.add(sun);
-const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.05, 200);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.minDistance = 2; controls.maxDistance = 45;
-controls.maxPolarAngle = Math.PI * 0.49;
+const L = start3D({ background: 0x140b1c, camera: [0, 1.5, 8], target: [0, 0, 0], minDist: 3, maxDist: 25, frame, ui });
+const { scene } = L;
 
-function woodTexture() {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-  const g = c.getContext('2d');
-  const grd = g.createLinearGradient(0, 0, 0, 512);
-  grd.addColorStop(0, '#e2c39b'); grd.addColorStop(1, '#d6b285');
-  g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
-  for (let i = 0; i < 90; i++) {
-    const y = Math.random() * 512;
-    g.strokeStyle = `rgba(${140 + Math.random() * 40 | 0},${92 + Math.random() * 30 | 0},${52 + Math.random() * 20 | 0},${0.05 + Math.random() * 0.12})`;
-    g.lineWidth = 0.8 + Math.random() * 3;
-    g.beginPath();
-    for (let x = 0; x <= 1024; x += 16) { const yy = y + Math.sin(x * 0.005 + i) * 7 + Math.sin(x * 0.021 + i * 3) * 2; if (x) g.lineTo(x, yy); else g.moveTo(x, yy); }
-    g.stroke();
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  return t;
+// 原子顏色與大小（教科書常用配色）
+const ATOM = { H: [0xf2f2f2, 0.32, '氫'], O: [0xff4d4d, 0.5, '氧'], C: [0x3a3a3a, 0.5, '碳'], N: [0x4d7dff, 0.48, '氮'], Na: [0xb27aff, 0.6, '鈉'], Cl: [0x4fd18b, 0.58, '氯'], He: [0xffd34d, 0.36, '氦'] };
+const sphere = new THREE.SphereGeometry(1, 32, 20);
+function atom(el) { const m = new THREE.Mesh(sphere, L.mat(ATOM[el][0], { roughness: 0.35 })); m.scale.setScalar(ATOM[el][1]); return m; }
+function bond(a, b) {
+  const d = b.clone().sub(a), m = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, d.length(), 10), L.mat(0xcfcfcf));
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize());
+  return m;
 }
-const table = new THREE.Mesh(new RoundedBoxGeometry(32, 0.6, 16, 5, 0.28),
-  new THREE.MeshPhysicalMaterial({ color: 0x343a46, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.25 }));
-table.position.set(0, -0.3, 1); table.receiveShadow = true; scene.add(table);
-
-const clay = (color, o = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.45, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.3, ...o });
-const glowClay = (color, k = 0.25) => clay(color, { emissive: color, emissiveIntensity: k });
-const glassA = (o = {}) => new THREE.MeshPhysicalMaterial({ color: 0xf6fbff, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, ...o });
-const shadowed = m => { m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return m; };
-const textTexture = (text, { w = 256, h = 128, color = '#fff', font = 800, size = 0.62, bg = null } = {}) => {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d');
-  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, w, h); }
-  g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = `${font} ${h * size}px "Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif`;
-  const tw = g.measureText(text).width;
-  if (tw > w * 0.9) g.font = `${font} ${h * size * w * 0.9 / tw}px "Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif`;
-  g.fillText(text, w / 2, h * 0.54);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return t;
+// 分子：原子位置
+const t = 109.5 * Math.PI / 180;
+const MOL = {
+  H2:  { f: 'H₂', name: '氫氣', kind: '元素', atoms: [['H', -0.37, 0, 0], ['H', 0.37, 0, 0]] },
+  O2:  { f: 'O₂', name: '氧氣', kind: '元素', atoms: [['O', -0.6, 0, 0], ['O', 0.6, 0, 0]] },
+  H2O: { f: 'H₂O', name: '水', kind: '化合物', atoms: [['O', 0, 0.15, 0], ['H', -0.78, -0.45, 0], ['H', 0.78, -0.45, 0]] },
+  CO2: { f: 'CO₂', name: '二氧化碳', kind: '化合物', atoms: [['C', 0, 0, 0], ['O', -1.15, 0, 0], ['O', 1.15, 0, 0]] },
+  NH3: { f: 'NH₃', name: '氨', kind: '化合物', atoms: [['N', 0, 0.3, 0], ['H', 0.9, -0.15, 0], ['H', -0.45, -0.15, 0.78], ['H', -0.45, -0.15, -0.78]] },
+  CH4: { f: 'CH₄', name: '甲烷', kind: '化合物', atoms: [['C', 0, 0, 0], ['H', 0.63, 0.63, 0.63], ['H', -0.63, -0.63, 0.63], ['H', -0.63, 0.63, -0.63], ['H', 0.63, -0.63, -0.63]] }
 };
-
-/* ----- 浮動標籤（分 Tab） ----- */
-const labels = [];
-const tmpV = V3(0, 0, 0), tmpW = V3(0, 0, 0);
-function addLabel(tabKey, html, cls, off, follow = null) {
-  const el = document.createElement('div'); el.className = 'tag ' + (cls || ''); el.innerHTML = html; document.body.appendChild(el);
-  const L = { tab: tabKey, el, html, off: off.clone(), pos: off.clone(), follow, show: true }; labels.push(L); return L;
-}
-function setLabel(L, html) { if (L.html !== html) { L.html = html; L.el.innerHTML = html; } }
-function removeLabel(L) { L.el.remove(); const i = labels.indexOf(L); if (i >= 0) labels.splice(i, 1); }
-function placeLabels() {
-  for (const L of labels) {
-    if (L.tab !== tab || !L.show) { L.el.style.display = 'none'; continue; }
-    if (L.follow) L.pos.copy(L.follow.getWorldPosition(tmpW)).add(L.off);
-    tmpV.copy(L.pos).project(camera);
-    if (tmpV.z > 1) { L.el.style.display = 'none'; continue; }
-    L.el.style.display = '';
-    L.el.style.left = ((tmpV.x + 1) / 2 * window.innerWidth) + 'px';
-    L.el.style.top = ((1 - tmpV.y) / 2 * window.innerHeight) + 'px';
-  }
-}
-let tab = 'sort', wall = 0;
-const setCap = html => { if ($('cap').innerHTML !== html) $('cap').innerHTML = html; };
-const setHTML = (id, html) => { if ($(id).innerHTML !== html) $(id).innerHTML = html; };
-
-/* ----- 火花 ----- */
-const sparkGeo = new THREE.SphereGeometry(0.05, 8, 6);
-const sparks = [];
-function burst(pos, color, n = 40, speed = 4) {
-  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false });
-  for (let i = 0; i < n; i++) {
-    const m = new THREE.Mesh(sparkGeo, mat); m.position.copy(pos); scene.add(m);
-    const d = V3(rnd(-1, 1), rnd(0, 1.4), rnd(-1, 1)).normalize();
-    sparks.push({ m, v: d.multiplyScalar(rnd(speed * 0.4, speed)), life: rnd(0.7, 1.2), t: 0 });
-  }
-}
-function updateSparks(dt) {
-  for (let i = sparks.length - 1; i >= 0; i--) {
-    const s = sparks[i]; s.t += dt;
-    s.v.y -= 6 * dt; s.m.position.addScaledVector(s.v, dt);
-    s.m.scale.setScalar(Math.max(0.001, 1 - s.t / s.life) * 1.4);
-    if (s.t >= s.life) { scene.remove(s.m); sparks.splice(i, 1); }
-  }
-}
-
-/* ----- 拖曳系統（在桌面上方的水平面移動） ----- */
-const raycaster = new THREE.Raycaster(), ndc = new THREE.Vector2();
-const hitP = V3(0, 0, 0);
-let drag = null;
-function setNdc(ev) {
-  const r = renderer.domElement.getBoundingClientRect();
-  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
-  raycaster.setFromCamera(ndc, camera);
-}
-function pickRoot(objs, ev) {
-  setNdc(ev);
-  const hit = raycaster.intersectObjects(objs, true)[0];
-  if (!hit) return null;
-  let o = hit.object; while (o && !o.userData.drag) o = o.parent;
-  return o;
-}
-
-/* =========================================================
-   Tab 1：微觀粒子分類機
-   ========================================================= */
-const SORT = { group: new THREE.Group(), items: [], spawnT: 0.2, score: 0, wrong: 0, msg: '', msgT: 0, belt: 0 };
-scene.add(SORT.group);
-const BELT = { y: 0.6, z: -1.4, x0: -6.6, x1: 6.6, speed: 0.42 };
-const beltTexC = document.createElement('canvas'); beltTexC.width = 512; beltTexC.height = 64;
-{ const g = beltTexC.getContext('2d'); g.fillStyle = '#5a5550'; g.fillRect(0, 0, 512, 64); g.fillStyle = '#6d6862'; for (let i = 0; i < 16; i++) g.fillRect(i * 32, 0, 14, 64); }
-const beltTex = new THREE.CanvasTexture(beltTexC); beltTex.wrapS = THREE.RepeatWrapping; beltTex.repeat.set(5, 1); beltTex.colorSpace = THREE.SRGBColorSpace;
-const belt = shadowed(new THREE.Mesh(new RoundedBoxGeometry(14.2, 0.36, 1.9, 4, 0.16), [clay(0x4e4a46), clay(0x4e4a46), new THREE.MeshPhysicalMaterial({ map: beltTex, roughness: 0.8 }), clay(0x4e4a46), clay(0x4e4a46), clay(0x4e4a46)]));
-belt.position.set(0, BELT.y - 0.18, BELT.z); SORT.group.add(belt);
-for (const sx of [-1, 1]) {
-  const roller = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 2.1, 24).rotateX(Math.PI / 2), clay(0xb4865a))); roller.position.set(sx * 7.15, BELT.y - 0.2, BELT.z); SORT.group.add(roller);
-}
-for (const sx of [-6, 0, 6]) { const leg = shadowed(new THREE.Mesh(new RoundedBoxGeometry(0.3, 0.45, 1.6, 2, 0.08), clay(0xb4865a))); leg.position.set(sx, 0.2, BELT.z); SORT.group.add(leg); }
-// 三個玻璃回收桶
-const BINS = [
-  { key: 'el', name: '元素', x: -3.6, color: 0xf3b483 },
-  { key: 'cp', name: '化合物', x: 0, color: 0x8fb4ff },
-  { key: 'mx', name: '混合物', x: 3.6, color: 0x8fd6b3 }
-];
-const BIN_Z = 2.4, BIN_R = 1.05, BIN_H = 1.3;
-BINS.forEach(b => {
-  const g = new THREE.Group(); g.position.set(b.x, 0, BIN_Z); SORT.group.add(g);
-  const wallM = new THREE.Mesh(new THREE.CylinderGeometry(BIN_R, BIN_R * 0.9, BIN_H, 48, 1, true), glassA({ opacity: 0.25 })); wallM.position.y = BIN_H / 2; wallM.renderOrder = 5; g.add(wallM);
-  const base = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(BIN_R * 0.9, BIN_R * 0.92, 0.12, 48), clay(b.color, { transparent: true, opacity: 0.85 }))); base.position.y = 0.06; g.add(base);
-  b.ringMat = new THREE.MeshStandardMaterial({ color: b.color, emissive: b.color, emissiveIntensity: 0.4, toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(BIN_R, 0.06, 12, 64), b.ringMat); ring.rotation.x = Math.PI / 2; ring.position.y = BIN_H; g.add(ring);
-  b.flash = 0; b.flashCol = new THREE.Color(); b.base = new THREE.Color(b.color); b.count = 0;
-  b.L = addLabel('sort', `♻️ ${b.name}`, 'bin', V3(b.x, -0.25, BIN_Z + 1.25));
-});
-// 五種粒子
-const atomMat = (color, k = 0.28) => glowClay(color, k);
-function makeItem(kind) {
-  const g = new THREE.Group(); g.userData.drag = true; g.userData.kind = kind;
-  const S = (r, c, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), atomMat(c)); m.position.set(x, y, z); g.add(m); return m; };
-  let h = 0.35;
-  if (kind === 'ne') { S(0.38, 0xc59bff); h = 0.38; }
-  else if (kind === 'o2') { S(0.3, 0xff6b5e, -0.24); S(0.3, 0xff6b5e, 0.24); h = 0.3; }
-  else if (kind === 'h2o') { S(0.34, 0xff6b5e); S(0.2, 0xf4f6fa, -0.33, 0.2, 0.06); S(0.2, 0xf4f6fa, 0.33, 0.2, 0.06); h = 0.4; }
-  else if (kind === 'nacl') {
-    for (let i = -1; i <= 1; i++) for (let j = 0; j <= 2; j++) for (let k = -1; k <= 1; k++) {
-      const na = (i + j + k) % 2 === 0;
-      S(na ? 0.12 : 0.17, na ? 0xa77bff : 0x3fd18b, i * 0.3, j * 0.3 - 0.3, k * 0.3);
-    }
-    h = 0.48;
-  } else if (kind === 'mix') {
-    const bub = new THREE.Mesh(new THREE.SphereGeometry(0.62, 32, 24), glassA({ opacity: 0.18, color: 0xe8f6ff })); g.add(bub);
-    S(0.16, 0xff6b5e, -0.3, 0.12, 0.05); S(0.16, 0xff6b5e, -0.06, 0.18, 0.05);          // O₂
-    S(0.18, 0xff6b5e, 0.24, -0.12, 0.1); S(0.11, 0xf4f6fa, 0.4, -0.02, 0.12); S(0.11, 0xf4f6fa, 0.08, -0.02, 0.12); // H₂O
-    S(0.17, 0xc59bff, -0.12, -0.28, -0.12);                                                // Ne
-    h = 0.62;
-  }
-  shadowed(g);
-  g.userData.h = h;
+function buildMol(key, scale = 1) {
+  const g = new THREE.Group(), M = MOL[key];
+  const pos = M.atoms.map(a => V(a[1], a[2], a[3]).multiplyScalar(scale));
+  M.atoms.forEach((a, i) => { const m = atom(a[0]); m.position.copy(pos[i]); m.scale.multiplyScalar(scale); g.add(m); if (i) g.add(bond(pos[0], pos[i])); });
+  if (key === 'H2' || key === 'O2') g.add(bond(pos[0], pos[1]));
   return g;
 }
-const ANSWER = { ne: 'el', o2: 'el', h2o: 'cp', nacl: 'cp', mx: 'mx', mix: 'mx' };
-const NAME = { ne: 'Ne（氖）', o2: 'O₂（氧氣）', h2o: 'H₂O（水）', nacl: 'NaCl 晶體（氯化鈉）', mix: '混合物（O₂、H₂O、Ne）' };
-const HINT = {
-  ne: '只有一種原子（Ne）→ 元素', o2: '兩顆都是 O 原子，只有一種原子 → 元素',
-  h2o: '含有 H 和 O 兩種原子 → 化合物', nacl: '含有 Na 和 Cl 兩種原子 → 化合物',
-  mix: '裡面有好幾種不同的粒子混在一起 → 混合物'
-};
-function spawnItem() {
-  const kinds = ['ne', 'o2', 'h2o', 'nacl', 'mix'];
-  const kind = kinds[(Math.random() * kinds.length) | 0];
-  const g = makeItem(kind);
-  g.position.set(BELT.x0 + 0.3, 4.2, BELT.z);
-  SORT.group.add(g);
-  const it = { g, kind, state: 'fall', vy: 0, spin: rnd(-1, 1), L: addLabel('sort', NAME[kind].split('（')[0], '', V3(0, g.userData.h + 0.35, 0), g) };
-  SORT.items.push(it);
-}
-function removeItem(it) { SORT.group.remove(it.g); removeLabel(it.L); SORT.items.splice(SORT.items.indexOf(it), 1); }
-function sortMsg(html, t = 3) { SORT.msg = html; SORT.msgT = t; }
-const plusL = addLabel('sort', '+1', 'plus', V3(0, 0, 0)); plusL.show = false; let plusT = 0;
-const badL = addLabel('sort', '', 'bad', V3(0, 0, 0)); badL.show = false; let badT = 0;
-function dropItem(it) {
-  const p = it.g.position;
-  const bin = BINS.find(b => Math.hypot(p.x - b.x, p.z - BIN_Z) < BIN_R + 0.15);
-  if (!bin) { it.state = 'return'; it.t = 0; it.from = p.clone(); return; }
-  if (ANSWER[it.kind] === bin.key) {
-    SORT.score++; bin.count++;
-    it.state = 'into'; it.t = 0; it.from = p.clone(); it.bin = bin;
-    bin.flash = 1; bin.flashCol.set(0x2fbf71);
-    plusL.pos.set(bin.x, 2.0, BIN_Z); plusL.off.copy(plusL.pos); plusL.show = true; plusT = 1.2;
-    burst(V3(bin.x, BIN_H, BIN_Z), 0x5be59a, 26, 3);
-    sortMsg(`<span class="good">✅ 答對了！${NAME[it.kind]}</span>：${HINT[it.kind]}`);
-  } else {
-    SORT.wrong++;
-    it.state = 'return'; it.t = 0; it.from = p.clone();
-    bin.flash = 1; bin.flashCol.set(0xe5484d);
-    badL.pos.set(bin.x, 2.1, BIN_Z); badL.off.copy(badL.pos); badL.show = true; badT = 2.2;
-    setLabel(badL, '請注意原子種類是否單一！');
-    sortMsg(`<span class="bad">❌ 請注意原子種類是否單一！</span>${NAME[it.kind]}：${HINT[it.kind]}`, 4);
-  }
-}
-$('sortReset').addEventListener('click', () => { SORT.score = 0; SORT.wrong = 0; BINS.forEach(b => { b.count = 0; }); while (SORT.items.length) removeItem(SORT.items[0]); SORT.spawnT = 0.2; });
-function updateSort(dt) {
-  SORT.belt += dt * BELT.speed;
-  beltTex.offset.x = -SORT.belt / 14.2 * 5;
-  SORT.spawnT -= dt;
-  const onBelt = SORT.items.filter(i => i.state === 'belt' || i.state === 'fall').length;
-  if (SORT.spawnT <= 0 && onBelt < 4) { spawnItem(); SORT.spawnT = 2.6; }
-  for (const it of SORT.items.slice()) {
-    const g = it.g, rest = BELT.y + g.userData.h;
-    if (it.state === 'fall') {
-      it.vy -= 14 * dt; g.position.y += it.vy * dt;
-      if (g.position.y <= rest) { g.position.y = rest; if (Math.abs(it.vy) > 2) it.vy = -it.vy * 0.3; else { it.vy = 0; it.state = 'belt'; } }
-    }
-    if (it.state === 'fall' || it.state === 'belt') {
-      g.position.x += BELT.speed * dt;
-      g.rotation.y += it.spin * dt * 0.6;
-      if (g.position.x > BELT.x1) { it.state = 'off'; it.vy = 0; }
-    }
-    if (it.state === 'off') {                                               // 走到盡頭掉下去
-      it.vy -= 14 * dt; g.position.y += it.vy * dt; g.position.x += BELT.speed * dt;
-      if (g.position.y < -2) removeItem(it);
-    }
-    if (it.state === 'drag') { g.position.y += (2.0 - g.position.y) * (1 - Math.exp(-dt * 14)); g.rotation.y += dt; }
-    if (it.state === 'return') {                                            // 投錯：彈回輸送帶原位
-      it.t += dt / 0.55;
-      const k = smooth(0, 1, it.t);
-      g.position.set(lerp(it.from.x, it.home.x, k), lerp(it.from.y, it.home.y, k) + Math.sin(k * Math.PI) * 1.2, lerp(it.from.z, it.home.z, k));
-      if (it.t >= 1) it.state = 'belt';
-    }
-    if (it.state === 'into') {                                              // 投對：落入桶中縮小消失
-      it.t += dt / 0.6;
-      const k = smooth(0, 1, it.t);
-      g.position.set(lerp(it.from.x, it.bin.x, k), lerp(it.from.y, 0.5, k), lerp(it.from.z, BIN_Z, k));
-      g.scale.setScalar(Math.max(0.001, 1 - k * 0.8));
-      if (it.t >= 1) removeItem(it);
-    }
-  }
-  BINS.forEach(b => {
-    b.flash = Math.max(0, b.flash - dt * 1.4);
-    b.ringMat.emissive.copy(b.base).lerp(b.flashCol, b.flash);
-    b.ringMat.color.copy(b.base).lerp(b.flashCol, b.flash);
-    b.ringMat.emissiveIntensity = 0.4 + 2.2 * b.flash;
-    setLabel(b.L, `♻️ ${b.name}　<small>${b.count}</small>`);
+
+// ---------- 模式一：單一分子 ----------
+const molG = new THREE.Group(); scene.add(molG);
+const molLbls = [];
+function showMol(key) {
+  molG.clear(); molLbls.forEach(l => (l.show = false));
+  const g = buildMol(key, 1.6); molG.add(g);
+  MOL[key].atoms.forEach((a, i) => {
+    const l = molLbls[i] || (molLbls[i] = L.label('', null));
+    l.set(ATOM[a[0]][2] + ' ' + a[0]);
+    l.where = () => g.children.filter(c => c.geometry === sphere)[i].getWorldPosition(V(0, 0, 0)).add(V(0, 0.75, 0));
+    l.show = true;
   });
-  plusT -= dt; plusL.show = plusT > 0; plusL.pos.y = plusL.off.y + (1.2 - Math.max(0, plusT)) * 0.8; plusL.el.style.opacity = clamp(plusT * 2, 0, 1);
-  badT -= dt; badL.show = badT > 0;
-  SORT.msgT -= dt;
-  setHTML('sortStat', `答對：<b style="color:#2f8a5b">${SORT.score}</b>　答錯：<b style="color:#d0453a">${SORT.wrong}</b>`);
-  setCap(SORT.msgT > 0 ? `<small>分類結果</small>${SORT.msg}` : '<small>微觀粒子分類機</small>拖曳輸送帶上的粒子，丟進<b>元素</b>、<b>化合物</b>或<b>混合物</b>回收桶');
+  const M = MOL[key], cnt = {};
+  M.atoms.forEach(a => (cnt[a[0]] = (cnt[a[0]] || 0) + 1));
+  $('formula').textContent = M.f;
+  $('molInfo').innerHTML = `<b>${M.name}</b>是<b>${M.kind}</b>。一個分子由 ` + Object.entries(cnt).map(([e, n]) => `${n} 個${ATOM[e][2]}原子`).join('、') + ' 組成。' +
+    (M.kind === '元素' ? '只有一種原子，所以是元素。' : '有兩種以上的原子，所以是化合物。');
 }
 
-/* =========================================================
-   Tab 2：3D 週期表探索牆（118 塊微光玻璃磚）
-   ========================================================= */
-const PT = { group: new THREE.Group(), tiles: [], hover: null, fam: null };
-scene.add(PT.group); PT.group.visible = false;
-const SYMS = 'H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og'.split(' ');
-const ZH = { H: '氫', He: '氦', Li: '鋰', Be: '鈹', B: '硼', C: '碳', N: '氮', O: '氧', F: '氟', Ne: '氖', Na: '鈉', Mg: '鎂', Al: '鋁', Si: '矽', P: '磷', S: '硫', Cl: '氯', Ar: '氬', K: '鉀', Ca: '鈣',
-  Fe: '鐵', Cu: '銅', Zn: '鋅', Ag: '銀', Au: '金', Hg: '汞', Pb: '鉛', Br: '溴', I: '碘', Kr: '氪', Xe: '氙', Rn: '氡', Rb: '銣', Cs: '銫', Fr: '鍅', Sr: '鍶', Ba: '鋇', Ra: '鐳', At: '砈', Ts: '石田', Og: '鿫', Mn: '錳', Ni: '鎳', Sn: '錫', Pt: '鉑' };
-const METALLOID = new Set(['B', 'Si', 'Ge', 'As', 'Sb', 'Te']);
-const NONMETAL = new Set(['H', 'C', 'N', 'O', 'F', 'P', 'S', 'Cl', 'Se', 'Br', 'I', 'At', 'Ts', 'He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn', 'Og']);
-/** 原子序 → [族（直行）, 列]；第 9、10 列放鑭系、錒系 */
-function place(Z) {
-  if (Z === 1) return [1, 1]; if (Z === 2) return [18, 1];
-  if (Z <= 10) return Z <= 4 ? [Z - 2, 2] : [Z + 8, 2];
-  if (Z <= 18) return Z <= 12 ? [Z - 10, 3] : [Z, 3];
-  if (Z <= 36) return [Z - 18, 4];
-  if (Z <= 54) return [Z - 36, 5];
-  if (Z <= 56) return [Z - 54, 6];
-  if (Z <= 71) return [Z - 54, 9];
-  if (Z <= 86) return [Z - 68, 6];
-  if (Z <= 88) return [Z - 86, 7];
-  if (Z <= 103) return [Z - 86, 10];
-  return [Z - 100, 7];
-}
-const CELL = 1.05, WALL_Z = -2;
-const cellPos = (col, row) => V3((col - 9.5) * CELL, 11.6 - row * CELL - (row >= 9 ? 0.35 : 0), WALL_Z);
-const CAT_COL = { metal: 0xf3b483, nonmetal: 0x8fd6b3, metalloid: 0xb9a3e8 };
-const tileGeo = new RoundedBoxGeometry(0.94, 0.94, 0.26, 3, 0.09);
-const faceGeo = new THREE.PlaneGeometry(0.86, 0.86);
-function tileTexture(Z, sym, cat) {
-  const c = document.createElement('canvas'); c.width = c.height = 160;
-  const g = c.getContext('2d');
-  g.fillStyle = cat === 'metal' ? '#7a3f12' : cat === 'nonmetal' ? '#145c3c' : '#4b2f8f';
-  g.font = '700 30px "Segoe UI",sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(Z, 12, 10);
-  g.font = `800 ${sym.length > 1 ? 66 : 76}px "Segoe UI",sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(sym, 80, 86);
-  if (ZH[sym]) { g.font = '700 26px "PingFang TC","Microsoft JhengHei",sans-serif'; g.fillText(ZH[sym], 80, 138); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
-  return t;
-}
-SYMS.forEach((sym, i) => {
-  const Z = i + 1, [col, row] = place(Z);
-  const cat = METALLOID.has(sym) ? 'metalloid' : NONMETAL.has(sym) ? 'nonmetal' : 'metal';
-  const mat = new THREE.MeshPhysicalMaterial({ color: CAT_COL[cat], roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.08, transparent: true, opacity: 0.86,
-    emissive: CAT_COL[cat], emissiveIntensity: 0.12 });
-  const g = new THREE.Group(); g.position.copy(cellPos(col, row));
-  const box = new THREE.Mesh(tileGeo, mat); box.userData.tile = g; g.add(box);
-  const face = new THREE.Mesh(faceGeo, new THREE.MeshBasicMaterial({ map: tileTexture(Z, sym, cat), transparent: true, toneMapped: false }));
-  face.position.z = 0.135; g.add(face);
-  PT.group.add(g);
-  PT.tiles.push({ g, box, mat, Z, sym, col, row, cat, lift: 0, glow: 0.12 });
-});
-for (const [row, txt] of [[6, '57–71<br>鑭系'], [7, '89–103<br>錒系']]) {         // 第 3 族的鑭系、錒系位置提示
-  const p = cellPos(3, row);
-  const m = new THREE.Mesh(tileGeo, new THREE.MeshPhysicalMaterial({ color: 0xe8ddcc, transparent: true, opacity: 0.45, roughness: 0.3 })); m.position.copy(p); PT.group.add(m);
-  addLabel('table', `<small>${txt}</small>`, 'minor', p.clone().add(V3(0, 0, 0.3)));
-}
-addLabel('table', '<small>鑭系元素</small>', '', cellPos(1.6, 9).add(V3(0, 0, 0.3)));
-addLabel('table', '<small>錒系元素</small>', '', cellPos(1.6, 10).add(V3(0, 0, 0.3)));
-const stand = shadowed(new THREE.Mesh(new RoundedBoxGeometry(20.5, 0.4, 1.6, 4, 0.15), clay(0xb4865a))); stand.position.set(0, 0.2, WALL_Z); PT.group.add(stand);
-const FAMILY = {
-  1: { name: '1A 鹼金屬', cc: '#c0703f', filter: t => t.col === 1 && t.sym !== 'H',
-       text: '極易失去 1 個電子（+1 價），活性很大，與水反應激烈並產生氫氣。<br><small>※ 氫雖然在第 1 族，但不是鹼金屬。</small>' },
-  2: { name: '2A 鹼土金屬', cc: '#b45309', filter: t => t.col === 2 && t.row <= 7,
-       text: '容易失去 2 個電子（+2 價），活性比同週期的鹼金屬小，例如鎂、鈣。' },
-  17: { name: '7A 鹵素', cc: '#1f8a5b', filter: t => t.col === 17 && t.row <= 7,
-       text: '容易得到 1 個電子（−1 價），是活性大的非金屬；常以雙原子分子存在，例如 F₂、Cl₂。' },
-  18: { name: '8A 惰性氣體', cc: '#3d6fd8', filter: t => t.col === 18 && t.row <= 7,
-       text: '最外層電子已經穩定，幾乎不起化學反應；以單原子分子存在，例如 He、Ne、Ar。' }
+// ---------- 模式二：容器裡的粒子 ----------
+const box = new THREE.Group(); scene.add(box);
+const glass = new THREE.Mesh(new THREE.BoxGeometry(6, 4, 4), new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.1, roughness: 0.1, depthWrite: false }));
+box.add(glass);
+box.add(new THREE.LineSegments(new THREE.EdgesGeometry(glass.geometry), new THREE.LineBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.5 })));
+const MIX = {
+  o2:   { name: '氧氣', parts: [['O2', 14]], kind: '純物質（元素）', txt: '容器裡只有<b>一種分子</b>，而且只有一種原子。' },
+  h2o:  { name: '水（水蒸氣）', parts: [['H2O', 14]], kind: '純物質（化合物）', txt: '只有<b>一種分子</b>（H₂O），所以是純物質；分子由兩種原子組成，所以是化合物。' },
+  air:  { name: '空氣', parts: [['N2', 11], ['O2', 4], ['CO2', 1], ['H2O', 1]], kind: '混合物', txt: '空氣裡有氮氣、氧氣、二氧化碳、水蒸氣等<b>多種分子</b>，是混合物。氮氣最多（約 78%），氧氣約 21%。' },
+  ch4o2:{ name: '甲烷＋氧氣', parts: [['CH4', 6], ['O2', 8]], kind: '混合物', txt: '兩種物質混在一起，但<b>還沒有反應</b>，各自保有原來的分子，是混合物。' },
+  he:   { name: '氦氣', parts: [['He', 16]], kind: '純物質（元素）', txt: '氦氣是由<b>單一原子</b>直接構成的元素，沒有形成分子。' },
+  nacl: { name: '食鹽水', parts: [['H2O', 12], ['Na', 3], ['Cl', 3]], kind: '混合物', txt: '食鹽溶在水中，有水分子和鈉、氯離子，是<b>混合物</b>（水溶液）。' }
 };
-const famCard = addLabel('table', '', 'card', V3(0, 0, 0)); famCard.show = false;
-const PT_CAM = { pos: [0, 6.6, 21], target: [0, 5.9, WALL_Z], fitW: 21 };
-function setFamily(f) {
-  PT.fam = f;
-  document.querySelectorAll('[data-fam]').forEach(b => b.classList.toggle('on', Number(b.dataset.fam) === f));
-  if (!f) { famCard.show = false; goView(PT_CAM); return; }
-  const F = FAMILY[f], members = PT.tiles.filter(F.filter);
-  const ys = members.map(t => t.g.position.y), cy = (Math.max(...ys) + Math.min(...ys)) / 2;
-  const x = cellPos(f, 1).x;
-  famCard.pos.set(x + (f >= 17 ? -1.0 : 1.0), cy, WALL_Z + 1.4); famCard.off.copy(famCard.pos);
-  famCard.el.style.setProperty('--cc', F.cc);
-  famCard.el.style.transform = f >= 17 ? 'translate(-100%, -50%)' : 'translate(0, -50%)';
-  setLabel(famCard, `<b>${F.name}</b>${members.map(t => t.sym).join('、')}<br>${F.text}`);
-  famCard.show = true;
-  const sgn = f >= 17 ? -1 : 1;
-  goView({ pos: [x + sgn * 7.5, cy + 1.5, 11.5], target: [x + sgn * 2.4, cy, WALL_Z], fitW: 9 });   // 從側前方看，突出的直行更立體
-}
-document.querySelectorAll('[data-fam]').forEach(b => b.addEventListener('click', () => setFamily(Number(b.dataset.fam))));
-$('famReset').addEventListener('click', () => setFamily(null));
-function updateTable(dt) {
-  const F = PT.fam ? FAMILY[PT.fam] : null;
-  const e = 1 - Math.exp(-dt * 10);
-  for (const t of PT.tiles) {
-    const inFam = F && F.filter(t);
-    const target = (inFam ? 1.1 : 0) + (PT.hover === t ? 0.32 : 0);
-    t.lift += (target - t.lift) * e;
-    t.g.position.z = WALL_Z + t.lift;
-    const gl = inFam ? 0.7 + 0.2 * Math.sin(wall * 4) : PT.hover === t ? 0.6 : F ? 0.04 : 0.12;
-    t.glow += (gl - t.glow) * e;
-    t.mat.emissiveIntensity = t.glow;
-    t.mat.opacity = F && !inFam ? 0.45 : 0.86;
-  }
-  setCap(F ? `<small>${F.name}</small>同一直行（同族）的元素，最外層電子數相同 → <b>化學性質相似</b>`
-    : PT.hover ? `<small>第 ${PT.hover.col} 族・第 ${PT.hover.row >= 9 ? (PT.hover.row === 9 ? 6 : 7) : PT.hover.row} 週期</small><b>${PT.hover.Z} ${PT.hover.sym}</b> ${ZH[PT.hover.sym] || ''}（${PT.hover.cat === 'metal' ? '金屬' : PT.hover.cat === 'nonmetal' ? '非金屬' : '類金屬'}）`
-    : '<small>3D 週期表探索牆</small>滑鼠移到磚塊上看看；點左邊的<b>族群按鈕</b>，整個直行會向前突出');
-}
-
-/* =========================================================
-   Tab 3：離子樂高（正電總數 ＝ 負電總數）
-   ‧ 左右兩個玻璃供應站，依價數分排；拖走一塊，原位立刻補一塊（無限供應）
-   ‧ 拖回供應站＝回收；拼成矩形（正負相等）就卡合並寫出化學式
-   ========================================================= */
-const ION = { group: new THREE.Group(), pieces: [], bonds: [], near: [], msg: '', msgT: 0 };
-scene.add(ION.group); ION.group.visible = false;
-const UNIT = 0.62, BW = 1.0, BH = 0.6;
-// pre：命名前綴（○化、○酸）；poly：原子團（數量 > 1 要加括號）
-const TYPES = {
-  Na: { q: 1, sym: 'Na', label: 'Na⁺', name: '鈉', color: 0x5b8def },
-  K: { q: 1, sym: 'K', label: 'K⁺', name: '鉀', color: 0x6a97f2 },
-  Ag: { q: 1, sym: 'Ag', label: 'Ag⁺', name: '銀', color: 0x7ea3ee },
-  NH4: { q: 1, sym: 'NH₄', label: 'NH₄⁺', name: '銨', color: 0x3fa3d9, poly: true },
-  Ca: { q: 2, sym: 'Ca', label: 'Ca²⁺', name: '鈣', color: 0x4a7fe0 },
-  Mg: { q: 2, sym: 'Mg', label: 'Mg²⁺', name: '鎂', color: 0x5688e6 },
-  Hg: { q: 2, sym: 'Hg', label: 'Hg²⁺', name: '汞', color: 0x6c8fd6 },
-  Zn: { q: 2, sym: 'Zn', label: 'Zn²⁺', name: '鋅', color: 0x4f86d8 },
-  Cu: { q: 2, sym: 'Cu', label: 'Cu²⁺', name: '銅', color: 0x2f8fe0 },
-  Al: { q: 3, sym: 'Al', label: 'Al³⁺', name: '鋁', color: 0x3d6fd8 },
-  Fe: { q: 3, sym: 'Fe', label: 'Fe³⁺', name: '鐵', color: 0x3a62c4 },
-  Cl: { q: -1, sym: 'Cl', label: 'Cl⁻', pre: '氯化', color: 0xe5605a },
-  I: { q: -1, sym: 'I', label: 'I⁻', pre: '碘化', color: 0xe06a72 },
-  OH: { q: -1, sym: 'OH', label: 'OH⁻', pre: '氫氧化', color: 0xe8706a, poly: true },
-  CH3COO: { q: -1, sym: 'CH₃COO', label: 'CH₃COO⁻', pre: '醋酸', color: 0xd9577e, poly: true, first: true },
-  NO3: { q: -1, sym: 'NO₃', label: 'NO₃⁻', pre: '硝酸', color: 0xdf5f86, poly: true },
-  O: { q: -2, sym: 'O', label: 'O²⁻', pre: '氧化', color: 0xe0504f },
-  SO4: { q: -2, sym: 'SO₄', label: 'SO₄²⁻', pre: '硫酸', color: 0xd9486e, poly: true },
-  CO3: { q: -2, sym: 'CO₃', label: 'CO₃²⁻', pre: '碳酸', color: 0xd4556a, poly: true }
-};
-// 供應站：依價數分排（每排一種價數）
-const STATION = {
-  cat: { x0: -9.6, dx: 1.55, rows: [['Na', 'K', 'Ag', 'NH4'], ['Ca', 'Mg', 'Hg', 'Zn', 'Cu'], ['Al', 'Fe']], rowZ: [-3.3, -1.9, -0.05], tags: ['+1 價', '+2 價', '+3 價'] },
-  an: { x0: 3.4, dx: 1.55, rows: [['Cl', 'I', 'OH', 'CH3COO', 'NO3'], ['O', 'SO4', 'CO3']], rowZ: [-3.3, -1.9], tags: ['−1 價', '−2 價'] }
-};
-const TRAY = { cat: { x0: -10.45, x1: -2.6, z0: -3.85, z1: 1.05 }, an: { x0: 2.6, x1: 10.45, z0: -3.85, z1: -1.0 } };
-const inTray = p => Object.values(TRAY).some(t => p.x > t.x0 - 0.2 && p.x < t.x1 + 0.2 && p.z > t.z0 - 0.2 && p.z < t.z1 + 0.2);
-for (const [k, t] of Object.entries(TRAY)) {                                // 毛玻璃托盤
-  const tray = new THREE.Mesh(new RoundedBoxGeometry(t.x1 - t.x0, 0.08, t.z1 - t.z0, 4, 0.04),
-    new THREE.MeshPhysicalMaterial({ color: k === 'cat' ? 0xe6efff : 0xffe9e6, roughness: 0.25, clearcoat: 1, transparent: true, opacity: 0.55 }));
-  tray.position.set((t.x0 + t.x1) / 2, 0.04, (t.z0 + t.z1) / 2); tray.receiveShadow = true; ION.group.add(tray);
-}
-addLabel('ion', '<b>陽離子供應站</b><small>（拖出去就自動補貨）</small>', '', V3((TRAY.cat.x0 + TRAY.cat.x1) / 2, 0.1, TRAY.cat.z1 + 0.45));
-addLabel('ion', '<b>陰離子供應站</b><small>（拖回來＝回收）</small>', '', V3((TRAY.an.x0 + TRAY.an.x1) / 2, 0.1, TRAY.an.z1 + 0.45));
-for (const [k, S] of Object.entries(STATION)) S.rowZ.forEach((z, r) => addLabel('ion', S.tags[r], '', V3(k === 'cat' ? S.x0 - 0.95 : S.x0 + S.rows[r].length * S.dx - 0.45, 0.1, z)));
-// 中間的組合區
-const mat = new THREE.Mesh(new RoundedBoxGeometry(5.4, 0.04, 5.0, 3, 0.02), clay(0xfff4dc, { roughness: 0.8, clearcoat: 0 })); mat.position.set(0, 0.02, 1.7); mat.receiveShadow = true; ION.group.add(mat);
-addLabel('ion', '🧩 組合區', '', V3(0, 0.1, 4.45));
-const studMat = clay(0x7fa6f5, { emissive: 0x5b8def, emissiveIntensity: 0.2 });
-const holeMat = new THREE.MeshBasicMaterial({ color: 0x5a1f1f });
-const rimMat = clay(0xffd0c8);
-function makePiece(type) {
-  const T = TYPES[type], n = Math.abs(T.q), len = n * UNIT;
-  const g = new THREE.Group(); g.userData.drag = true;
-  const mat = clay(T.color, { emissive: 0xff2a1f, emissiveIntensity: 0, roughness: 0.4 });
-  const body = new THREE.Mesh(new RoundedBoxGeometry(BW, BH, len - 0.04, 4, 0.1), mat); body.position.y = BH / 2; g.add(body);
-  for (let i = 0; i < n; i++) {
-    const z = (i + 0.5) * UNIT - len / 2;
-    if (T.q > 0) {                                                        // 陽離子：右側凸起卡榫
-      const stud = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.24, 20).rotateZ(Math.PI / 2), studMat); stud.position.set(BW / 2 + 0.11, BH / 2, z); g.add(stud);
-    } else {                                                              // 陰離子：左側凹槽（深色洞口＋框）
-      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), holeMat); hole.rotation.y = -Math.PI / 2; hole.position.set(-BW / 2 - 0.006, BH / 2, z); g.add(hole);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.03, 8, 24), rimMat); rim.rotation.y = Math.PI / 2; rim.position.set(-BW / 2 - 0.01, BH / 2, z); g.add(rim);
+MOL.N2 = { f: 'N₂', name: '氮氣', kind: '元素', atoms: [['N', -0.55, 0, 0], ['N', 0.55, 0, 0]] };
+const particles = [];
+function showMix(key) {
+  particles.forEach(p => box.remove(p.g)); particles.length = 0;
+  MIX[key].parts.forEach(([k, n]) => {
+    for (let i = 0; i < n; i++) {
+      const g = MOL[k] ? buildMol(k, 0.42) : (() => { const a = atom(k); a.scale.multiplyScalar(0.5); return a; })();
+      g.position.set((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3);
+      g.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+      box.add(g);
+      particles.push({ g, v: V(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.4), w: V(Math.random(), Math.random(), 0) });
     }
-  }
-  const top = new THREE.Mesh(new THREE.PlaneGeometry(0.94, Math.min(len - 0.08, 0.9)), new THREE.MeshBasicMaterial({ map: textTexture(T.label, { w: 256, h: 160, size: 0.5 }), transparent: true, toneMapped: false }));
-  top.rotation.x = -Math.PI / 2; top.position.y = BH + 0.005; g.add(top);
-  shadowed(g);
-  return { g, type, T, len, mat, q: T.q, bond: null, slot: null, pop: 0 };
-}
-/** 在供應站的某一格放一塊新積木（有彈出動畫） */
-function fillSlot(slot) {
-  const p = makePiece(slot.type); p.slot = slot; p.pop = 0.001;
-  p.g.position.copy(slot.pos); p.g.scale.setScalar(0.001);
-  ION.group.add(p.g); ION.pieces.push(p);
-  return p;
-}
-const SLOTS = [];
-for (const S of Object.values(STATION)) S.rows.forEach((row, r) => row.forEach((type, i) => SLOTS.push({ type, pos: V3(S.x0 + i * S.dx, 0, S.rowZ[r]) })));
-function removePiece(p) { ION.group.remove(p.g); const i = ION.pieces.indexOf(p); if (i >= 0) ION.pieces.splice(i, 1); }
-function resetIons() {
-  ION.bonds.forEach(b => removeLabel(b.L)); ION.bonds = [];
-  ION.pieces.slice().forEach(removePiece);
-  SLOTS.forEach(s => { const p = fillSlot(s); p.pop = 1; p.g.scale.setScalar(1); });
-  ION.msg = ''; ION.msgT = 0;
-}
-$('ionReset').addEventListener('click', resetIons);
-/** 從供應站拿起：這塊變成自由積木，原位立刻補一塊 */
-function takeFromSlot(p) { if (!p.slot) return; const s = p.slot; p.slot = null; fillSlot(s); }
-const nearPieces = (a, b) => {
-  const gx = Math.abs(a.g.position.x - b.g.position.x) - BW - 0.25;
-  const gz = Math.abs(a.g.position.z - b.g.position.z) - (a.len + b.len) / 2;
-  return Math.max(gx, gz) < 0.4;
-};
-function clusterOf(p) {                                                   // 找出互相靠近、還沒接合的自由積木
-  const free = ION.pieces.filter(q => !q.bond && !q.slot);
-  const out = [p], queue = [p];
-  while (queue.length) {
-    const a = queue.pop();
-    for (const b of free) if (!out.includes(b) && nearPieces(a, b)) { out.push(b); queue.push(b); }
-  }
-  return out;
-}
-const SUB = n => (n > 1 ? String(n).split('').map(d => '₀₁₂₃₄₅₆₇₈₉'[d]).join('') : '');   // 1 不寫
-function judge(cl) {
-  const cats = cl.filter(p => p.q > 0), ans = cl.filter(p => p.q < 0);
-  if (!cats.length || !ans.length) return { ok: false, none: true };
-  const plus = cats.reduce((s, p) => s + p.q, 0), minus = -ans.reduce((s, p) => s + p.q, 0);
-  const ct = new Set(cats.map(p => p.type)), at = new Set(ans.map(p => p.type));
-  if (ct.size > 1 || at.size > 1) return { ok: false, mixed: true, plus, minus };
-  return { ok: plus === minus, plus, minus, cats, ans };
-}
-/** 化學式：原子團超過 1 個要加括號；數量 1 不寫；醋酸根寫在最前面 */
-const partOf = (T, n) => (n > 1 ? (T.poly ? `(${T.sym})${SUB(n)}` : T.sym + SUB(n)) : T.sym);
-function formulaOf(cations, anions) {
-  const C = TYPES[cations.type], A = TYPES[anions.type];
-  const cp = partOf(C, cations.n), ap = partOf(A, anions.n);
-  const rules = [];
-  if (A.first) rules.push('醋酸根寫在前面，陽離子寫在後面');
-  else rules.push('陽離子在前，陰離子在後');
-  if ((C.poly && cations.n > 1) || (A.poly && anions.n > 1)) rules.push('原子團超過 1 個要加括號');
-  return { f: A.first ? ap + cp : cp + ap, name: A.pre + C.name, rules };
-}
-function bondCluster(cl, j) {
-  const cx = cl.reduce((s, p) => s + p.g.position.x, 0) / cl.length, cz = cl.reduce((s, p) => s + p.g.position.z, 0) / cl.length;
-  const total = j.plus * UNIT;
-  const stack = (arr, x) => { let z = cz - total / 2; for (const p of arr) { p.target = V3(x, 0, z + p.len / 2); z += p.len; } };
-  stack(j.cats, cx - BW / 2 - 0.02); stack(j.ans, cx + BW / 2 + 0.24);     // 陽離子在左、陰離子在右；長度一樣 → 卡榫剛好對齊
-  const { f, name, rules } = formulaOf({ type: j.cats[0].type, n: j.cats.length }, { type: j.ans[0].type, n: j.ans.length });
-  const bond = { members: cl, t: 0, center: V3(cx, 0, cz), fired: false, f, name };
-  bond.L = addLabel('ion', `${f}<small>${name}｜${rules.join('；')}</small>`, 'formula', V3(cx, 2.6 + total * 0.2, cz - 0.4)); bond.L.show = false;
-  cl.forEach(p => { p.bond = bond; p.from = p.g.position.clone(); });
-  ION.bonds.push(bond);
-  ION.msg = `<span class="good">✨ 正電 ${j.plus} ＝ 負電 ${j.minus}，完美卡合！</span>化學式 <b>${f}</b>（${name}）：${rules.map(r => `<b>${r}</b>`).join('、')}`;
-  ION.msgT = 7;
-}
-function updateIon(dt) {
-  // 拖曳中：即時偵測靠近的積木，電荷不平衡就閃紅光
-  ION.near = [];
-  let live = null;
-  if (drag && drag.kind === 'ion') { const cl = clusterOf(drag.piece); if (cl.length > 1) { live = judge(cl); if (!live.none && !live.ok) ION.near = cl; } }
-  const pulse = 0.5 + 0.5 * Math.sin(wall * 10);
-  for (const p of ION.pieces.slice()) {
-    if (p.pop > 0 && p.pop < 1) { p.pop = Math.min(1, p.pop + dt * 4); p.g.scale.setScalar(0.4 + 0.6 * smooth(0, 1, p.pop) + Math.sin(p.pop * Math.PI) * 0.12); }
-    if (p.recycle) {                                                      // 回收：縮小消失
-      p.recycle += dt * 4; p.g.scale.setScalar(Math.max(0.001, 1 - p.recycle));
-      if (p.recycle >= 1) { removePiece(p); continue; }
-    }
-    const red = ION.near.includes(p) || (p.redT > 0);
-    p.redT = Math.max(0, (p.redT || 0) - dt);
-    p.mat.emissive.set(red ? 0xff2a1f : 0xffc23d);
-    p.mat.emissiveIntensity = red ? 0.6 * pulse : (p.goldT > 0 ? p.goldT : 0);
-    p.goldT = Math.max(0, (p.goldT || 0) - dt * 0.8);
-    if (!p.bond && drag?.piece !== p) p.g.position.y += (0 - p.g.position.y) * (1 - Math.exp(-dt * 12));
-  }
-  for (const b of ION.bonds) {                                            // 吸附融合動畫 → 金色火花 → 化學式
-    if (b.t < 1) {
-      b.t = Math.min(1, b.t + dt / 0.45);
-      const k = smooth(0, 1, b.t);
-      b.members.forEach(p => p.g.position.lerpVectors(p.from, p.target, k));
-      if (b.t >= 1 && !b.fired) {
-        b.fired = true; b.L.show = true;
-        burst(b.center.clone().add(V3(0, 0.6, 0)), 0xffc23d, 70, 5);
-        b.members.forEach(p => { p.goldT = 1.2; });
-      }
-    }
-  }
-  ION.msgT -= dt;
-  const nb = ION.bonds.length;
-  setHTML('ionStat', nb ? `已組成：${ION.bonds.map(b => `<b>${b.f}</b>`).join('、')}` : '還沒有組成任何化合物');
-  let cap;
-  if (live && !live.none && !live.ok) cap = live.mixed ? '<span class="bad">一次只用一種陽離子和一種陰離子喔！</span>'
-    : `<span class="bad">⚠️ 正負電荷未抵銷！</span>正電 <b>${live.plus}</b>（凸起）≠ 負電 <b>${live.minus}</b>（凹槽）→ 再拖一塊${live.plus < live.minus ? '<b>陽離子</b>' : '<b>陰離子</b>'}過來`;
-  else if (live && live.ok) cap = `<span class="good">放開就會卡合！</span>正電 ${live.plus} ＝ 負電 ${live.minus}`;
-  else if (ION.msgT > 0) cap = ION.msg;
-  else cap = '<small>離子樂高</small>從兩側供應站拖出積木到<b>組合區</b>：<b>凸起數 ＝ 凹槽數</b>才能卡合（供應站會自動補貨）';
-  setCap(cap);
+  });
+  const M = MIX[key];
+  $('mixInfo').innerHTML = `<b>${M.name}</b>：<b>${M.kind}</b>。${M.txt}`;
 }
 
-/* ----- 指標事件（拖曳／懸停） ----- */
-const HOME_HOVER_PLANE = new THREE.Plane(V3(0, 1, 0), 0);
-renderer.domElement.addEventListener('pointerdown', ev => {
-  let root = null, kind = null, ref = null;
-  if (tab === 'sort') {
-    root = pickRoot(SORT.items.filter(i => i.state === 'belt' || i.state === 'fall').map(i => i.g), ev);
-    if (root) { kind = 'sort'; ref = SORT.items.find(i => i.g === root); }
-  } else if (tab === 'ion') {
-    root = pickRoot(ION.pieces.filter(p => !p.bond && !p.recycle).map(p => p.g), ev);
-    if (root) { kind = 'ion'; ref = ION.pieces.find(p => p.g === root); takeFromSlot(ref); }
+// ---------- 模式三：原子結構 ----------
+const atomG = new THREE.Group(); scene.add(atomG);
+const nucleus = new THREE.Group(); atomG.add(nucleus);
+const electrons = [], rings = [];
+const NEUT = [0, 0, 2, 4, 5, 5, 6, 7, 8, 10, 10, 12, 12];
+const SYM = ['', 'H 氫', 'He 氦', 'Li 鋰', 'Be 鈹', 'B 硼', 'C 碳', 'N 氮', 'O 氧', 'F 氟', 'Ne 氖', 'Na 鈉', 'Mg 鎂'];
+function shells(z) { const s = []; let r = z; for (const cap of [2, 8, 8]) { if (r <= 0) break; s.push(Math.min(cap, r)); r -= cap; } return s; }
+function showAtom(z) {
+  nucleus.clear(); electrons.forEach(e => atomG.remove(e.m)); electrons.length = 0; rings.forEach(r => atomG.remove(r)); rings.length = 0;
+  const n = NEUT[z], tot = z + n;
+  for (let i = 0; i < tot; i++) {
+    const m = new THREE.Mesh(sphere, L.mat(i < z ? 0xff5d6c : 0xb8bcc8, { roughness: 0.4 }));
+    m.scale.setScalar(0.17);
+    const p = new THREE.Vector3().setFromSphericalCoords(0.13 * Math.cbrt(tot) * Math.cbrt(i + 1) / Math.cbrt(tot) * 2.2, Math.acos(1 - 2 * (i + 0.5) / tot), i * 2.4);
+    m.position.copy(p); nucleus.add(m);
   }
-  if (!root) return;
-  const planeY = kind === 'sort' ? 2.0 : 0;
-  const plane = new THREE.Plane(V3(0, 1, 0), -planeY);   // 粒子被拿起後就跟在游標正下方（off＝0）
-  if (!raycaster.ray.intersectPlane(plane, hitP)) return;
-  drag = { kind, root, plane, off: kind === 'sort' ? V3(0, 0, 0) : root.position.clone().sub(hitP), item: kind === 'sort' ? ref : null, piece: kind === 'ion' ? ref : null };
-  if (kind === 'sort') { ref.home = root.position.clone(); ref.state = 'drag'; }
-  controls.enabled = false;
-  renderer.domElement.setPointerCapture(ev.pointerId);
-  renderer.domElement.style.cursor = 'grabbing';
-});
-renderer.domElement.addEventListener('pointermove', ev => {
-  if (drag) {
-    setNdc(ev);
-    if (!raycaster.ray.intersectPlane(drag.plane, hitP)) return;
-    drag.root.position.x = clamp(hitP.x + drag.off.x, drag.kind === 'ion' ? -11 : -9, drag.kind === 'ion' ? 11 : 9);
-    drag.root.position.z = clamp(hitP.z + drag.off.z, drag.kind === 'ion' ? -4.2 : -3.2, drag.kind === 'ion' ? 4.6 : 4.2);
-    if (drag.kind === 'ion') drag.root.position.y = 0.25;
-    if (drag.kind === 'sort') drag.item.home.x += 0;                      // 原位保持在被拿起的地方
-    return;
-  }
-  if (ev.buttons) return;
-  if (tab === 'table') {
-    setNdc(ev);
-    const hit = raycaster.intersectObjects(PT.tiles.map(t => t.box), false)[0];
-    PT.hover = hit ? PT.tiles.find(t => t.box === hit.object) : null;
-    renderer.domElement.style.cursor = PT.hover ? 'pointer' : '';
-  } else if (tab === 'sort' || tab === 'ion') {
-    const r = tab === 'sort' ? pickRoot(SORT.items.map(i => i.g), ev) : pickRoot(ION.pieces.filter(p => !p.bond && !p.recycle).map(p => p.g), ev);
-    renderer.domElement.style.cursor = r ? 'grab' : '';
-  }
-});
-function endDrag(ev) {
-  if (!drag) return;
-  const d = drag; drag = null;
-  controls.enabled = true; renderer.domElement.style.cursor = '';
-  try { renderer.domElement.releasePointerCapture(ev.pointerId); } catch (e) { /* 已釋放 */ }
-  if (d.kind === 'sort') dropItem(d.item);
-  if (d.kind === 'ion' && inTray(d.piece.g.position)) { d.piece.recycle = 0.001; return; }   // 拖回供應站＝回收
-  if (d.kind === 'ion') {
-    const cl = clusterOf(d.piece);
-    if (cl.length > 1) {
-      const j = judge(cl);
-      if (j.ok) bondCluster(cl, j);
-      else if (!j.none) {
-        cl.forEach(p => { p.redT = 1.4; });
-        ION.msg = j.mixed ? '<span class="bad">一次只用一種陽離子和一種陰離子喔！</span>'
-          : `<span class="bad">⚠️ 正負電荷未抵銷！</span>正電 ${j.plus} ≠ 負電 ${j.minus}，再拖一塊${j.plus < j.minus ? '<b>陽離子</b>' : '<b>陰離子</b>'}過來`;
-        ION.msgT = 4;
-      }
+  shells(z).forEach((cnt, k) => {
+    const r = 1.4 + k * 1.1;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.012, 6, 96), L.glow(0x8fa3c9, { transparent: true, opacity: 0.5 }));
+    ring.rotation.x = Math.PI / 2; atomG.add(ring); rings.push(ring);
+    for (let i = 0; i < cnt; i++) {
+      const m = new THREE.Mesh(sphere, L.glow(0x5cc8ff)); m.scale.setScalar(0.12);
+      atomG.add(m); electrons.push({ m, r, a: i / cnt * Math.PI * 2, w: 1.2 / (k + 1) });
     }
-  }
+  });
+  $('np').textContent = z; $('nn').textContent = n; $('ne').textContent = z;
+  $('shell').textContent = shells(z).join('、');
+  $('zVal').textContent = `${z}（${SYM[z]}）`;
 }
-renderer.domElement.addEventListener('pointerup', endDrag);
-renderer.domElement.addEventListener('pointercancel', endDrag);
-renderer.domElement.addEventListener('pointerleave', () => { if (tab === 'table') PT.hover = null; });
+const nucLbl = L.label('原子核', () => V(0, 0.75, 0));
 
-/* =========================================================
-   Tab 切換、鏡頭
-   ========================================================= */
-const TABS = {
-  sort: { group: SORT.group, cam: { pos: [0, 7.2, 13.5], target: [0, 0.8, 0.6], fitW: 15 }, update: updateSort },
-  table: { group: PT.group, cam: PT_CAM, update: updateTable },
-  ion: { group: ION.group, cam: { pos: [0, 11.5, 11.5], target: [0, 0.2, 0.4], fitW: 22.5 }, update: updateIon }
-};
-function setTab(t) {
-  tab = t; drag = null; controls.enabled = true; PT.hover = null;
-  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  document.querySelectorAll('.sec').forEach(s => { s.hidden = s.dataset.tab !== t; });
-  for (const [k, v] of Object.entries(TABS)) v.group.visible = k === t;
-  if (t === 'table') setFamily(null);
-  goView(TABS[t].cam, true);
-  try { history.replaceState(null, '', '#' + t); } catch (e) { /* file:// */ }
-}
-document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
-function layoutDock() {
-  const d = $('dock');
-  if (window.MobileView?.isMobile()) { d.style.left = ''; d.style.maxWidth = ''; return; }
-  const left = $('panel').classList.contains('collapsed') ? 0 : $('panel').getBoundingClientRect().right;
-  d.style.left = ((left + window.innerWidth) / 2) + 'px';
-  d.style.maxWidth = Math.max(300, window.innerWidth - left - 28) + 'px';
-}
-function viewFor(c) {
-  const pos = V3(...c.pos), tgt = V3(...c.target);
-  if (window.MobileView?.isMobile() || !window.innerWidth || !window.innerHeight) return { pos, tgt };
-  const left = $('panel').classList.contains('collapsed') ? 0 : $('panel').getBoundingClientRect().right;
-  const dist = pos.distanceTo(tgt), tanH = Math.tan(camera.fov * Math.PI / 360);
-  if (c.fitW) {
-    const avail = Math.max(0.35, (window.innerWidth - left) / window.innerWidth);
-    const need = c.fitW / avail / (2 * tanH * camera.aspect);
-    if (need > dist) { pos.sub(tgt).multiplyScalar(need / dist).add(tgt); return viewFor({ pos: pos.toArray(), target: tgt.toArray() }); }
-  }
-  const visH = 2 * dist * tanH, visW = visH * camera.aspect;
-  const sx = -(left / 2) / window.innerWidth * visW;
-  const sy = (($('dock').getBoundingClientRect().height + 18) / 2) / window.innerHeight * visH;
-  pos.x += sx; tgt.x += sx; pos.y -= sy; tgt.y -= sy;
-  return { pos, tgt };
-}
-let camTw = null, pendingView = null;
-function goView(c, instant = false) {
-  if (!window.innerWidth || !window.innerHeight) { pendingView = c; return; }
-  layoutDock();
-  const { pos, tgt } = viewFor(c);
-  if (instant || window.MobileView?.isMobile()) {
-    camTw = null; camera.position.copy(pos); controls.target.copy(tgt); controls.update();
-    window.MobileView?.frame(camera, controls, 1.4);
-    return;
-  }
-  camTw = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: tgt, k: 0 };
-}
-controls.addEventListener('start', () => { camTw = null; });
-$('viewBtn').addEventListener('click', () => { if (tab === 'table') setFamily(null); goView(TABS[tab].cam, true); });
-$('collapse').addEventListener('click', () => { const c = $('panel').classList.toggle('collapsed'); $('collapse').textContent = c ? '展開' : '收合'; layoutDock(); });
-function resize() {
-  if (!window.innerWidth || !window.innerHeight) return;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.fov = 40;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', () => { resize(); if (!window.innerWidth) return; if (pendingView || !(tab === 'table' && PT.fam)) { goView(pendingView || TABS[tab].cam, true); pendingView = null; } });
-
-const clock = new THREE.Clock();
 function frame(dt) {
-  if (!window.innerWidth || !window.innerHeight) return;                  // 分頁隱藏（尺寸 0）時先不算鏡頭，避免出錯
-  wall += dt;
-  TABS[tab].update(dt);
-  updateSparks(dt);
-  if (camTw) {
-    camTw.k = Math.min(1, camTw.k + dt / 1.2);
-    const s = smooth(0, 1, camTw.k);
-    camera.position.lerpVectors(camTw.p0, camTw.p1, s);
-    controls.target.lerpVectors(camTw.t0, camTw.t1, s);
-    if (camTw.k >= 1) camTw = null;
-  }
-  controls.update();
-  placeLabels();
-  window.MobileView?.offset(camera);
-  renderer.render(scene, camera);
+  molG.visible = S.mode === 'mol'; box.visible = S.mode === 'mix'; atomG.visible = S.mode === 'atom';
+  molLbls.forEach(l => { if (S.mode !== 'mol') l.show = false; });
+  nucLbl.show = S.mode === 'atom';
+  if (S.mode === 'mol') molG.rotation.y += dt * 0.4;
+  if (S.mode === 'mix') particles.forEach(p => {
+    p.g.position.addScaledVector(p.v, dt);
+    ['x', 'y', 'z'].forEach((ax, i) => { const lim = [2.7, 1.7, 1.7][i]; if (Math.abs(p.g.position[ax]) > lim) { p.v[ax] *= -1; p.g.position[ax] = Math.sign(p.g.position[ax]) * lim; } });
+    p.g.rotation.x += p.w.x * dt; p.g.rotation.y += p.w.y * dt;
+  });
+  if (S.mode === 'atom') { electrons.forEach(e => { e.a += e.w * dt; e.m.position.set(Math.cos(e.a) * e.r, 0, Math.sin(e.a) * e.r); }); nucleus.rotation.y += dt * 0.3; }
 }
-function animate() { frame(Math.min(clock.getDelta(), 0.05)); requestAnimationFrame(animate); }
 
-window.lab = { frame, setTab, SORT, PT, ION, setFamily, dropItem, spawnItem, makeItem, resetIons, clusterOf, judge, bondCluster, takeFromSlot, formulaOf, inTray, camera, BINS, endDrag: () => {} };
-
-resize();
-resetIons();
-setTab({ '#table': 'table', '#ion': 'ion' }[location.hash] || 'sort');
-animate();
-</script>
-
-<script>
-setTimeout(() => {
-  if (!window.__labReady) {
-    document.getElementById('scene').innerHTML = '<div class="fallback">無法載入 Three.js。<br>請確認電腦已連上網路後重新整理。</div>';
-  }
-}, 6000);
+// 面板按鈕
+const molBox = $('molSeg');
+Object.entries(MOL).filter(([k]) => k !== 'N2').forEach(([k, m], i) => molBox.insertAdjacentHTML('beforeend', `<button class="btn" data-k="${k}" aria-pressed="${k === 'H2O'}">${m.name}<br>${m.f}</button>`));
+const mixBox = $('mixSeg');
+Object.entries(MIX).forEach(([k, m]) => mixBox.insertAdjacentHTML('beforeend', `<button class="btn" data-k="${k}" aria-pressed="${k === 'air'}">${m.name}</button>`));
+Lab.bindGroup('#molSeg .btn', k => { S.mol = k; showMol(k); });
+Lab.bindGroup('#mixSeg .btn', k => { S.mix = k; showMix(k); });
+Lab.bindSlider('z', v => { S.z = v; showAtom(v); }, v => `${v}（${SYM[v]}）`);
+Lab.bindGroup('.mode', k => {
+  S.mode = k; Lab.showMode(k);
+  if (k === 'mol') showMol(S.mol);
+  L.fly(k === 'mix' ? [0, 3, 10] : k === 'atom' ? [0, 4, 7] : [0, 1.5, 8], [0, 0, 0]);
+});
+function ui() {}
+window.matterSim = S;
 </script>
 <script src="lesson.js" defer></script>
 </body>
