@@ -3,163 +3,213 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1020">
 <title>自然科互動動畫實驗室</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-  /* ===== 色彩與基礎設定（無印風 / 莫蘭迪色系） ===== */
+  /* ===== 色彩與基礎設定（沉浸式深色主題） ===== */
   :root {
-    --bg: #f4f0e8;          /* 米白底 */
-    --surface: #fbf9f5;     /* 卡片底 */
-    --ink: #3b3833;         /* 主要文字 */
-    --ink-soft: #6f6a62;    /* 次要文字 */
-    --line: #e2dccf;        /* 分隔線 */
-    --g1: #8c9a7e;          /* 國一：鼠尾草綠 */
-    --g2: #7f90a3;          /* 國二：霧藍 */
-    --g3: #b08d76;          /* 國三：陶土 */
-    --earth: #a39a6f;       /* 地科標籤：橄欖土 */
-    --shadow: 0 1px 2px rgba(59,56,51,.06), 0 2px 8px rgba(59,56,51,.05);
-    --shadow-hover: 0 6px 14px rgba(59,56,51,.10), 0 14px 32px rgba(59,56,51,.10);
-    --radius: 14px;
+    color-scheme: dark;
+    --bg: #0b1020;          /* 深夜藍底 */
+    --bg-2: #0f1630;
+    --surface: #141c34;     /* 卡片底 */
+    --surface-2: #1a2342;
+    --ink: #eef1fa;         /* 主要文字 */
+    --ink-soft: #a3abc4;    /* 次要文字 */
+    --ink-faint: #6f7895;
+    --line: rgba(255,255,255,.08);
+    --line-2: rgba(255,255,255,.14);
+
+    /* 科目色：物理藍、化學紅、生物綠、地科黃 */
+    --phy: #5b9cff;
+    --chem: #ff6b6b;
+    --bio: #4fd18b;
+    --earth: #f5c451;
+    --accent: #a58bff;      /* 品牌點綴：紫光 */
+
+    --radius: 18px;
     --ease: cubic-bezier(.22,.61,.36,1);
+    --shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.35);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; scroll-padding-top: 84px; }
   body {
-    background: var(--bg);
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(165,139,255,.14), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(91,156,255,.12), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
     color: var(--ink);
     font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
     line-height: 1.7;
     letter-spacing: .02em;
     -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
   }
-  h1, h2, h3 { font-family: "Noto Serif TC", "Noto Sans TC", serif; font-weight: 700; letter-spacing: .04em; }
   a { color: inherit; text-decoration: none; }
   button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 8px; }
 
   /* ===== 導覽列 ===== */
   .navbar {
     position: sticky; top: 0; z-index: 100;
-    background: rgba(244,240,232,.88);
-    backdrop-filter: saturate(140%) blur(10px);
-    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    background: rgba(11,16,32,.72);
+    backdrop-filter: saturate(160%) blur(14px);
+    -webkit-backdrop-filter: saturate(160%) blur(14px);
     border-bottom: 1px solid var(--line);
   }
   .nav-inner {
-    max-width: 1180px; margin: 0 auto;
-    padding: 14px 24px;
+    max-width: 1240px; margin: 0 auto; padding: 12px 24px;
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; font-family: "Noto Serif TC", serif; font-weight: 700; font-size: 1.15rem; white-space: nowrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.08rem; white-space: nowrap; }
   .brand-mark {
-    width: 30px; height: 30px; border-radius: 50%;
-    border: 1.5px solid var(--ink); display: grid; place-items: center;
+    width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--phy), var(--accent));
+    box-shadow: 0 0 18px rgba(165,139,255,.45);
   }
-  .brand-mark svg { width: 16px; height: 16px; }
-  .nav-tabs { display: flex; gap: 6px; }
-  .nav-tab {
-    border: 1px solid transparent; background: transparent;
-    padding: 7px 16px; border-radius: 999px; cursor: pointer;
-    font-size: .92rem; color: var(--ink-soft);
+  .brand-mark svg { width: 18px; height: 18px; color: #fff; }
+  .nav-links { display: flex; gap: 6px; }
+  .nav-link {
+    padding: 8px 16px; border-radius: 999px; font-size: .9rem; color: var(--ink-soft);
+    border: 1px solid transparent; background: transparent; cursor: pointer; white-space: nowrap;
+    min-height: 40px; display: inline-flex; align-items: center;
     transition: background .25s var(--ease), color .25s var(--ease), border-color .25s var(--ease);
-    white-space: nowrap;
   }
-  .nav-tab:hover { color: var(--ink); border-color: var(--line); }
-  .nav-tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
-  .nav-tab:focus-visible, .unit-card:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .nav-link:hover { color: var(--ink); border-color: var(--line-2); }
 
   /* ===== 主視覺 ===== */
-  .hero { max-width: 1180px; margin: 0 auto; padding: 72px 24px 48px; }
-  .hero-eyebrow { font-size: .8rem; letter-spacing: .3em; color: var(--ink-soft); margin-bottom: 14px; }
-  .hero h1 { font-size: clamp(1.8rem, 4.2vw, 2.8rem); line-height: 1.35; margin-bottom: 18px; }
-  .hero p { max-width: 560px; color: var(--ink-soft); font-size: 1rem; }
-  .hero-stats { display: flex; gap: 36px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--line); flex-wrap: wrap; }
-  .stat b { display: block; font-family: "Noto Serif TC", serif; font-size: 1.6rem; font-weight: 500; }
-  .stat span { font-size: .82rem; color: var(--ink-soft); }
+  .hero { max-width: 1240px; margin: 0 auto; padding: 56px 24px 28px; }
+  .eyebrow { font-size: .78rem; letter-spacing: .3em; color: var(--ink-faint); margin-bottom: 12px; }
+  .hero h1 { font-size: clamp(1.9rem, 4.4vw, 3rem); font-weight: 900; line-height: 1.3; margin-bottom: 14px; }
+  .hero h1 .glow {
+    background: linear-gradient(90deg, var(--phy), var(--accent) 50%, var(--chem));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { max-width: 600px; color: var(--ink-soft); }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 22px; font-size: .85rem; color: var(--ink-soft); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
 
-  /* ===== 年級面板 ===== */
-  main { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
-  .grade-panel { display: none; animation: fadeUp .45s var(--ease); }
-  .grade-panel.active { display: block; }
+  main { max-width: 1240px; margin: 0 auto; padding: 0 24px 80px; }
+  .section-head {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    margin: 0 0 20px;
+  }
+  .section-head h2 { font-size: 1.45rem; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+  .section-head p { color: var(--ink-soft); font-size: .92rem; margin-top: 2px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px var(--c); flex: none; }
+
+  /* ===== 年級分頁 ===== */
+  .grades { scroll-margin-top: 84px; }
+  .grade-tabs {
+    display: inline-flex; gap: 4px; padding: 5px; margin-bottom: 22px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+  }
+  .grade-tab {
+    border: 0; background: transparent; cursor: pointer; color: var(--ink-soft);
+    padding: 8px 20px; min-height: 42px; border-radius: 999px; font-size: .92rem; white-space: nowrap;
+    transition: background .25s var(--ease), color .25s var(--ease);
+  }
+  .grade-tab:hover { color: var(--ink); }
+  .grade-tab[aria-selected="true"] { background: var(--ink); color: var(--bg); font-weight: 700; }
+
+  .grade-panel { display: none; }
+  .grade-panel.active { display: block; animation: fadeUp .45s var(--ease); }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
-  .grade-head {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-    margin-bottom: 24px;
-  }
-  .grade-head h2 { font-size: 1.5rem; display: flex; align-items: center; gap: 12px; }
-  .grade-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
-  .grade-head p { color: var(--ink-soft); font-size: .92rem; margin-top: 4px; }
-  .grade-count { font-size: .85rem; color: var(--ink-soft); }
-
-  /* ===== 卡片網格 ===== */
-  .unit-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 18px;
-  }
+  /* ===== 單元大圖卡片 ===== */
+  .unit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
   .unit-card {
-    position: relative;
-    display: flex; flex-direction: column; justify-content: space-between;
-    min-height: 168px; padding: 22px 22px 18px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    position: relative; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    overflow: hidden; box-shadow: var(--shadow);
     transition: transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s var(--ease);
-    overflow: hidden;
   }
-  .unit-card::before {   /* 頂部色條 */
-    content: ""; position: absolute; left: 0; top: 0; right: 0; height: 3px;
-    background: var(--accent); opacity: .75;
+  .unit-card.linked:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 16px 40px rgba(0,0,0,.45), 0 0 24px color-mix(in srgb, var(--c) 30%, transparent); }
+  .unit-art {
+    position: relative; height: 112px; overflow: hidden;
+    background:
+      radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, var(--c) 40%, transparent), transparent 65%),
+      linear-gradient(135deg, color-mix(in srgb, var(--c) 18%, var(--bg-2)), var(--surface));
   }
-  .unit-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-hover); border-color: transparent; }
-
-  .unit-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .unit-no { font-family: "Noto Serif TC", serif; font-size: 1.9rem; line-height: 1; color: var(--accent); opacity: .85; }
+  .unit-art svg {
+    position: absolute; right: -10px; bottom: -14px; width: 120px; height: 120px;
+    color: var(--c); opacity: .55; transition: transform .5s var(--ease), opacity .35s var(--ease);
+  }
+  .unit-card.linked:hover .unit-art svg { transform: rotate(-8deg) scale(1.08); opacity: .85; }
+  .unit-no { position: absolute; left: 18px; top: 14px; font-size: 2rem; font-weight: 900; line-height: 1; color: var(--ink); opacity: .9; }
   .unit-tag {
-    font-size: .72rem; padding: 3px 10px; border-radius: 999px;
-    border: 1px solid currentColor; color: var(--tag, var(--accent)); white-space: nowrap;
+    position: absolute; left: 18px; bottom: 14px; font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+    padding: 3px 10px; border-radius: 999px; color: var(--c);
+    background: color-mix(in srgb, var(--c) 14%, rgba(11,16,32,.6)); border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
   }
-  .unit-title { font-size: 1.08rem; font-weight: 500; margin: 18px 0 14px; line-height: 1.5; }
-
-  .unit-foot { display: flex; align-items: center; justify-content: space-between; border-top: 1px dashed var(--line); padding-top: 12px; }
-  .unit-foot span { font-size: .8rem; color: var(--ink-soft); transition: color .3s var(--ease); }
-  .play-icon {
-    width: 34px; height: 34px; border-radius: 50%;
-    display: grid; place-items: center;
-    border: 1.5px solid var(--accent); color: var(--accent);
+  .unit-body { padding: 14px 18px 16px; display: flex; flex-direction: column; flex: 1; gap: 10px; }
+  .unit-title { font-size: 1.02rem; font-weight: 500; line-height: 1.5; flex: 1; }
+  .unit-foot { display: flex; align-items: center; justify-content: space-between; font-size: .8rem; color: var(--ink-soft); }
+  .play {
+    width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+    border: 1.5px solid var(--c); color: var(--c);
     transition: background .3s var(--ease), color .3s var(--ease), transform .3s var(--ease);
   }
-  .play-icon svg { width: 13px; height: 13px; margin-left: 2px; }
-  .unit-card:hover .play-icon { background: var(--accent); color: var(--surface); transform: scale(1.06); }
-  .unit-card:hover .unit-foot span { color: var(--ink); }
+  .play svg { width: 12px; height: 12px; margin-left: 2px; }
+  .unit-card.linked:hover .play { background: var(--c); color: var(--bg); transform: scale(1.06); }
 
-  /* ===== 頁尾 ===== */
-  footer { border-top: 1px solid var(--line); text-align: center; padding: 28px 24px; font-size: .8rem; color: var(--ink-soft); }
+  /* 整張卡可點：用撐滿卡片的連結；卡片裡若還有其他實驗按鈕，疊在它上面 */
+  .stretch { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+  .stretch:focus-visible { outline-offset: -3px; }
+  .more { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+  .more a {
+    display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px;
+    font-size: .78rem; border-radius: 999px; color: var(--c);
+    border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+    background: color-mix(in srgb, var(--c) 10%, transparent);
+    transition: background .25s var(--ease), color .25s var(--ease);
+  }
+  .more a:hover { background: var(--c); color: var(--bg); }
+  .more a svg { width: 10px; height: 10px; }
 
-  /* ===== 響應式 ===== */
+  .unit-card.soon { opacity: .55; }
+  .unit-card.soon .unit-art { filter: grayscale(.7); }
+  .soon-chip { font-size: .72rem; padding: 2px 10px; border-radius: 999px; border: 1px dashed var(--line-2); color: var(--ink-faint); }
+
+  /* 高中：冊 → 章 → 節 */
+  .book { margin-top: 34px; }
+  .book:first-of-type { margin-top: 0; }
+  .book-head { display: flex; align-items: center; gap: 12px; padding-bottom: 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .book-head h3 { font-size: 1.15rem; font-weight: 700; }
+  .book-head span { font-size: .82rem; color: var(--ink-soft); margin-left: auto; }
+  .chapter-title { font-size: .95rem; font-weight: 700; color: var(--ink-soft); margin: 20px 0 10px; display: flex; gap: 10px; align-items: baseline; }
+  .chapter-title b { color: var(--c); font-weight: 700; }
+  .unit-no.sec { font-size: 1.6rem; letter-spacing: .02em; }
+
+  footer { border-top: 1px solid var(--line); text-align: center; padding: 28px 24px; font-size: .8rem; color: var(--ink-faint); }
+
+  /* ===== RWD：平板與手機 ===== */
   @media (max-width: 760px) {
-    .nav-inner { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 16px; }
-    .brand { justify-content: center; font-size: 1.05rem; }
-    .nav-tabs { justify-content: center; }
-    .nav-tab { flex: 1; padding: 7px 8px; font-size: .85rem; }
-    .hero { padding: 44px 16px 32px; }
+    .nav-inner { padding: 10px 16px; }
+    .nav-links { display: none; }
+    .hero { padding: 36px 16px 20px; }
     main { padding: 0 16px 56px; }
-    .hero-stats { gap: 24px; }
+    .grade-tabs { display: flex; width: 100%; overflow-x: auto; scrollbar-width: none; }
+    .grade-tabs::-webkit-scrollbar { display: none; }
+    .grade-tab { flex: none; padding: 8px 14px; font-size: .85rem; }
   }
-  @media (max-width: 480px) {
+  @media (max-width: 520px) {
     .unit-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-    .unit-card { min-height: 150px; padding: 16px 14px 14px; }
-    .unit-no { font-size: 1.5rem; }
-    .unit-title { font-size: .95rem; margin: 12px 0 10px; }
-    .unit-foot span { display: none; }
+    .unit-art { height: 90px; }
+    .unit-art svg { width: 90px; height: 90px; }
+    .unit-no { font-size: 1.5rem; left: 14px; }
+    .unit-tag { left: 14px; bottom: 10px; }
+    .unit-body { padding: 12px 14px 14px; }
+    .unit-title { font-size: .92rem; }
+    .unit-foot span:first-child { display: none; }
     .unit-foot { justify-content: flex-end; }
-    .nav-tab { font-size: .8rem; }
   }
-  @media (max-width: 340px) { .unit-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 360px) { .unit-grid { grid-template-columns: 1fr; } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -172,105 +222,210 @@
 <!-- 導覽列 -->
 <header class="navbar">
   <div class="nav-inner">
-    <div class="brand">
+    <a class="brand" href="#top">
       <span class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg>
       </span>
       自然科互動動畫實驗室
-    </div>
-    <nav class="nav-tabs" id="navTabs" role="tablist" aria-label="年級切換"></nav>
+    </a>
+    <nav class="nav-links" aria-label="主選單">
+      <a class="nav-link" href="#g7" data-grade="g7">國一</a>
+      <a class="nav-link" href="#g8" data-grade="g8">國二</a>
+      <a class="nav-link" href="#g9" data-grade="g9">國三</a>
+      <a class="nav-link" href="#h10" data-grade="h10">高一</a>
+      <a class="nav-link" href="#h11" data-grade="h11">高二</a>
+      <a class="nav-link" href="#h12" data-grade="h12">高三</a>
+    </nav>
   </div>
 </header>
 
 <!-- 主視覺 -->
-<section class="hero">
-  <p class="hero-eyebrow">108 課綱 · 國中自然科學</p>
-  <h1>把看不見的自然現象，<br>變成看得見的動畫。</h1>
-  <p>依年級與章節整理的互動動畫課程。點選任一單元，即可進入對應的 3D 動畫，從觀察出發，理解生命、物質、能量與地球的運作。</p>
-  <div class="hero-stats" id="heroStats"></div>
+<section class="hero" id="top">
+  <p class="eyebrow">108 課綱 · 國中・高中自然科學</p>
+  <h1>把看不見的自然現象，<br><span class="glow">變成看得見的 3D 動畫。</span></h1>
+  <p>從觀察出發，親手調整變因、看見結果。依科目與年級整理的互動實驗，理解生命、物質、能量與地球的運作。</p>
+  <div class="legend" aria-label="科目顏色說明">
+    <span style="--c:var(--phy)"><i></i>物理</span>
+    <span style="--c:var(--chem)"><i></i>化學</span>
+    <span style="--c:var(--bio)"><i></i>生物</span>
+    <span style="--c:var(--earth)"><i></i>地科</span>
+  </div>
 </section>
 
-<!-- 課程內容（由 JS 動態渲染） -->
-<main id="courseRoot"></main>
+<main>
+  <!-- 108 課綱：依年級 -->
+  <section class="grades" id="grades" aria-label="依年級瀏覽">
+    <div class="section-head">
+      <div>
+        <h2>依年級瀏覽</h2>
+        <p>正規班課程，國中依 108 課綱章節編排，高中依翰林版課本目錄。</p>
+      </div>
+    </div>
+    <div class="grade-tabs" id="gradeTabs" role="tablist" aria-label="年級切換"></div>
+    <div id="courseRoot"></div>
+  </section>
+</main>
 
-<footer>自然科互動動畫實驗室 · 依 108 課綱國中自然科學章節編排</footer>
+<footer>自然科互動動畫實驗室 · 國中依 108 課綱章節編排 · 高中依翰林版課本目錄</footer>
 
 <script>
 /* =========================================================
-   課程資料：日後擴充只需修改這裡
-   - url：預設 javascript:void(0)，換成你的 3D 動畫網址即可
-   - tag：可選，覆寫單元的學科標籤（例如國三的理化 / 地科）
+   科目設定：顏色與卡片插圖
    ========================================================= */
-const DEFAULT_URL = 'javascript:void(0)';
+const SUBJECTS = {
+  phy:   { name: '物理', color: 'var(--phy)',
+           art: '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><ellipse cx="50" cy="50" rx="44" ry="16"/><ellipse cx="50" cy="50" rx="44" ry="16" transform="rotate(60 50 50)"/><ellipse cx="50" cy="50" rx="44" ry="16" transform="rotate(-60 50 50)"/><circle cx="50" cy="50" r="7" fill="currentColor"/></svg>' },
+  chem:  { name: '化學', color: 'var(--chem)',
+           art: '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"><path d="M38 10h24M42 10v26L18 80a7 7 0 0 0 6 10h52a7 7 0 0 0 6-10L58 36V10"/><path d="M26 66h48" opacity=".6"/><circle cx="44" cy="76" r="4" fill="currentColor"/><circle cx="58" cy="72" r="3" fill="currentColor"/></svg>' },
+  bio:   { name: '生物', color: 'var(--bio)',
+           art: '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><path d="M50 92C18 70 12 38 50 8c38 30 32 62 0 84z"/><path d="M50 92V24M50 44l-14-10M50 58l16-12M50 72l-12-8"/></svg>' },
+  earth: { name: '地科', color: 'var(--earth)',
+           art: '<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3"><circle cx="50" cy="50" r="40"/><path d="M10 50h80M50 10c14 14 14 66 0 80M50 10c-14 14-14 66 0 80"/><path d="M22 28c10 6 46 6 56 0M22 72c10-6 46-6 56 0" opacity=".6"/></svg>' }
+};
 
+/* =========================================================
+   108 課綱課程資料
+   - url：留空表示「製作中」
+   - more：同一單元的其他實驗，會在卡片上多出按鈕
+   - subject：phy 物理 / chem 化學 / bio 生物 / earth 地科
+   ========================================================= */
 const COURSES = [
   {
-    id: 'g7',
-    tabLabel: '國一生物',
-    title: '國一 · 生物',
-    subject: '生物',
+    id: 'g7', tabLabel: '國一 生物', title: '國一 · 生物',
     desc: '從細胞到生態系，認識生命如何運作與彼此相連。',
-    color: 'var(--g1)',
     units: [
-      { title: '生命的特性',         url: DEFAULT_URL },
-      { title: '養分',               url: 'enzyme-lock-key.html' },
-      { title: '生物的運輸與防禦',   url: 'heart.html' },
-      { title: '生物的協調作用',     url: DEFAULT_URL },
-      { title: '生物的恆定性',       url: DEFAULT_URL },
-      { title: '生殖',               url: 'clay-sim.html#cell' },
-      { title: '遺傳',               url: DEFAULT_URL },
-      { title: '地球上的生物',       url: DEFAULT_URL },
-      { title: '生態系',             url: DEFAULT_URL },
-      { title: '人類與環境',         url: DEFAULT_URL }
+      { title: '生命的特性',       subject: 'bio' },
+      { title: '養分',             subject: 'bio', url: 'enzyme-lock-key.html' },
+      { title: '生物的運輸與防禦', subject: 'bio', url: 'heart.html' },
+      { title: '生物的協調作用',   subject: 'bio' },
+      { title: '生物的恆定性',     subject: 'bio' },
+      { title: '生殖',             subject: 'bio', url: 'clay-sim.html#cell',
+        more: [{ label: '細胞分裂', url: 'cell-division.html' }] },
+      { title: '遺傳',             subject: 'bio' },
+      { title: '地球上的生物',     subject: 'bio' },
+      { title: '生態系',           subject: 'bio' },
+      { title: '人類與環境',       subject: 'bio' }
     ]
   },
   {
-    id: 'g8',
-    tabLabel: '國二理化',
-    title: '國二 · 理化',
-    subject: '理化',
+    id: 'g8', tabLabel: '國二 理化', title: '國二 · 理化',
     desc: '從測量與物質出發，探索波、光、熱與化學反應的規律。',
-    color: 'var(--g2)',
     units: [
-      { title: '科學方法與基本測量', url: 'measure-lab.html' },
-      { title: '物質的世界',         url: 'solution-lab.html' },
-      { title: '波動與聲音',         url: 'transverse-wave.html' },
-      { title: '光',                 url: 'optics-lab.html' },
-      { title: '溫度與熱',           url: 'heat-lab.html' },
-      { title: '探索物質組成',       url: 'matter-lab.html' },
-      { title: '化學反應',           url: DEFAULT_URL },
-      { title: '氧化與還原',         url: DEFAULT_URL },
-      { title: '電解質與酸鹼反應',   url: DEFAULT_URL },
-      { title: '反應速率與平衡',     url: DEFAULT_URL },
-      { title: '有機化合物',         url: DEFAULT_URL },
-      { title: '力與壓力',           url: 'force-pressure-lab.html' }
+      { title: '科學方法與基本測量', subject: 'phy',  url: 'measure-lab.html' },
+      { title: '物質的世界',         subject: 'chem', url: 'solution-lab.html' },
+      { title: '波動與聲音',         subject: 'phy',  url: 'transverse-wave.html' },
+      { title: '光',                 subject: 'phy',  url: 'optics-lab.html' },
+      { title: '溫度與熱',           subject: 'phy',  url: 'heat-lab.html' },
+      { title: '探索物質組成',       subject: 'chem', url: 'matter-lab.html' },
+      { title: '化學反應',           subject: 'chem' },
+      { title: '氧化與還原',         subject: 'chem' },
+      { title: '電解質與酸鹼反應',   subject: 'chem' },
+      { title: '反應速率與平衡',     subject: 'chem' },
+      { title: '有機化合物',         subject: 'chem' },
+      { title: '力與壓力',           subject: 'phy',  url: 'force-pressure-lab.html',
+        more: [{ label: '彈簧與力', url: 'force-lab.html' }] }
     ]
   },
   {
-    id: 'g9',
-    tabLabel: '國三地科/理化',
-    title: '國三 · 理化與地科',
-    subject: '理化',
+    id: 'g9', tabLabel: '國三 理化/地科', title: '國三 · 理化與地科',
     desc: '運動、能量與電磁，再延伸到地球、天氣與浩瀚宇宙。',
-    color: 'var(--g3)',
     units: [
-      { title: '直線運動',                 url: 'kinematics-lab.html' },
-      { title: '力與運動',                 url: 'newton-park.html' },
-      { title: '功與能',                   url: 'work-energy.html' },
-      { title: '基本的靜電現象與電路',     url: 'static-circuit.html' },
-      { title: '水與陸地',                 url: DEFAULT_URL, tag: '地科' },
-      { title: '板塊運動與地球歷史：斷層與地球構造', url: 'geology-fault.html',     tag: '地科' },
-      { title: '板塊運動與地球歷史：台灣地震',       url: 'taiwan-earthquake.html', tag: '地科' },
-      { title: '宇宙中的天體：月相',       url: 'https://a1011755-lucky.github.io/sky-lab/#moon',  tag: '地科' },
-      { title: '宇宙中的天體：周日運動',   url: 'https://a1011755-lucky.github.io/sky-lab/#daily', tag: '地科' },
-      { title: '電的應用：電流的熱效應',   url: 'power-lab.html' },
-      { title: '電的應用：電流的化學效應', url: 'electrochem.html' },
-      { title: '電與磁現象',               url: DEFAULT_URL },
-      { title: '千變萬化的天氣：高低氣壓', url: 'weather-pressure.html', tag: '地科' },
-      { title: '千變萬化的天氣：鋒面',     url: 'weather-fronts.html',   tag: '地科' },
-      { title: '千變萬化的天氣：颱風風向', url: 'typhoon-wind.html',     tag: '地科' },
-      { title: '千變萬化的天氣：颱風風量', url: 'clay-sim.html#typhoon', tag: '地科' },
-      { title: '全球氣候變遷與因應',       url: DEFAULT_URL, tag: '地科' }
+      { title: '直線運動',                           subject: 'phy',   url: 'kinematics-lab.html' },
+      { title: '力與運動',                           subject: 'phy',   url: 'newton-park.html' },
+      { title: '功與能',                             subject: 'phy',   url: 'work-energy.html' },
+      { title: '基本的靜電現象與電路',               subject: 'phy',   url: 'static-circuit.html' },
+      { title: '水與陸地',                           subject: 'earth' },
+      { title: '板塊運動與地球歷史：斷層與地球構造', subject: 'earth', url: 'geology-fault.html' },
+      { title: '板塊運動與地球歷史：台灣地震',       subject: 'earth', url: 'taiwan-earthquake.html' },
+      { title: '宇宙中的天體：月相',                 subject: 'earth', url: 'https://a1011755-lucky.github.io/sky-lab/#moon' },
+      { title: '宇宙中的天體：周日運動',             subject: 'earth', url: 'https://a1011755-lucky.github.io/sky-lab/#daily' },
+      { title: '電的應用：電流的熱效應',             subject: 'phy',   url: 'power-lab.html' },
+      { title: '電的應用：電流的化學效應',           subject: 'chem',  url: 'electrochem.html' },
+      { title: '電與磁現象',                         subject: 'phy' },
+      { title: '千變萬化的天氣：高低氣壓',           subject: 'earth', url: 'weather-pressure.html' },
+      { title: '千變萬化的天氣：鋒面',               subject: 'earth', url: 'weather-fronts.html' },
+      { title: '千變萬化的天氣：颱風風向',           subject: 'earth', url: 'typhoon-wind.html' },
+      { title: '千變萬化的天氣：颱風風量',           subject: 'earth', url: 'clay-sim.html#typhoon' },
+      { title: '全球氣候變遷與因應',                 subject: 'earth' }
+    ]
+  },
+
+  /* ---------- 高中：依翰林版課本目錄（冊 → 章 → 節） ----------
+     節的寫法：['1-1', '節名', '動畫網址（可省略）']；章名查不到時留空字串，只顯示「第 n 章」 */
+  {
+    id: 'h10', tabLabel: '高一 必修', title: '高一 · 必修自然',
+    desc: '物理、化學、生物、地球科學四科必修，依翰林版課本章節編排。',
+    books: [
+      { name: '物理（全）', subject: 'phy', chapters: [
+        ['科學的態度與方法', [['1-1', '科學的態度'], ['1-2', '科學的方法'], ['1-3', '物理學簡介']]],
+        ['物質的組成與交互作用', [['2-1', '物質的組成'], ['2-2', '原子的尺度與結構'], ['2-3', '物質間的基本交互作用']]],
+        ['物體的運動', [['3-1', '對物體運動的描述', 'kinematics-lab.html'], ['3-2', '牛頓運動定律──運動的原因', 'newton-park.html'], ['3-3', '天體運動']]],
+        ['電與磁的統一', [['4-1', '電流的磁效應'], ['4-2', '電磁感應'], ['4-3', '電與磁的整合'], ['4-4', '光波'], ['4-5', '都卜勒效應']]],
+        ['能量', [['5-1', '功與能量的形式', 'work-energy.html'], ['5-2', '微觀尺度下的能量'], ['5-3', '能量間的轉換與能量守恆'], ['5-4', '質能互換與核能']]],
+        ['量子現象', [['6-1', '光電效應與光的粒子性'], ['6-2', '物質波與電子的波動性'], ['6-3', '波粒二象性'], ['6-4', '原子光譜']]]
+      ]},
+      { name: '化學（全）', subject: 'chem', chapters: [
+        ['', [['1-1', '物質的分類、分離及狀態'], ['1-2', '化學的基本定律與莫耳'], ['1-3', '原子結構與元素週期表'], ['1-4', '物質的化學鍵、構造及特性']]],
+        ['', [['2-1', '化學式與百分組成'], ['2-2', '化學反應式'], ['2-3', '化學計量'], ['2-4', '化學反應中的能量變化']]],
+        ['', [['3-1', '溶液的種類與特性', 'solution-lab.html'], ['3-2', '溶解度'], ['3-3', '酸鹼反應'], ['3-4', '氧化還原反應']]],
+        ['', [['4-1', '生活中常見的有機物質'], ['4-2', '科學與人文'], ['4-3', '資源與永續發展']]]
+      ]},
+      { name: '生物（全）', subject: 'bio', chapters: [
+        ['細胞構造與功能', [['1-1', '細胞學說的發展歷程'], ['1-2', '細胞的構造與功能'], ['1-3', '細胞與能量'], ['1-4', '細胞分裂', 'cell-division.html']]],
+        ['遺傳', [['2-1', '遺傳法則'], ['2-2', '遺傳的染色體學說之發展歷程'], ['2-3', '遺傳物質'], ['2-4', '基因轉殖及其應用']]],
+        ['演化', [['3-1', '演化觀念的發展'], ['3-2', '演化概念對生物分類系統的影響']]]
+      ]},
+      { name: '地球科學（全）', subject: 'earth', chapters: [
+        ['', [['1-1', '地球的起源'], ['1-2', '探索地球歷史']]],
+        ['', [['2-1', '地球外的太空'], ['2-2', '從地球看星空'], ['2-3', '恆星亮度與顏色'], ['2-4', '膨脹中的宇宙']]],
+        ['', [['3-1', '大氣的結構'], ['3-2', '多變的天氣', 'weather-fronts.html'], ['3-3', '氣象觀測與分析'], ['3-4', '颱風災害', 'typhoon-wind.html']]],
+        ['', [['4-1', '海洋的結構'], ['4-2', '海水的運動'], ['4-3', '海洋與氣候']]],
+        ['', [['5-1', '固體地球的結構'], ['5-2', '地表與地殼的變動', 'geology-fault.html'], ['5-3', '臺灣的板塊構造'], ['5-4', '地震災害與防治', 'taiwan-earthquake.html']]],
+        ['', [['6-1', '氣候變遷的影響'], ['6-2', '永續發展與氣候變遷的調適']]]
+      ]}
+    ]
+  },
+  {
+    id: 'h11', tabLabel: '高二 選修物理', title: '高二 · 選修物理',
+    desc: '選修物理 I 力學一、II 力學二與熱學，依翰林版課本章節編排。',
+    books: [
+      { name: '選修物理 I　力學一', subject: 'phy', chapters: [
+        ['測量與不確定度', [['1-1', '不確定度與有效數字'], ['1-2', '不確定度的組合'], ['1-3', '因次與因次分析']]],
+        ['運動學—直線運動', [['2-1', '位置、路徑長與位移'], ['2-2', '速度與速率'], ['2-3', '加速度'], ['2-4', '等加速運動', 'kinematics-lab.html'], ['2-5', '自由落體運動'], ['2-6', '相對運動']]],
+        ['運動學—平面運動', [['3-1', '向量的意義、分解與合成'], ['3-2', '平面運動的位移、速度與加速度'], ['3-3', '水平拋射'], ['3-4', '斜向拋射']]],
+        ['牛頓運動定律', [['4-1', '力的向量性質'], ['4-2', '牛頓第一運動定律—狀態的意義'], ['4-3', '牛頓第二運動定律—狀態的改變', 'newton-park.html'], ['4-4', '牛頓第三運動定律—作用與反作用'], ['4-5', '等速圓周運動與向心力'], ['4-6', '簡諧運動', 'shm-lab.html']]],
+        ['萬有引力定律', [['5-1', '萬有引力定律'], ['5-2', '地球表面的重力與重力加速度'], ['5-3', '行星與人造衛星的運動'], ['5-4', '克卜勒定律與萬有引力定律']]]
+      ]},
+      { name: '選修物理 II　力學二與熱學', subject: 'phy', chapters: [
+        ['動量與角動量', [['1-1', '動量與衝量'], ['1-2', '系統質心運動'], ['1-3', '動量守恆律'], ['1-4', '角動量與力矩'], ['1-5', '質點的角動量守恆律']]],
+        ['牛頓運動定律的應用', [['2-1', '靜力學與應用實例'], ['2-2', '摩擦力']]],
+        ['功與動能', [['3-1', '定力所作的功'], ['3-2', '變力所作的功'], ['3-3', '動能與功能定理', 'work-energy.html'], ['3-4', '功率']]],
+        ['位能與力學能守恆定律', [['4-1', '重力位能'], ['4-2', '重力位能的一般表示式'], ['4-3', '彈性位能'], ['4-4', '力學能守恆定律', 'work-energy.html'], ['4-5', '一維碰撞']]],
+        ['熱學', [['5-1', '絕對溫度與理想氣體方程式'], ['5-2', '氣體運動論'], ['5-3', '氣體分子的速率分布']]]
+      ]}
+    ]
+  },
+  {
+    id: 'h12', tabLabel: '高三 選修物理', title: '高三 · 選修物理',
+    desc: '選修物理 III 波動、光及聲音，IV 電磁現象一，V 電磁現象二與量子現象，依翰林版課本章節編排。',
+    books: [
+      { name: '選修物理 III　波動、光及聲音', subject: 'phy', chapters: [
+        ['波動', [['1-1', '波的傳播', 'transverse-wave.html'], ['1-2', '振動與週期波'], ['1-3', '繩波的反射與透射'], ['1-4', '波的疊加原理'], ['1-5', '駐波'], ['1-6', '惠更斯原理'], ['1-7', '水波的干涉']]],
+        ['聲波', [['2-1', '聲波的傳播'], ['2-2', '空氣柱的駐波'], ['2-3', '共振與共鳴']]],
+        ['光的折射及其應用', [['3-1', '光的折射與司乃耳定律', 'optics-lab.html#refract'], ['3-2', '光的全反射'], ['3-3', '光的色散與彩虹成因'], ['3-4', '薄透鏡成像與應用', 'optics-lab.html#lens']]],
+        ['光的干涉與繞射', [['4-1', '光的干涉'], ['4-2', '光的繞射']]]
+      ]},
+      { name: '選修物理 IV　電磁現象一', subject: 'phy', chapters: [
+        // 只查到章名，節名待補；先以整章為一個單元
+        ['靜電學', [['第1章', '靜電學', 'static-circuit.html']]],
+        ['電流的磁效應', [['第2章', '電流的磁效應']]],
+        ['電磁感應', [['第3章', '電磁感應']]]
+      ]},
+      { name: '選修物理 V　電磁現象二與量子現象', subject: 'phy', chapters: [
+        ['電流與電路', [['1-1', '電動勢與電流'], ['1-2', '歐姆定律與電阻'], ['1-3', '電阻的串聯與並聯'], ['1-4', '電路中之電荷守恆與能量守恆'], ['1-5', '電功率與電流的熱效應', 'power-lab.html']]],
+        ['近代物理的重大發現', [['2-1', '電子的發現'], ['2-2', '密立坎油滴實驗'], ['2-3', 'X 射線'], ['2-4', '黑體輻射'], ['2-5', '光電效應']]],
+        ['原子結構與原子核', [['3-1', '拉塞福原子模型與原子光譜'], ['3-2', '波耳的氫原子模型'], ['3-3', '物質波與波粒二象性'], ['3-4', '原子核的組成'], ['3-5', '原子核衰變'], ['3-6', '交互作用與守恆律']]]
+      ]}
     ]
   }
 ];
@@ -278,110 +433,104 @@ const COURSES = [
 /* ===== 工具函式 ===== */
 const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/></svg>';
 const pad = n => String(n).padStart(2, '0');
-const escapeHTML = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const isPlaceholder = url => !url || url.startsWith('javascript:');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isExternal = url => /^https?:\/\//.test(url || '');
 
-/* ===== 渲染：導覽按鈕 ===== */
-function renderTabs() {
-  document.getElementById('navTabs').innerHTML = COURSES.map(c => `
-    <button class="nav-tab" role="tab" id="tab-${c.id}" data-target="${c.id}"
-            aria-controls="panel-${c.id}" aria-selected="false">${escapeHTML(c.tabLabel)}</button>
-  `).join('');
+/* ===== 渲染：年級分頁與單元卡片 ===== */
+// 同資料夾的動畫頁在本分頁開啟（動畫頁有「回課程總覽」）；外部網址才開新分頁
+const extAttr = url => isExternal(url) ? 'target="_blank" rel="noopener"' : '';
+
+/** 一張單元卡：no 是左上角的編號（國中 01、02…；高中 1-1、1-2…） */
+function unitCard(u, subject, no) {
+  const s = SUBJECTS[subject];
+  const more = (u.more || []).map(m =>
+    `<a href="${esc(m.url)}" ${extAttr(m.url)}>${PLAY_SVG}${esc(m.label)}</a>`).join('');
+  const inner = `
+    <div class="unit-art">${s.art}<span class="unit-no${no.includes('-') || no.includes('章') ? ' sec' : ''}">${esc(no)}</span><span class="unit-tag">${s.name}</span></div>
+    <div class="unit-body">
+      <h3 class="unit-title">${esc(u.title)}</h3>
+      ${more ? `<div class="more">${more}</div>` : ''}
+      <div class="unit-foot">${u.url
+        ? `<span>播放動畫</span><span class="play">${PLAY_SVG}</span>`
+        : `<span></span><span class="soon-chip">製作中</span>`}</div>
+    </div>`;
+  if (!u.url) return `<div class="unit-card soon" style="--c:${s.color}">${inner}</div>`;
+  return `<div class="unit-card linked" style="--c:${s.color}">
+    <a class="stretch" href="${esc(u.url)}" ${extAttr(u.url)} aria-label="播放動畫：${esc(u.title)}"></a>${inner}</div>`;
 }
 
-/* ===== 渲染：主視覺統計 ===== */
-function renderStats() {
-  const total = COURSES.reduce((sum, c) => sum + c.units.length, 0);
-  const stats = [
-    { n: COURSES.length, label: '個年級' },
-    { n: total,          label: '個互動單元' },
-    { n: '3D',           label: '動畫視覺化' }
-  ];
-  document.getElementById('heroStats').innerHTML = stats
-    .map(s => `<div class="stat"><b>${s.n}</b><span>${s.label}</span></div>`).join('');
+/** 高中：冊 → 章 → 節 */
+function renderBooks(books) {
+  return books.map(b => {
+    const n = b.chapters.reduce((t, [, secs]) => t + secs.length, 0);
+    return `
+      <div class="book" style="--c:${SUBJECTS[b.subject].color}">
+        <div class="book-head"><span class="dot" style="margin:0"></span><h3>${esc(b.name)}</h3><span>${n} 個單元</span></div>
+        ${b.chapters.map(([title, secs], ci) => `
+          <h4 class="chapter-title"><b>第 ${ci + 1} 章</b>${esc(title)}</h4>
+          <div class="unit-grid">${secs.map(([no, name, url]) => unitCard({ title: name, url }, b.subject, no)).join('')}</div>`).join('')}
+      </div>`;
+  }).join('');
 }
 
-/* ===== 渲染：年級面板與單元卡片 ===== */
+const unitCount = c => c.units ? c.units.length
+  : c.books.reduce((t, b) => t + b.chapters.reduce((u, [, secs]) => u + secs.length, 0), 0);
+
 function renderCourses() {
+  document.getElementById('gradeTabs').innerHTML = COURSES.map(c => `
+    <button class="grade-tab" role="tab" id="tab-${c.id}" data-target="${c.id}"
+            aria-controls="panel-${c.id}" aria-selected="false">${esc(c.tabLabel)}</button>`).join('');
+
   document.getElementById('courseRoot').innerHTML = COURSES.map(c => `
-    <section class="grade-panel" id="panel-${c.id}" role="tabpanel"
-             aria-labelledby="tab-${c.id}" style="--accent:${c.color}">
-      <div class="grade-head">
-        <div>
-          <h2><span class="grade-dot"></span>${escapeHTML(c.title)}</h2>
-          <p>${escapeHTML(c.desc)}</p>
-        </div>
-        <span class="grade-count">共 ${c.units.length} 個單元</span>
+    <section class="grade-panel" id="panel-${c.id}" role="tabpanel" aria-labelledby="tab-${c.id}">
+      <div class="section-head">
+        <div><h2 style="font-size:1.2rem">${esc(c.title)}</h2><p>${esc(c.desc)}</p></div>
+        <span style="font-size:.85rem;color:var(--ink-soft)">共 ${unitCount(c)} 個單元</span>
       </div>
-      <div class="unit-grid">
-        ${c.units.map((u, i) => {
-          const tag = u.tag || c.subject;
-          const tagStyle = tag === '地科' ? 'style="--tag:var(--earth)"' : '';
-          // 同資料夾的動畫頁在本分頁開啟（動畫頁有「回課程總覽」）；外部網址才開新分頁
-          const external = /^https?:\/\//.test(u.url || '') ? 'target="_blank" rel="noopener"' : '';
-          return `
-          <a class="unit-card" href="${escapeHTML(u.url || DEFAULT_URL)}" ${external}
-             data-grade="${c.id}" data-index="${i}"
-             aria-label="播放動畫：${escapeHTML(u.title)}">
-            <div>
-              <div class="unit-top">
-                <span class="unit-no">${pad(i + 1)}</span>
-                <span class="unit-tag" ${tagStyle}>${escapeHTML(tag)}</span>
-              </div>
-              <h3 class="unit-title">${escapeHTML(u.title)}</h3>
-            </div>
-            <div class="unit-foot">
-              <span>播放動畫</span>
-              <span class="play-icon">${PLAY_SVG}</span>
-            </div>
-          </a>`;
-        }).join('')}
-      </div>
-    </section>
-  `).join('');
+      ${c.units
+        ? `<div class="unit-grid">${c.units.map((u, i) => unitCard(u, u.subject, pad(i + 1))).join('')}</div>`
+        : renderBooks(c.books)}
+    </section>`).join('');
 }
 
 /* ===== 切換年級 ===== */
-function switchGrade(id, { scroll = false } = {}) {
+function switchGrade(id, { scroll = false, remember = true } = {}) {
   if (!COURSES.some(c => c.id === id)) id = COURSES[0].id;
-  document.querySelectorAll('.nav-tab').forEach(t =>
-    t.setAttribute('aria-selected', String(t.dataset.target === id)));
-  document.querySelectorAll('.grade-panel').forEach(p =>
-    p.classList.toggle('active', p.id === `panel-${id}`));
-  try { history.replaceState(null, '', `#${id}`); } catch (e) { /* 部分瀏覽器以 file:// 開啟時不允許 */ }
-  if (scroll) {
-    const top = document.getElementById('courseRoot').getBoundingClientRect().top
-              + window.scrollY - document.querySelector('.navbar').offsetHeight - 16;
-    window.scrollTo({ top, behavior: 'smooth' });
-  }
+  document.querySelectorAll('.grade-tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.target === id)));
+  document.querySelectorAll('.grade-panel').forEach(p => p.classList.toggle('active', p.id === `panel-${id}`));
+  if (remember) try { history.replaceState(null, '', `#${id}`); } catch (e) { /* file:// 下可能不允許 */ }
+  if (scroll) document.getElementById('grades').scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ===== 事件綁定 ===== */
 function bindEvents() {
-  document.getElementById('navTabs').addEventListener('click', e => {
-    const tab = e.target.closest('.nav-tab');
-    if (tab) switchGrade(tab.dataset.target, { scroll: true });
+  document.getElementById('gradeTabs').addEventListener('click', e => {
+    const tab = e.target.closest('.grade-tab');
+    if (tab) switchGrade(tab.dataset.target);
   });
-
-  // 單元點擊：若尚未設定網址，可在這裡加入你自己的處理邏輯
-  document.getElementById('courseRoot').addEventListener('click', e => {
-    const card = e.target.closest('.unit-card');
-    if (!card) return;
-    const course = COURSES.find(c => c.id === card.dataset.grade);
-    const unit = course.units[Number(card.dataset.index)];
-    if (isPlaceholder(unit.url)) {
-      console.log(`[待替換] ${course.title} › ${unit.title}`);
-      // 例：window.location.href = `animations/${course.id}/${card.dataset.index}.html`;
-    }
+  window.addEventListener('hashchange', () => {
+    const id = location.hash.slice(1);
+    if (COURSES.some(c => c.id === id)) switchGrade(id, { scroll: true });
   });
+  document.querySelectorAll('.nav-link[data-grade]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    switchGrade(a.dataset.grade, { scroll: true });
+  }));
 }
 
 /* ===== 初始化 ===== */
-renderTabs();
-renderStats();
 renderCourses();
 bindEvents();
-switchGrade(location.hash.slice(1) || COURSES[0].id);
+const hash = location.hash.slice(1);
+// 從實驗頁「回課程總覽」（#g7 / #g8 / #g9）回來時，切到該年級並直接捲過去
+const fromLab = COURSES.some(c => c.id === hash);
+switchGrade(hash, { remember: fromLab });
+if (fromLab) {
+  // 關掉瀏覽器的「還原捲動位置」，並在字型等資源載入完後再對齊一次
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  const go = () => document.getElementById('grades').scrollIntoView({ behavior: 'instant' });
+  go();
+  window.addEventListener('load', go, { once: true });
+}
 </script>
 </body>
 </html>

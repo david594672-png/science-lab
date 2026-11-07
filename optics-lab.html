@@ -28,22 +28,58 @@
   #scene { position: absolute; inset: 0; width: 100vw; height: 100vh; z-index: 0; }
   #scene canvas { display: block; width: 100vw !important; height: 100vh !important; }
 
-  /* ===== 毛玻璃面板 ===== */
-  .panel {
-    position: absolute; top: 16px; left: 16px; width: 330px; max-height: calc(100vh - 32px); overflow-y: auto; z-index: 10;
-    background: var(--glass); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.5);
-    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
+  /* ===== 左上角：返回、標題與「顯示輔助線」開關 ===== */
+  .dock {
+    position: absolute; top: 16px; left: 16px; z-index: 11;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap; max-width: calc(100vw - 400px);
+    padding: 10px 12px 10px 16px; border-radius: 16px;
+    background: rgba(12,14,28,.55); border: 1px solid var(--border);
+    backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
   }
-  .back { font-size: .78rem; color: var(--muted); text-decoration: none; letter-spacing: .08em; }
+  .back { font-size: .8rem; color: var(--muted); text-decoration: none; letter-spacing: .06em; display: inline-flex; align-items: center; min-height: 36px; }
   .back:hover { color: var(--cyan); }
-  h1 { font-size: 1.2rem; letter-spacing: .08em; margin: 6px 0 12px; text-shadow: 0 0 12px rgba(0,229,255,.45); }
+  h1 { font-size: 1.12rem; letter-spacing: .08em; text-shadow: 0 0 12px rgba(0,229,255,.45); white-space: nowrap; }
 
-  .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 16px; }
-  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 14px; }
+  /* 疊層開關（老師講課時一鍵切換輔助線） */
+  .overlay-switch {
+    display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none;
+    font: inherit; font-size: .86rem; color: var(--white); min-height: 44px;
+    padding: 6px 14px 6px 8px; border-radius: 999px;
+    background: rgba(255,228,92,.08); border: 1px solid rgba(255,228,92,.45);
+    transition: background .2s, box-shadow .2s, border-color .2s;
+  }
+  .overlay-switch:hover { background: rgba(255,228,92,.16); }
+  .overlay-switch .track {
+    position: relative; width: 46px; height: 26px; border-radius: 999px; flex: none;
+    background: rgba(255,255,255,.14); transition: background .25s;
+  }
+  .overlay-switch .track::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); transition: transform .25s cubic-bezier(.22,.61,.36,1);
+  }
+  .overlay-switch[aria-checked="true"] { box-shadow: 0 0 18px rgba(255,228,92,.35); border-color: var(--yellow); }
+  .overlay-switch[aria-checked="true"] .track { background: var(--yellow); }
+  .overlay-switch[aria-checked="true"] .track::after { transform: translateX(20px); }
+  .overlay-switch kbd { font: inherit; font-size: .7rem; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; }
+  .overlay-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 3px; }
+
+  /* ===== 右側毛玻璃控制面板 ===== */
+  .panel {
+    position: absolute; top: 16px; right: 16px; bottom: 16px; width: 360px; overflow-y: auto; z-index: 10;
+    background: rgba(14,16,32,.5);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 20px 22px 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 60px rgba(0,0,0,.55);
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
+    overscroll-behavior: contain;
+  }
+  .panel-title { font-size: .74rem; letter-spacing: .24em; color: var(--muted); margin-bottom: 12px; }
+
+  .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 18px; }
+  .presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
   .preset {
-    font: inherit; font-size: .72rem; padding: 6px 2px; cursor: pointer; color: var(--white);
+    font: inherit; font-size: .76rem; padding: 6px 2px; min-height: 40px; cursor: pointer; color: var(--white);
     background: rgba(255,255,255,.04); border: 1px solid var(--border); border-radius: 7px;
     display: flex; align-items: center; justify-content: center; gap: 5px;
     transition: border-color .2s, box-shadow .2s;
@@ -55,7 +91,7 @@
   #cG::-webkit-slider-thumb { border-color: #40ff60; box-shadow: 0 0 10px #40ff60; }
   #cB::-webkit-slider-thumb { border-color: #4a6bff; box-shadow: 0 0 10px #4a6bff; }
   .mode-btn {
-    font: inherit; font-size: .76rem; padding: 8px 4px; cursor: pointer; line-height: 1.3;
+    font: inherit; font-size: .84rem; padding: 10px 4px; min-height: 46px; cursor: pointer; line-height: 1.3;
     color: var(--muted); background: rgba(255,255,255,.03);
     border: 1px solid var(--border); border-radius: 8px;
     transition: color .2s, border-color .2s, box-shadow .2s, background .2s;
@@ -64,31 +100,53 @@
   .mode-btn.on { color: var(--cyan); border-color: var(--cyan); background: rgba(0,229,255,.1); box-shadow: 0 0 14px rgba(0,229,255,.35); }
 
   .section[hidden] { display: none; }
+
+  /* 介質選擇與光速比較 */
+  .media { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .medium {
+    font: inherit; font-size: .84rem; min-height: 44px; cursor: pointer; color: var(--muted);
+    background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 10px;
+    transition: color .2s, border-color .2s, box-shadow .2s, background .2s;
+  }
+  .medium[aria-checked="true"] { color: var(--magenta); border-color: var(--magenta); background: rgba(255,79,216,.1); box-shadow: 0 0 14px rgba(255,79,216,.3); }
+  .speed { margin: -4px 0 14px; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--border); }
+  .speed .h { font-size: .76rem; letter-spacing: .12em; color: var(--muted); margin-bottom: 8px; }
+  .speed .row { display: grid; grid-template-columns: 3.2em 1fr auto; align-items: center; gap: 10px; font-size: .8rem; margin-top: 6px; }
+  .speed .bar { height: 10px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .speed .bar i { display: block; height: 100%; border-radius: 999px; transition: width .4s; }
+  .speed .row span:last-child { font-family: Consolas, "SFMono-Regular", monospace; color: var(--white); white-space: nowrap; }
+  .speed .row.dim { opacity: .45; }
   .desc { font-size: .78rem; color: var(--muted); line-height: 1.65; margin-bottom: 14px; }
 
-  .ctrl { margin-bottom: 15px; }
-  .ctrl label { display: flex; justify-content: space-between; align-items: baseline; font-size: .82rem; margin-bottom: 8px; }
+  .ctrl { margin-bottom: 18px; }
+  .ctrl label { display: flex; justify-content: space-between; align-items: baseline; font-size: .86rem; margin-bottom: 4px; }
   .ctrl output { font-family: Consolas, "SFMono-Regular", monospace; font-size: .98rem; color: var(--cyan); text-shadow: 0 0 8px rgba(0,229,255,.7); }
 
+  /* 拉桿：外框 36px 高當作觸控熱區，軌道本身只畫 6px；拇指 26px，平板上好抓 */
   input[type=range] {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 999px;
-    background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan) var(--fill, 50%), rgba(255,255,255,.12) var(--fill, 50%));
-    box-shadow: 0 0 10px rgba(0,229,255,.25); outline: none; cursor: pointer;
+    -webkit-appearance: none; appearance: none; width: 100%; height: 36px; background: transparent;
+    outline: none; cursor: pointer; touch-action: pan-y; margin: 0;
   }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--cyan) 0%, var(--cyan) var(--fill, 50%), rgba(255,255,255,.12) var(--fill, 50%));
+    box-shadow: 0 0 10px rgba(0,229,255,.25);
+  }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.12); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--cyan); }
   input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
-    background: var(--bg); border: 2px solid var(--cyan);
+    -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%;
+    background: var(--bg); border: 3px solid var(--cyan);
     box-shadow: 0 0 10px var(--cyan), 0 0 22px rgba(0,229,255,.5); transition: transform .15s;
   }
-  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-  input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--cyan); box-shadow: 0 0 10px var(--cyan); }
-  input[type=range]::-moz-range-track { background: transparent; }
+  input[type=range]:active::-webkit-slider-thumb { transform: scale(1.15); }
+  input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--bg); border: 3px solid var(--cyan); box-shadow: 0 0 10px var(--cyan); }
   input[type=range]:focus-visible { outline: 1px solid var(--cyan); outline-offset: 8px; }
 
   select {
     width: 100%; font: inherit; font-size: .85rem; color: var(--white); cursor: pointer;
     background: rgba(0,229,255,.06); border: 1px solid rgba(0,229,255,.5); border-radius: 8px;
-    padding: 8px 10px; outline: none; appearance: none; -webkit-appearance: none;
+    padding: 10px 12px; min-height: 44px; outline: none; appearance: none; -webkit-appearance: none;
     background-image: linear-gradient(45deg, transparent 50%, var(--cyan) 50%), linear-gradient(135deg, var(--cyan) 50%, transparent 50%);
     background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat;
   }
@@ -109,20 +167,19 @@
   .btn {
     width: 100%; margin-top: 12px; font: inherit; font-size: .8rem; letter-spacing: .1em; cursor: pointer;
     color: var(--cyan); background: rgba(0,229,255,.06);
-    border: 1px solid rgba(0,229,255,.55); border-radius: 8px; padding: 8px 10px;
+    border: 1px solid rgba(0,229,255,.55); border-radius: 10px; padding: 10px; min-height: 44px;
     transition: background .2s, box-shadow .2s, color .2s;
   }
   .btn:hover { background: rgba(0,229,255,.16); box-shadow: 0 0 14px rgba(0,229,255,.45); color: var(--white); }
-  /* 收合鈕：桌機與手機都可收合，避免擋住畫面 */
+  /* 收合鈕：面板可收成一條，讓出整個畫面 */
   .toggle {
     position: absolute; top: 14px; right: 14px; z-index: 2; cursor: pointer;
-    font: inherit; font-size: .74rem; letter-spacing: .08em; color: var(--cyan);
-    background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.4); border-radius: 999px; padding: 3px 12px;
+    font: inherit; font-size: .78rem; letter-spacing: .08em; color: var(--cyan); min-height: 32px;
+    background: rgba(0,229,255,.08); border: 1px solid rgba(0,229,255,.4); border-radius: 999px; padding: 4px 14px;
   }
   .toggle:hover { background: rgba(0,229,255,.18); }
   .panel.collapsed .body { display: none; }
-  .panel.collapsed { width: auto; min-width: 240px; padding-bottom: 14px; }
-  .panel h1 { padding-right: 64px; }
+  .panel.collapsed { bottom: auto; width: 240px; padding-bottom: 14px; }
 
   /* 3D 標籤（HTML 文字，不受 Bloom 影響，保持銳利） */
   .tag {
@@ -133,14 +190,25 @@
   .tag.plain { background: none; border: none; color: var(--muted); }
   .tag.c { color: var(--cyan); } .tag.m { color: var(--magenta); } .tag.y { color: var(--yellow); }
   .tag.g { color: var(--green); } .tag.v { color: var(--violet); } .tag.o { color: var(--orange); }
-  .hint { position: absolute; right: 16px; bottom: 14px; z-index: 5; font-size: .72rem; letter-spacing: .1em; color: rgba(255,255,255,.45); }
+  .hint { position: absolute; left: 16px; bottom: 14px; z-index: 5; font-size: .72rem; letter-spacing: .1em; color: rgba(255,255,255,.45); }
   .fallback { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); line-height: 1.8; padding: 24px; }
 
+  /* 橫式平板：面板稍窄，留更多空間給 3D 畫面 */
+  @media (max-width: 1180px) {
+    .panel { width: 320px; padding: 18px 18px 20px; }
+    .dock { max-width: calc(100vw - 368px); }
+  }
+  /* 手機與直式平板：mobile.js 會把面板改成底部抽屜；這裡讓左上角工具列橫跨上方 */
+  @media (max-width: 760px), (max-width: 1100px) and (orientation: portrait) {
+    .dock { top: 8px; left: 8px; right: 8px; max-width: none; padding: 6px 8px 6px 12px; gap: 8px 10px; }
+    h1 { font-size: .95rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .overlay-switch { min-height: 40px; font-size: .8rem; padding: 4px 12px 4px 6px; }
+    .overlay-switch kbd { display: none; }
+    .panel { bottom: 0; }
+    .panel.collapsed { width: auto; }
+  }
   @media (max-width: 640px) {
-    .panel { top: 10px; left: 10px; right: 10px; width: auto; max-height: 56vh; padding: 14px 16px; }
-    .panel.collapsed .body { display: none; }
-    .toggle { display: block; position: absolute; top: 12px; right: 14px; border: none; background: none; font: inherit; font-size: .78rem; color: var(--cyan); cursor: pointer; }
-    .hint { display: none; }
+    .back span { display: none; }
     .tag { font-size: .66rem; }
   }
 </style>
@@ -158,10 +226,17 @@
 
 <div id="scene"></div>
 
-<aside class="panel" id="panel">
-  <button class="toggle" id="toggle">收合</button>
-  <a class="back" href="index.html#g8">← 回課程總覽</a>
+<header class="dock">
+  <a class="back" href="index.html#g8">←<span>&nbsp;回課程總覽</span></a>
   <h1>3D 光學綜合實驗室</h1>
+  <button class="overlay-switch" id="overlaySwitch" role="switch" aria-checked="true" title="快捷鍵 H">
+    <span class="track" aria-hidden="true"></span>顯示輔助線<kbd>H</kbd>
+  </button>
+</header>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="toggle" id="toggle">收合</button>
+  <p class="panel-title">控制面板</p>
   <div class="body">
     <div class="modes" role="tablist">
       <button class="mode-btn" data-mode="pinhole">針孔成像</button>
@@ -186,15 +261,16 @@
 
     <!-- 模組二：反射與折射 -->
     <section class="section" data-mode="refract" hidden>
-      <p class="desc">光從空氣（n₁ = 1）射入介質。反射角 = 入射角；折射遵守司乃耳定律 n₁·sinθ₁ = n₂·sinθ₂。</p>
+      <p class="desc">光在不同介質中的<b>速度不同</b>。光從空氣斜斜射入水或玻璃時速度變慢，前進方向就會偏折（偏向法線）。反射角永遠等於入射角。</p>
       <div class="ctrl">
-        <label for="rAng">入射角 θ₁<output id="rAngVal"></output></label>
+        <label for="rAng">入射角<output id="rAngVal"></output></label>
         <input type="range" id="rAng" min="0" max="89" step="1" value="40">
       </div>
       <div class="ctrl">
-        <label for="rN">介質折射率 n₂<output id="rNVal"></output></label>
-        <input type="range" id="rN" min="1" max="2" step="0.01" value="1.5">
+        <label>光射入的介質</label>
+        <div class="media" id="rMedia" role="radiogroup" aria-label="光射入的介質"></div>
       </div>
+      <div class="speed" id="rSpeed" aria-live="polite"></div>
       <div class="info" id="rInfo"></div>
       <div class="legend">
         <span><i style="background:var(--yellow);color:var(--yellow)"></i>入射光</span>
@@ -277,10 +353,10 @@ const COLOR = {
   orange: 0xff9f43, green: 0x39ff88, violet: 0x9d8cff, white: 0xffffff, dim: 0x5a5a80
 };
 // 高門檻：只有刻意「提亮超過 1」的光源（光束、成像箭頭）會發光，鏡片反光不會被拿去泛光
-const BLOOM = { threshold: 0.85, strength: 0.8, radius: 0.4 };
+const BLOOM = { threshold: 0.9, strength: 0.55, radius: 0.6 };   // 泛光柔一點、範圍大一點，避免一團糊
 const GLOW_BOOST = 2.2;       // 發光物的顏色倍率（HDR，超過 Bloom 門檻）
 const RAY_EXTENT = 14;        // 光線畫到 x = ±14
-const BEAM_RADIUS = 0.01;     // 雷射光柱半徑（精細雷射筆）
+const BEAM_RADIUS = 0.016;    // 雷射光柱半徑（精細雷射筆）
 const glowColor = (hex, k = GLOW_BOOST) => new THREE.Color(hex).multiplyScalar(k);
 
 const $ = id => document.getElementById(id);
@@ -312,7 +388,10 @@ controls.dampingFactor = 0.08;
 controls.minDistance = 4;
 controls.maxDistance = 60;
 
-const composer = new EffectComposer(renderer);
+// 後製畫面也開 4 倍多重取樣（MSAA）：不開的話細光線邊緣會鋸齒、看起來畫質很低
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+  type: THREE.HalfFloatType, samples: 4
+}));
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), BLOOM.strength, BLOOM.radius, BLOOM.threshold);
 composer.addPass(bloom);
@@ -327,10 +406,17 @@ const rimLight = new THREE.DirectionalLight(0x66ccff, 0.5);
 rimLight.position.set(-8, 3, -6);
 scene.add(rimLight);
 
-const grid = new THREE.GridHelper(80, 80, COLOR.gridCenter, COLOR.grid);
+/* ----- 輔助線疊層：網格、主軸、法線、角度弧、焦點、延長線都放在第 1 層，
+         由「顯示輔助線」開關控制相機要不要畫這一層 ----- */
+const HELPER_LAYER = 1;
+camera.layers.enable(HELPER_LAYER);
+let showHelpers = true;
+function markHelper(obj) { obj.traverse(o => o.layers.set(HELPER_LAYER)); return obj; }
+
+const grid = markHelper(new THREE.GridHelper(80, 80, COLOR.gridCenter, COLOR.grid));
 grid.position.y = -5;
 scene.add(grid);
-const axes = new THREE.AxesHelper(1.2);
+const axes = markHelper(new THREE.AxesHelper(1.2));
 axes.position.set(-15, -4.99, 0);
 scene.add(axes);
 
@@ -410,29 +496,36 @@ function staticLine(group, pts, color, opts) {
   return l;
 }
 
-/* ----- 雷射光柱：實心細圓柱（核心）+ 外層加法混色光暈 ----- */
-const BEAM_GEO = new THREE.CylinderGeometry(1, 1, 1, 12, 1, true);
+/* ----- 雷射光柱：白熱核心 + 內、外兩層加法混色光暈（由內到外漸淡，光感比較細緻） ----- */
+const BEAM_GEO = new THREE.CylinderGeometry(1, 1, 1, 24, 1, true);
 BEAM_GEO.userData.shared = true;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const HALOS = [{ scale: 2.4, alpha: 0.22 }, { scale: 6, alpha: 0.06 }];
 
 function makeBeam(color, { radius = BEAM_RADIUS, opacity = 1, onTop = false } = {}) {
   const group = new THREE.Group();
-  const coreMat = new THREE.MeshBasicMaterial({ color: glowColor(color, GLOW_BOOST * opacity), toneMapped: false, transparent: onTop || opacity < 1, opacity, depthTest: !onTop });
-  const haloMat = new THREE.MeshBasicMaterial({
-    color, toneMapped: false, transparent: true, opacity: 0.12 * opacity,
+  // 核心偏白、邊緣帶顏色，像真的雷射
+  const core = new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.45).multiplyScalar(GLOW_BOOST * opacity);
+  const coreMat = new THREE.MeshBasicMaterial({ color: core, toneMapped: false, transparent: onTop || opacity < 1, opacity, depthTest: !onTop });
+  const haloMats = HALOS.map(h => new THREE.MeshBasicMaterial({
+    color, toneMapped: false, transparent: true, opacity: h.alpha * opacity,
     blending: THREE.AdditiveBlending, depthWrite: false, depthTest: !onTop
-  });
-  return { group, coreMat, haloMat, radius, onTop, segs: [] };
+  }));
+  return { group, coreMat, haloMats, radius, onTop, segs: [] };
 }
 function setBeam(beam, pts) {
   while (beam.segs.length < pts.length - 1) {
     const seg = new THREE.Group();
     const core = new THREE.Mesh(BEAM_GEO, beam.coreMat);
-    const halo = new THREE.Mesh(BEAM_GEO, beam.haloMat);
     core.scale.set(beam.radius, 1, beam.radius);
-    halo.scale.set(beam.radius * 3.4, 1, beam.radius * 3.4);
-    if (beam.onTop) { core.renderOrder = 10; halo.renderOrder = 10; }
-    seg.add(core, halo);
+    seg.add(core);
+    beam.haloMats.forEach((m, i) => {
+      const halo = new THREE.Mesh(BEAM_GEO, m);
+      halo.scale.set(beam.radius * HALOS[i].scale, 1, beam.radius * HALOS[i].scale);
+      if (beam.onTop) halo.renderOrder = 10;
+      seg.add(halo);
+    });
+    if (beam.onTop) core.renderOrder = 10;
     beam.group.add(seg);
     beam.segs.push(seg);
   }
@@ -501,11 +594,11 @@ function replaceChild(holder, child) {
 }
 
 const labels = [];
-function addLabel(mode, cls = '') {
+function addLabel(mode, cls = '', helper = false) {
   const el = document.createElement('div');
   el.className = 'tag ' + cls;
   document.body.appendChild(el);
-  const L = { el, mode, pos: V(0, 0), visible: false };
+  const L = { el, mode, helper, pos: V(0, 0), visible: false };
   labels.push(L);
   return L;
 }
@@ -517,7 +610,7 @@ function setLabel(L, html, pos, visible = true) {
 const tmpV = V(0, 0);
 function placeLabels() {
   for (const L of labels) {
-    const show = L.visible && L.mode === currentMode;
+    const show = L.visible && L.mode === currentMode && (showHelpers || !L.helper);
     if (!show) { L.el.style.display = 'none'; continue; }
     tmpV.copy(L.pos).project(camera);
     if (tmpV.z > 1) { L.el.style.display = 'none'; continue; }
@@ -528,7 +621,7 @@ function placeLabels() {
 }
 
 function addAxis(group, y = 0) {
-  staticLine(group, [V(-RAY_EXTENT - 1, y), V(RAY_EXTENT + 1, y)], COLOR.dim, { opacity: 0.55, dashed: true });
+  markHelper(staticLine(group, [V(-RAY_EXTENT - 1, y), V(RAY_EXTENT + 1, y)], COLOR.dim, { opacity: 0.55, dashed: true }));
 }
 
 /* 虛像的閃爍 / 掃描效果（所有模式共用） */
@@ -607,6 +700,7 @@ const Pinhole = (() => {
     setBeam(blocked[1], [T, V(-0.11, -1.2)]);
     setBeam(blocked[2], [B, V(-0.11, 1.2)]);
     setBeam(blocked[3], [B, V(-0.11, -1.6)]);
+    blocked.forEach(b => markHelper(b.group));   // 被擋住的光屬於示意輔助線
 
     setLabel(lObj, '物', V(-dO, H / 2 + 0.7));
     setLabel(lImg, '倒立的像', V(dI + 0.2, -hImg / 2 - 0.6));
@@ -667,9 +761,10 @@ const Refract = (() => {
   const arc2 = makeLine(COLOR.magenta, { opacity: 0.85 });
   group.add(arc1, arcR, arc2);
   [arc2, normalLine].forEach(l => { l.material.depthTest = false; l.renderOrder = 10; });
+  [normalLine, arc1, arcR, arc2].forEach(markHelper);
 
-  const lA1 = addLabel('refract', 'y'), lAR = addLabel('refract', 'c'), lA2 = addLabel('refract', 'm');
-  const lAir = addLabel('refract', 'plain'), lMed = addLabel('refract', 'plain'), lNormal = addLabel('refract', 'plain');
+  const lA1 = addLabel('refract', 'y', true), lAR = addLabel('refract', 'c', true), lA2 = addLabel('refract', 'm', true);
+  const lAir = addLabel('refract', 'plain'), lMed = addLabel('refract', 'plain'), lNormal = addLabel('refract', 'plain', true);
 
   const arc = (r, a0, a1) => {
     const pts = [];
@@ -680,14 +775,63 @@ const Refract = (() => {
     return pts;
   };
 
+  /* 介質：光速（萬 km/s）。偏折角度由「光速比」決定（程式內部計算，畫面上不出現折射率） */
+  const AIR_V = 30;
+  const MEDIA = {
+    water:   { name: '水',   v: 22.5, tint: 0x6fb8ff },
+    glass:   { name: '玻璃', v: 20,   tint: 0x88d8ff },
+    diamond: { name: '鑽石', v: 12.4, tint: 0xe8f4ff }
+  };
+  let medium = 'glass';
+  $('rMedia').innerHTML = Object.entries(MEDIA).map(([k, m]) =>
+    `<button class="medium" role="radio" data-m="${k}" aria-checked="${k === medium}">${m.name}</button>`).join('');
+  $('rMedia').addEventListener('click', e => {
+    const b = e.target.closest('.medium');
+    if (!b) return;
+    medium = b.dataset.m;
+    document.querySelectorAll('.medium').forEach(x => x.setAttribute('aria-checked', String(x === b)));
+    update();
+  });
+
+  /* 光點：同時出發，反射光點在空氣中、折射光點在介質中，比一比誰跑得快 */
+  const PULSE_V = 2.4;            // 空氣中的光點速度（場景單位／秒），介質中依光速比例變慢
+  const pulseGeo = new THREE.SphereGeometry(0.09, 20, 14);
+  const pulseMat = c => new THREE.MeshBasicMaterial({ color: glowColor(c, 2.6), toneMapped: false });
+  const PULSES = [0, 1, 2].map(() => {
+    const inc = new THREE.Mesh(pulseGeo, pulseMat(COLOR.yellow));
+    const ref = new THREE.Mesh(pulseGeo, pulseMat(COLOR.cyan));
+    const fra = new THREE.Mesh(pulseGeo, pulseMat(COLOR.magenta));
+    fra.renderOrder = 11; fra.material.depthTest = false;
+    group.add(inc, ref, fra);
+    return { inc, ref, fra };
+  });
+  let geo = null;
+  function tick(t) {
+    if (!geo) return;
+    const { S, O, R, P, ratio } = geo;
+    const tIn = S.distanceTo(O) / PULSE_V;
+    const tRef = O.distanceTo(R) / PULSE_V, tFra = O.distanceTo(P) / (PULSE_V * ratio);
+    const period = tIn + Math.max(tRef, tFra) + 0.4;
+    PULSES.forEach((p, k) => {
+      const tau = (t + k * period / PULSES.length) % period;
+      p.inc.visible = tau < tIn;
+      p.ref.visible = tau >= tIn && tau < tIn + tRef;
+      p.fra.visible = tau >= tIn && tau < tIn + tFra;
+      if (p.inc.visible) p.inc.position.lerpVectors(S, O, tau / tIn);
+      if (p.ref.visible) p.ref.position.lerpVectors(O, R, (tau - tIn) / tRef);
+      if (p.fra.visible) p.fra.position.lerpVectors(O, P, (tau - tIn) / tFra);
+    });
+  }
+
   function update() {
     const t1 = rad(Number($('rAng').value));
-    const n2 = Number($('rN').value);
-    const n1 = 1;
-    const t2 = Math.asin(n1 * Math.sin(t1) / n2);     // 司乃耳定律
+    const M = MEDIA[medium];
+    const ratio = M.v / AIR_V;                          // 介質光速 ÷ 空氣光速
+    const t2 = Math.asin(Math.sin(t1) * ratio);         // 光速越慢，偏折越多
+    const n2 = AIR_V / M.v;
     $('rAngVal').textContent = deg(t1).toFixed(0) + '°';
-    $('rNVal').textContent = n2.toFixed(2);
     glassMat.ior = n2;
+    glassMat.attenuationColor.set(M.tint);
 
     const O = V(0, 0);
     const S = V(-L * Math.sin(t1), L * Math.cos(t1));
@@ -696,6 +840,7 @@ const Refract = (() => {
     const tBottom = BLOCK.h / Math.cos(t2);
     const tSide = Math.sin(t2) > 1e-6 ? (BLOCK.w / 2) / Math.sin(t2) : Infinity;
     const P = dir2.clone().multiplyScalar(Math.min(tBottom, tSide));
+    geo = { S, O, R, P, ratio };
 
     setBeam(incident, [S, O]);
     setBeam(reflected, [O, R]);
@@ -713,23 +858,30 @@ const Refract = (() => {
     setLine(arcR, arc(r, Math.PI / 2, Math.PI / 2 - t1));
     setLine(arc2, arc(r, -Math.PI / 2, -Math.PI / 2 + t2));
     const lr = r + 0.75;
-    setLabel(lA1, `θ₁ ${deg(t1).toFixed(0)}°`, V(lr * Math.cos(Math.PI / 2 + t1 / 2) - 0.3, lr * Math.sin(Math.PI / 2 + t1 / 2)));
+    setLabel(lA1, `入射角 ${deg(t1).toFixed(0)}°`, V(lr * Math.cos(Math.PI / 2 + t1 / 2) - 0.3, lr * Math.sin(Math.PI / 2 + t1 / 2)));
     setLabel(lAR, `反射角 ${deg(t1).toFixed(0)}°`, V(lr * Math.cos(Math.PI / 2 - t1 / 2) + 0.6, lr * Math.sin(Math.PI / 2 - t1 / 2)));
-    setLabel(lA2, `θ₂ ${deg(t2).toFixed(1)}°`, V(lr * Math.cos(-Math.PI / 2 + t2 / 2) + 0.4, lr * Math.sin(-Math.PI / 2 + t2 / 2)));
-    setLabel(lAir, '空氣 n₁ = 1.00', V(3.6, 0.45));
-    setLabel(lMed, `介質 n₂ = ${n2.toFixed(2)}`, V(3.6, -0.55));
+    setLabel(lA2, `折射角 ${deg(t2).toFixed(0)}°`, V(lr * Math.cos(-Math.PI / 2 + t2 / 2) + 0.7, lr * Math.sin(-Math.PI / 2 + t2 / 2)));
+    setLabel(lAir, '空氣（光速快）', V(3.6, 0.45));
+    setLabel(lMed, `${M.name}（光速較慢）`, V(3.6, -0.55));
     setLabel(lNormal, '法線', V(0, 4.4));
 
-    const s1 = n1 * Math.sin(t1), s2 = n2 * Math.sin(t2);
+    // 光速比較長條（以空氣為 100%）
+    const bar = (name, v, color, dim) =>
+      `<div class="row${dim ? ' dim' : ''}"><span>${name}</span><div class="bar"><i style="width:${v / AIR_V * 100}%;background:${color}"></i></div><span>約 ${v} 萬 km/s</span></div>`;
+    $('rSpeed').innerHTML = '<div class="h">光速比較</div>' +
+      bar('空氣', AIR_V, 'var(--yellow)') +
+      Object.entries(MEDIA).map(([k, m]) => bar(m.name, m.v, 'var(--magenta)', k !== medium)).join('');
+
     $('rInfo').innerHTML =
-      `入射角 θ₁ = <em>${deg(t1).toFixed(1)}°</em><br>` +
-      `反射角　 = <em>${deg(t1).toFixed(1)}°</em>（反射定律）<br>` +
-      `折射角 θ₂ = <em>${deg(t2).toFixed(1)}°</em><br>` +
-      `n₁·sinθ₁ = <em>${s1.toFixed(3)}</em>　n₂·sinθ₂ = <em>${s2.toFixed(3)}</em><br>` +
-      `<b>${n2 > 1.001 ? '進入較密介質，折射光偏向法線（θ₂ &lt; θ₁）' : 'n₂ = n₁：光不偏折'}</b>`;
+      `入射角 = <em>${deg(t1).toFixed(0)}°</em><br>` +
+      `反射角 = <em>${deg(t1).toFixed(0)}°</em>（反射角 = 入射角）<br>` +
+      `折射角 = <em>${deg(t2).toFixed(0)}°</em><br>` +
+      `光在${M.name}中的速度約是空氣中的 <em>${Math.round(ratio * 100)}%</em><br>` +
+      `<b>${t1 < 0.01 ? '垂直入射：光速雖然變慢，但方向不偏折'
+        : `光速變慢 → 折射光偏向法線（折射角 &lt; 入射角）`}</b>`;
   }
 
-  return { group, update, camera: { pos: [2, 2.5, 19], target: [-1, 0.5, 0] } };
+  return { group, update, tick, camera: { pos: [2, 2.5, 19], target: [-1, 0.5, 0] } };
 })();
 
 /* =========================================================
@@ -760,10 +912,10 @@ const LensMode = (() => {
   const rays = RAY_COLORS.map(c => ({
     inc: makeBeam(c), out: makeBeam(c), back: makeLine(c, { opacity: 0.75, dashed: true })
   }));
-  rays.forEach(r => group.add(r.inc.group, r.out.group, r.back));
+  rays.forEach(r => { group.add(r.inc.group, r.out.group, r.back); markHelper(r.back); });
 
   const lObj = addLabel('lens', 'o'), lImg = addLabel('lens', 'g'), lEl = addLabel('lens', 'plain');
-  const markerLabels = [0, 1, 2, 3].map(() => addLabel('lens', 'plain'));
+  const markerLabels = [0, 1, 2, 3].map(() => addLabel('lens', 'plain', true));
 
   /* ----- 幾何剖面：[半徑 r, 軸向位置 x] ----- */
   const N = 32;
@@ -862,6 +1014,7 @@ const LensMode = (() => {
       setLabel(markerLabels[i], name, V(x, -0.45));
     });
     for (let i = pts.length; i < markerLabels.length; i++) markerLabels[i].visible = false;
+    markHelper(markers);
   }
 
   let currentType = null;
@@ -1186,6 +1339,17 @@ $('viewBtn').addEventListener('click', resetView);
 $('toggle').addEventListener('click', () => {
   const c = $('panel').classList.toggle('collapsed');
   $('toggle').textContent = c ? '展開' : '收合';
+});
+
+/* 「顯示輔助線」開關：按鈕或鍵盤 H */
+function setHelpers(on) {
+  showHelpers = on;
+  if (on) camera.layers.enable(HELPER_LAYER); else camera.layers.disable(HELPER_LAYER);
+  $('overlaySwitch').setAttribute('aria-checked', String(on));
+}
+$('overlaySwitch').addEventListener('click', () => setHelpers(!showHelpers));
+window.addEventListener('keydown', e => {
+  if ((e.key === 'h' || e.key === 'H') && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) setHelpers(!showHelpers);
 });
 
 /* =========================================================

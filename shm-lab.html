@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>簡諧運動與參考圓</title>
+<style>
+  :root {
+    --bg: #0b1020;
+    --white: #eef1fa;
+    --muted: rgba(238,241,250,.6);
+    --border: rgba(255,255,255,.12);
+    --x: #ffd166;      /* 位移 */
+    --v: #4cc9f0;      /* 速度 */
+    --a: #ff5d8f;      /* 加速度 / 回復力 */
+    --accent: #5b9cff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(900px 600px at 30% 40%, #121a36, var(--bg) 70%) fixed, var(--bg);
+    color: var(--white);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    letter-spacing: .02em; -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+  button, input { font: inherit; color: inherit; touch-action: manipulation; }
+
+  /* 畫布只放在面板以外的區域（JS 計算），毛玻璃底下是靜止背景，平板上比較順 */
+  #cv { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+
+  /* ===== 右側毛玻璃控制面板 ===== */
+  .panel {
+    position: absolute; top: 16px; right: 16px; bottom: 16px; width: 360px; z-index: 10;
+    overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+    padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    border-radius: 22px; border: 1px solid var(--border);
+    background: rgba(16,20,40,.55);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 60px rgba(0,0,0,.5);
+    scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent;
+  }
+  .back { font-size: .82rem; color: var(--muted); text-decoration: none; display: inline-flex; align-items: center; min-height: 32px; }
+  .back:hover { color: var(--white); }
+  h1 { font-size: 1.18rem; letter-spacing: .06em; margin-top: 2px; }
+  .sub { font-size: .8rem; color: var(--muted); margin: 2px 0 14px; }
+  .collapse {
+    position: absolute; top: 16px; right: 16px; min-height: 34px; padding: 4px 14px; cursor: pointer;
+    font-size: .78rem; color: var(--accent); background: rgba(91,156,255,.1); border: 1px solid rgba(91,156,255,.4); border-radius: 999px;
+  }
+  .panel.collapsed .body { display: none; }
+  .panel.collapsed { bottom: auto; }
+
+  .group { padding: 14px 0; border-top: 1px solid var(--border); }
+  .group-title { font-size: .72rem; letter-spacing: .2em; color: var(--muted); margin-bottom: 10px; }
+
+  /* 播放列 */
+  .row { display: flex; gap: 8px; }
+  .btn {
+    min-height: 46px; padding: 0 16px; cursor: pointer; border-radius: 12px; font-size: .9rem;
+    border: 1px solid rgba(91,156,255,.5); background: rgba(91,156,255,.12); color: var(--white);
+  }
+  .btn.primary { flex: 1; background: var(--accent); border-color: var(--accent); color: #0b1020; font-weight: 700; }
+  .row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .row3 .btn { padding: 0 4px; font-size: .82rem; }
+
+  .energy { display: grid; gap: 8px; }
+  .en { display: grid; grid-template-columns: 7.6em 1fr 3.6em; align-items: center; gap: 10px; font-size: .8rem; }
+  .en span { color: var(--muted); }
+  .ebar { height: 12px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .ebar i { display: block; height: 100%; width: 100%; border-radius: 999px; background: var(--c); transform-origin: left; transform: scaleX(0); transition: transform .1s linear; }
+  .en b { text-align: right; font-family: Consolas, "SFMono-Regular", monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin-top: 8px; border-radius: 12px; background: rgba(255,255,255,.06); }
+  .seg button { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; font-size: .86rem; }
+  .seg button[aria-pressed="true"] { background: rgba(255,255,255,.14); color: var(--white); font-weight: 700; }
+
+  /* 拉桿：36px 高的觸控熱區，軌道只畫 6px；圓鈕 28px */
+  .ctrl { margin-bottom: 10px; }
+  .ctrl label { display: flex; justify-content: space-between; align-items: baseline; font-size: .9rem; }
+  .ctrl output { font-family: Consolas, "SFMono-Regular", monospace; font-size: 1rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 40px; background: transparent; cursor: pointer; touch-action: pan-y; }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent) var(--fill, 50%), rgba(255,255,255,.14) var(--fill, 50%));
+  }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: rgba(255,255,255,.14); }
+  input[type=range]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 28px; height: 28px; margin-top: -11px; border-radius: 50%;
+    background: #0b1020; border: 3px solid var(--accent); box-shadow: 0 0 12px rgba(91,156,255,.6);
+  }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #0b1020; border: 3px solid var(--accent); }
+  input[type=range]:focus-visible { outline: 2px solid var(--white); outline-offset: 2px; border-radius: 8px; }
+
+  .derived { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px; }
+  .derived div { text-align: center; padding: 8px 4px; border-radius: 10px; background: rgba(255,255,255,.05); font-size: .74rem; color: var(--muted); }
+  .derived b { display: block; font-size: 1.02rem; color: var(--white); font-family: Consolas, "SFMono-Regular", monospace; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .formula { margin-top: 8px; font-size: .8rem; color: var(--muted); text-align: center; }
+
+  /* 疊層開關 */
+  .sw { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; user-select: none; font-size: .92rem; }
+  .sw input { position: absolute; opacity: 0; pointer-events: none; }
+  .sw .track { position: relative; width: 48px; height: 28px; flex: none; border-radius: 999px; background: rgba(255,255,255,.16); transition: background .2s; }
+  .sw .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .sw input:checked + .track { background: var(--c, var(--accent)); }
+  .sw input:checked + .track::after { transform: translateX(20px); }
+  .sw input:focus-visible + .track { outline: 2px solid var(--white); outline-offset: 2px; }
+  .sw i { width: 18px; height: 4px; border-radius: 2px; background: var(--c); flex: none; }
+  .sw small { margin-left: auto; color: var(--muted); font-size: .76rem; }
+
+  /* 即時數值 */
+  .live { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: .86rem; }
+  .live dt { color: var(--muted); }
+  .live dd { text-align: right; font-family: Consolas, "SFMono-Regular", monospace; font-variant-numeric: tabular-nums; }
+  .note { font-size: .8rem; color: var(--muted); line-height: 1.7; }
+  .note b { color: var(--white); font-weight: 600; }
+
+  /* 直式平板／手機：面板改為底部抽屜 */
+  @media (orientation: portrait) and (max-width: 1100px), (max-width: 760px) {
+    .panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 46vh; max-height: 46dvh; border-radius: 22px 22px 0 0; padding-top: 14px; }
+    .panel.collapsed { max-height: none; }
+  }
+  @media (max-width: 1180px) and (orientation: landscape) { .panel { width: 330px; } }
+</style>
+</head>
+<body>
+
+<canvas id="cv" aria-label="參考圓與彈簧木塊的連動動畫"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#h11">← 回課程總覽</a>
+  <h1>簡諧運動與參考圓</h1>
+  <p class="sub">選修物理 I · 4-6 簡諧運動</p>
+
+  <div class="body">
+    <div class="group">
+      <div class="row">
+        <button class="btn primary" id="playBtn">暫停</button>
+        <button class="btn" id="resetBtn">從平衡點重來</button>
+      </div>
+      <div class="row3">
+        <button class="btn" data-stop="eq">停在平衡點</button>
+        <button class="btn" data-stop="top">停在最高點</button>
+        <button class="btn" data-stop="bottom">停在最低點</button>
+      </div>
+      <div class="seg" role="group" aria-label="播放速度">
+        <button data-speed="0.25" aria-pressed="false">0.25×</button>
+        <button data-speed="0.5" aria-pressed="false">0.5× 慢動作</button>
+        <button data-speed="1" aria-pressed="true">1×</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">變因</div>
+      <div class="ctrl">
+        <label for="amp">振幅 A <output id="ampVal"></output></label>
+        <input type="range" id="amp" min="4" max="15" step="0.5" value="10">
+      </div>
+      <div class="ctrl">
+        <label for="mass">木塊質量 m <output id="massVal"></output></label>
+        <input type="range" id="mass" min="0.5" max="4" step="0.1" value="1">
+      </div>
+      <div class="ctrl">
+        <label for="kk">彈力常數 k <output id="kVal"></output></label>
+        <input type="range" id="kk" min="4" max="40" step="1" value="10">
+      </div>
+      <div class="derived">
+        <div>週期 T<b id="dT"></b></div>
+        <div>角速度 ω<b id="dW"></b></div>
+        <div>頻率 f<b id="dF"></b></div>
+      </div>
+      <p class="formula">T = 2π√(m / k)　ω = 2π / T = √(k / m)</p>
+    </div>
+
+    <div class="group">
+      <div class="group-title">輔助疊層</div>
+      <label class="sw" style="--c:var(--x)"><input type="checkbox" id="showX"><span class="track"></span><i></i>顯示位移 x</label>
+      <label class="sw" style="--c:var(--v)"><input type="checkbox" id="showV"><span class="track"></span><i></i>顯示速度 v</label>
+      <label class="sw" style="--c:var(--a)"><input type="checkbox" id="showA"><span class="track"></span><i></i>顯示加速度 a／回復力 F</label>
+      <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showProj" checked><span class="track"></span>投影輔助線</label>
+      <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showGraph" checked><span class="track"></span>圖表區<small>x、v、a 對時間</small></label>
+    </div>
+
+    <div class="group">
+      <div class="group-title">即時數值（向上為正）</div>
+      <dl class="live">
+        <dt>相位角 θ = ωt</dt><dd id="lTheta"></dd>
+        <dt style="color:var(--x)">位移 x = A sin θ</dt><dd id="lX"></dd>
+        <dt style="color:var(--v)">速度 v = Aω cos θ</dt><dd id="lV"></dd>
+        <dt style="color:var(--a)">加速度 a = −ω²x</dt><dd id="lA"></dd>
+        <dt style="color:var(--a)">回復力 F = −kx</dt><dd id="lF"></dd>
+      </dl>
+    </div>
+
+    <div class="group">
+      <div class="group-title">力學能（J）</div>
+      <div class="energy">
+        <div class="en" style="--c:var(--v)"><span>動能 K = ½mv²</span><div class="ebar"><i id="eK"></i></div><b id="eKv"></b></div>
+        <div class="en" style="--c:var(--x)"><span>位能 U = ½kx²</span><div class="ebar"><i id="eU"></i></div><b id="eUv"></b></div>
+        <div class="en" style="--c:#c9d3ee"><span>總能 E = ½kA²</span><div class="ebar"><i id="eE"></i></div><b id="eEv"></b></div>
+      </div>
+      <p class="note" style="margin-top:8px">以平衡位置為位能零點（鉛直彈簧已把重力併入），K 和 U 互相轉換，總能不變。</p>
+    </div>
+
+    <div class="group">
+      <p class="note">
+        木塊的位置，就是參考圓上質點在<b>鉛直方向的投影</b>（圓心那條直徑上的影子點）。
+        把速度、加速度打開：木塊的箭頭，正好等於圓上箭頭的<b>鉛直分量</b>（虛線）。<br>
+        可以直接用手指<b>拖曳圓上的質點或木塊</b>，放開後繼續運動。箭頭長度依比例縮放。
+      </p>
+    </div>
+  </div>
+</aside>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+
+  const COL = { x: '#ffd166', v: '#4cc9f0', a: '#ff5d8f', ring: '#5b9cff', dim: 'rgba(238,241,250,.35)', text: '#eef1fa' };
+  const A_MAX = 15;              // 振幅上限（cm），用來固定版面不跳動
+  const KV = 0.3, KA = 0.08;     // 向量箭頭比例：px = 數值 × 每公分像素 × K
+  const GRAPH_SECONDS = 6;       // x–t 圖顯示最近幾秒
+
+  /* ===== 狀態 ===== */
+  const S = {
+    A: 10, m: 1, k: 10,          // cm、kg、N/m
+    theta: 0,                    // 相位角（rad），x = A sin θ
+    playing: true, speed: 1,
+    simT: 0, trace: [],
+    drag: null
+  };
+  const omega = () => Math.sqrt(S.k / S.m);
+
+  /* ===== 版面：畫布只佔面板以外的區域 ===== */
+  let W = 0, H = 0, dpr = 1, L = {};
+  function layout() {
+    const pr = $('panel').getBoundingClientRect();
+    const portrait = pr.left < 40;                         // 底部抽屜模式
+    const x0 = 0, y0 = 0;
+    W = portrait ? window.innerWidth : Math.max(200, pr.left - 8);
+    H = portrait ? Math.max(200, pr.top - 4) : window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    Object.assign(cv.style, { left: x0 + 'px', top: y0 + 'px', width: W + 'px', height: H + 'px' });
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+
+    // 開圖表區時：上方 58% 給動畫，下方給 x／v／a–t 三張圖
+    const graph = $('showGraph').checked && H > 420;
+    const SH = graph ? Math.round(H * 0.58) : H;
+    // 每公分像素：同時受高度（彈簧要掛得下）與寬度（圓直徑 2R + 間距 0.7R + 留白）限制
+    const ppc = Math.max(3, Math.min((0.56 * SH - 110) / A_MAX, (0.44 * SH - 40) / A_MAX, (W - 220) / (2.7 * A_MAX)));
+    const Rmax = A_MAX * ppc;
+    const cy = SH * 0.56;
+    // 水平排列：參考圓 ｜ 木塊，整組置中
+    const gap = Math.max(90, Rmax * 0.7);
+    const cx = Math.max(Rmax + 56, (W - (2 * Rmax + gap + 70)) / 2 + Rmax);
+    const bx = cx + Rmax + gap;
+    L = { ppc, Rmax, cx, cy, bx, ceil: cy - Rmax - 90, SH, graph, gTop: SH + 6, gLeft: 92, gRight: W - 24 };
+  }
+
+  /* ===== 繪圖工具 ===== */
+  function line(x0, y0, x1, y1, color, w = 1.5, dash = null) {
+    ctx.strokeStyle = color; ctx.lineWidth = w; ctx.setLineDash(dash || []);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  function arrow(x0, y0, x1, y1, color, { w = 4, dash = false, label = '', alpha = 1 } = {}) {
+    const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+    if (len < 4) return;
+    const ux = dx / len, uy = dy / len, h = Math.min(14, len * 0.5);
+    ctx.globalAlpha = alpha;
+    line(x0, y0, x1 - ux * h * 0.7, y1 - uy * h * 0.7, color, w, dash ? [6, 5] : null);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - ux * h - uy * h * 0.55, y1 - uy * h + ux * h * 0.55);
+    ctx.lineTo(x1 - ux * h + uy * h * 0.55, y1 - uy * h - ux * h * 0.55);
+    ctx.closePath(); ctx.fill();
+    if (label) {
+      ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const tx = x1 + ux * 16, ty = y1 + uy * 16;
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,16,32,.85)'; ctx.strokeText(label, tx, ty);
+      ctx.fillText(label, tx, ty);
+    }
+    ctx.globalAlpha = 1;
+  }
+  function text(str, x, y, color = COL.dim, size = 13, align = 'left', weight = '') {
+    ctx.font = `${weight} ${size}px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif`;
+    ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+    ctx.fillText(str, x, y);
+  }
+  /** 把向量長度壓在上限內（圓上與木塊用同一個縮放，木塊的箭頭才會等於圓上箭頭的鉛直分量） */
+  function clampVec(dx, dy, max) {
+    const len = Math.hypot(dx, dy), s = len > max ? max / len : 1;
+    return [dx * s, dy * s];
+  }
+
+  /* ===== 主畫面 ===== */
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const { ppc, cx, cy, bx, ceil } = L;
+    const R = S.A * ppc, w = omega();
+    const c = Math.cos(S.theta), s = Math.sin(S.theta);
+    const px = cx + R * c, py = cy - R * s;           // 參考圓上的質點
+    const show = { x: $('showX').checked, v: $('showV').checked, a: $('showA').checked, proj: $('showProj').checked };
+
+    // 平衡位置（貫穿動畫區）與 ±A
+    line(16, cy, W - 16, cy, 'rgba(238,241,250,.28)', 1.5, [8, 6]);
+    text('平衡位置 x = 0', 18, cy - 12, COL.dim, 12);
+    [-1, 1].forEach(sg => line(bx - 70, cy - sg * R, bx + 70, cy - sg * R, 'rgba(238,241,250,.12)', 1, [3, 6]));
+    text('+A', bx + 76, cy - R, COL.dim, 12); text('−A', bx + 76, cy + R, COL.dim, 12);
+
+    // ---- 參考圓 ----
+    ctx.strokeStyle = 'rgba(91,156,255,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    line(cx, cy - R - 14, cx, cy + R + 14, 'rgba(238,241,250,.22)', 1.2, [4, 5]);   // 鉛直直徑（投影軸）
+    text('參考圓（等速率圓周運動）', cx, Math.min(cy + R + 30, L.SH - 12), COL.dim, 13, 'center');
+    // 半徑與相位角
+    line(cx, cy, px, py, 'rgba(91,156,255,.7)', 2);
+    const th = ((S.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    ctx.strokeStyle = 'rgba(238,241,250,.5)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(cx, cy, Math.min(26, R * 0.35), 0, -th, true); ctx.stroke();
+    text('θ', cx + Math.min(36, R * 0.45) * Math.cos(th / 2), cy - Math.min(36, R * 0.45) * Math.sin(th / 2), COL.text, 13, 'center');
+
+    // 投影輔助線：質點 → 鉛直直徑上的影子點 → 木塊
+    if (show.proj) line(px, py, bx + 40, py, 'rgba(238,241,250,.3)', 1.2, [5, 5]);
+    // 影子點（與木塊同高、同步）
+    ctx.fillStyle = 'rgba(255,209,102,.25)'; ctx.beginPath(); ctx.arc(cx, py, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COL.x; ctx.beginPath(); ctx.arc(cx, py, 5, 0, Math.PI * 2); ctx.fill();
+
+    // ---- 彈簧與木塊 ----
+    const bw = 64 + (S.m - 0.5) / 3.5 * 36, bh = 36 + (S.m - 0.5) / 3.5 * 22;   // 質量越大木塊越大
+    const by = py;                                                              // 木塊中心 = 投影高度
+    line(bx - 70, ceil, bx + 70, ceil, 'rgba(238,241,250,.6)', 3);
+    for (let i = -60; i <= 60; i += 14) line(bx + i, ceil, bx + i + 10, ceil - 10, 'rgba(238,241,250,.3)', 1.2);
+    drawSpring(bx, ceil, by - bh / 2);
+    ctx.fillStyle = '#2a3560'; ctx.strokeStyle = '#8fb3ff'; ctx.lineWidth = 2;
+    roundRect(bx - bw / 2, by - bh / 2, bw, bh, 8); ctx.fill(); ctx.stroke();
+    text(`${S.m.toFixed(1)} kg`, bx, by, COL.text, 12, 'center', 'bold');
+    // 木塊中心的標記點（和影子點同高）
+    ctx.fillStyle = COL.x; ctx.beginPath(); ctx.arc(bx - bw / 2 - 2, by, 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // ---- 向量 ----
+    const maxL = Math.max(60, 1.3 * R + 30);
+    if (show.x) {
+      arrow(cx, cy, cx, py, COL.x, { w: 3, dash: true, alpha: .9 });                      // 圓上：半徑的鉛直分量
+      arrow(bx - bw / 2 - 18, cy, bx - bw / 2 - 18, by, COL.x, { label: 'x' });             // 木塊：從平衡點出發
+    }
+    if (show.v) {
+      const [vx, vy] = clampVec(-s * S.A * w * ppc * KV, -c * S.A * w * ppc * KV, maxL);  // 切線方向
+      arrow(px, py, px + vx, py + vy, COL.v, { label: 'v' });
+      arrow(px, py, px, py + vy, COL.v, { w: 2.5, dash: true, alpha: .8 });               // 鉛直分量
+      arrow(bx + bw / 2 + 18, by, bx + bw / 2 + 18, by + vy, COL.v, { label: 'v' });
+    }
+    if (show.a) {
+      const [ax, ay] = clampVec(-c * S.A * w * w * ppc * KA, s * S.A * w * w * ppc * KA, maxL);   // 指向圓心
+      arrow(px, py, px + ax, py + ay, COL.a, { label: 'a' });
+      arrow(px, py, px, py + ay, COL.a, { w: 2.5, dash: true, alpha: .8 });
+      arrow(bx + bw / 2 + 44, by, bx + bw / 2 + 44, by + ay, COL.a, { label: 'a, F' });
+    }
+
+    // 質點（畫在最上層）
+    ctx.fillStyle = 'rgba(91,156,255,.25)'; ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
+
+    if (L.graph) drawGraphs();
+    if (!S.playing && !S.drag) text('已暫停：可拖曳圓上的質點或木塊', 18, 24, COL.dim, 13);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+  }
+  function drawSpring(x, y0, y1) {
+    const coils = 12, lead = 12, span = y1 - y0 - 2 * lead, amp = 14;
+    ctx.strokeStyle = '#c9d3ee'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 1.2 + (S.k - 4) / 36 * 2.6;                 // k 越大，彈簧畫得越粗
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x, y0 + lead);
+    for (let i = 0; i < coils * 2; i++) ctx.lineTo(x + (i % 2 ? -amp : amp), y0 + lead + span * (i + 0.5) / (coils * 2));
+    ctx.lineTo(x, y1 - lead); ctx.lineTo(x, y1); ctx.stroke();
+  }
+
+  /** 圖表區：x–t、v–t、a–t 上下對齊、共用時間軸，最右邊是「現在」 */
+  function drawGraphs() {
+    const { gTop, gLeft, gRight } = L;
+    const w = omega(), rows = [
+      { key: 'x', name: 'x (cm)',    color: COL.x, max: S.A,         val: p => p.x },
+      { key: 'v', name: 'v (cm/s)',  color: COL.v, max: S.A * w,     val: p => p.v },
+      { key: 'a', name: 'a (cm/s²)', color: COL.a, max: S.A * w * w, val: p => p.a }
+    ];
+    const gH = H - gTop - 22, rh = gH / 3, pps = (gRight - gLeft) / GRAPH_SECONDS;
+    ctx.fillStyle = 'rgba(255,255,255,.03)'; ctx.fillRect(12, gTop - 2, W - 24, gH + 18);
+    rows.forEach((r, i) => {
+      const top = gTop + i * rh, mid = top + rh / 2, half = rh * 0.38;
+      line(gLeft, mid, gRight, mid, 'rgba(238,241,250,.2)', 1);
+      line(gLeft, top + 6, gLeft, top + rh - 6, 'rgba(238,241,250,.2)', 1);
+      text(r.name, 20, mid - 8, r.color, 13, 'left', 'bold');
+      text(`±${r.max.toFixed(r.max < 10 ? 1 : 0)}`, 20, mid + 10, COL.dim, 11);
+      if (S.trace.length > 1) {
+        ctx.save();
+        ctx.beginPath(); ctx.rect(gLeft, top, gRight - gLeft, rh); ctx.clip();
+        ctx.strokeStyle = r.color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.beginPath();
+        S.trace.forEach((p, j) => {
+          const gx = gRight - (S.simT - p.t) * pps, gy = mid - r.val(p) / r.max * half;
+          j ? ctx.lineTo(gx, gy) : ctx.moveTo(gx, gy);
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+      // 目前的值（大圓點）
+      const now = { x: S.A * Math.sin(S.theta), v: S.A * w * Math.cos(S.theta) };
+      now.a = -w * w * now.x;
+      ctx.fillStyle = r.color; ctx.beginPath(); ctx.arc(gRight, mid - now[r.key] / r.max * half, 6, 0, Math.PI * 2); ctx.fill();
+    });
+    // 「現在」直線貫穿三張圖：比較同一時刻 x、v、a 的相位關係
+    line(gRight, gTop, gRight, gTop + gH, 'rgba(238,241,250,.45)', 1.5, [4, 4]);
+    text('現在', gRight, gTop + gH + 10, COL.dim, 11, 'center');
+    for (let t = 1; t < GRAPH_SECONDS; t++) text(`−${t}s`, gRight - t * pps, gTop + gH + 10, 'rgba(238,241,250,.3)', 10, 'center');
+  }
+
+  /* ===== 主迴圈 ===== */
+  let last = performance.now(), lastUI = 0;
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    if (S.playing && !S.drag) {
+      S.theta += omega() * dt * S.speed;
+      S.simT += dt * S.speed;
+      const w = omega(), x = S.A * Math.sin(S.theta);
+      S.trace.unshift({ t: S.simT, x, v: S.A * w * Math.cos(S.theta), a: -w * w * x });
+      while (S.trace.length && S.simT - S.trace[S.trace.length - 1].t > GRAPH_SECONDS) S.trace.pop();
+    }
+    draw();
+    if (now - lastUI > 100) { updateLive(); lastUI = now; }     // 數值 10 次/秒就夠，減少版面重排
+    requestAnimationFrame(loop);
+  }
+
+  /* ===== 面板 ===== */
+  const fmt = (v, d = 1) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d);
+  function updateLive() {
+    const w = omega(), x = S.A * Math.sin(S.theta), v = S.A * w * Math.cos(S.theta);
+    const th = ((S.theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    $('lTheta').textContent = (th * 180 / Math.PI).toFixed(0) + '°';
+    $('lX').textContent = fmt(x) + ' cm';
+    $('lV').textContent = fmt(v) + ' cm/s';
+    $('lA').textContent = fmt(-w * w * x) + ' cm/s²';
+    $('lF').textContent = fmt(-S.k * x / 100, 2) + ' N';
+    // 力學能（換成公尺）：長條以總能為滿格
+    const K = 0.5 * S.m * (v / 100) ** 2, U = 0.5 * S.k * (x / 100) ** 2, E = 0.5 * S.k * (S.A / 100) ** 2;
+    [['eK', K], ['eU', U], ['eE', E]].forEach(([id, e]) => {
+      $(id).style.transform = `scaleX(${E ? Math.min(1, e / E) : 0})`;
+      $(id + 'v').textContent = e.toFixed(3);
+    });
+  }
+  function updateDerived() {
+    const w = omega(), T = 2 * Math.PI / w;
+    $('ampVal').textContent = S.A.toFixed(1) + ' cm';
+    $('massVal').textContent = S.m.toFixed(1) + ' kg';
+    $('kVal').textContent = S.k + ' N/m';
+    $('dT').textContent = T.toFixed(2) + ' s';
+    $('dW').textContent = w.toFixed(2);
+    $('dF').textContent = (1 / T).toFixed(2) + ' Hz';
+  }
+  function paint(el) { el.style.setProperty('--fill', ((el.value - el.min) / (el.max - el.min) * 100) + '%'); }
+  [['amp', 'A'], ['mass', 'm'], ['kk', 'k']].forEach(([id, key]) => {
+    const el = $(id);
+    paint(el);
+    el.addEventListener('input', () => { S[key] = Number(el.value); paint(el); updateDerived(); });
+  });
+
+  function setPlaying(p) { S.playing = p; $('playBtn').textContent = p ? '暫停' : '播放'; }
+  $('playBtn').addEventListener('click', () => setPlaying(!S.playing));
+  $('resetBtn').addEventListener('click', () => { S.theta = 0; S.trace = []; setPlaying(true); });
+  // 停在關鍵位置：平衡點（往上經過）、最高點、最低點
+  const STOPS = { eq: 0, top: Math.PI / 2, bottom: -Math.PI / 2 };
+  document.querySelectorAll('[data-stop]').forEach(b => b.addEventListener('click', () => {
+    S.theta = STOPS[b.dataset.stop];
+    S.trace = [];                 // 位置跳了，舊曲線接不上，從這裡重新畫
+    setPlaying(false);
+    updateLive();
+  }));
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    S.speed = Number(b.dataset.speed);
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+  $('showGraph').addEventListener('change', layout);
+  $('collapse').addEventListener('click', () => {
+    const c = $('panel').classList.toggle('collapsed');
+    $('collapse').textContent = c ? '展開' : '收合';
+    requestAnimationFrame(layout);
+  });
+
+  /* ===== 拖曳：圓上的質點（改相位角）或木塊（改位移） ===== */
+  function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  cv.addEventListener('pointerdown', e => {
+    const p = pos(e), R = S.A * L.ppc;
+    const px = L.cx + R * Math.cos(S.theta), py = L.cy - R * Math.sin(S.theta);
+    const near = (x, y, r) => Math.hypot(p.x - x, p.y - y) < r;
+    let mode = null;
+    if (near(px, py, 44)) mode = 'circle';
+    else if (Math.abs(p.x - L.bx) < 70 && Math.abs(p.y - py) < 50) mode = 'block';
+    else if (Math.abs(Math.hypot(p.x - L.cx, p.y - L.cy) - R) < 30) mode = 'circle';   // 點在圓周附近也可以
+    if (!mode) return;
+    S.drag = { mode, wasPlaying: S.playing };
+    S.trace = [];
+    cv.setPointerCapture(e.pointerId);
+    move(e);
+  });
+  function move(e) {
+    if (!S.drag) return;
+    const p = pos(e);
+    if (S.drag.mode === 'circle') {
+      S.theta = Math.atan2(L.cy - p.y, p.x - L.cx);
+    } else {
+      // 拖木塊：設定位移，保留原本的運動方向（cos θ 的正負）
+      const y = Math.max(-1, Math.min(1, (L.cy - p.y) / (S.A * L.ppc)));
+      const up = Math.cos(S.theta) >= 0;
+      S.theta = up ? Math.asin(y) : Math.PI - Math.asin(y);
+    }
+  }
+  cv.addEventListener('pointermove', move);
+  const end = () => { if (S.drag) { setPlaying(S.drag.wasPlaying); S.drag = null; } };
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  cv.addEventListener('pointermove', e => {
+    if (S.drag) return;
+    const p = pos(e), R = S.A * L.ppc;
+    const px = L.cx + R * Math.cos(S.theta), py = L.cy - R * Math.sin(S.theta);
+    cv.style.cursor = Math.hypot(p.x - px, p.y - py) < 44 || (Math.abs(p.x - L.bx) < 70 && Math.abs(p.y - py) < 50) ? 'grab' : 'default';
+  });
+
+  /* ===== 啟動 ===== */
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+  layout();
+  updateDerived();
+  updateLive();
+  requestAnimationFrame(loop);
+  window.shm = { S, L: () => L, omega };     // 除錯／驗證用
+})();
+</script>
+</body>
+</html>

@@ -87,8 +87,13 @@
       // 用版面尺寸（與 getBoundingClientRect 同單位），避免縮放模擬時 innerHeight 與版面不一致
       const de = document.documentElement;
       const w = de.clientWidth || window.innerWidth, h = de.clientHeight || window.innerHeight;
-      let oy = 0;
-      if (isMobile()) {
+      let ox = 0, oy = 0;
+      if (!isMobile()) {
+        // 桌機／橫式平板：控制面板停在右側時，畫面中心往左移到面板以外的區域
+        const p = document.querySelector('.panel');
+        const r = p && p.getBoundingClientRect();
+        if (r && r.left > w / 2 && r.height > h * 0.5) ox = Math.round((w - r.left) * 0.5);
+      } else {
         // 下方：底部抽屜；上方：資料面板／狀態監測儀／提示板（若有且展開）
         const p = document.querySelector('.panel');
         const bottom = p ? Math.max(0, h - p.getBoundingClientRect().top) : 0;
@@ -102,10 +107,10 @@
       }
       let fovChanged = false;
       if (w / h < 1 && camera.fov > 50) { camera.fov = 50; fovChanged = true; }
-      const key = `${w}x${h}:${oy}:${camera.fov}`;
+      const key = `${w}x${h}:${ox}:${oy}:${camera.fov}`;
       if (camera.userData.__mobileKey === key && !fovChanged) return;
       camera.userData.__mobileKey = key;
-      if (Math.abs(oy) > 1) camera.setViewOffset(w, h, 0, oy, w, h);
+      if (Math.abs(ox) > 1 || Math.abs(oy) > 1) camera.setViewOffset(w, h, ox, oy, w, h);
       else camera.clearViewOffset();
       camera.updateProjectionMatrix();
     }
