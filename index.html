@@ -176,6 +176,46 @@
   .unit-card.soon .unit-art { filter: grayscale(.7); }
   .soon-chip { font-size: .72rem; padding: 2px 10px; border-radius: 999px; border: 1px dashed var(--line-2); color: var(--ink-faint); }
 
+  /* 主視覺：文字 + 示範動畫 */
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 32px; align-items: center; }
+  .demo {
+    display: block; border-radius: 22px; overflow: hidden; border: 1px solid var(--line-2);
+    background: linear-gradient(180deg, var(--surface-2), var(--surface)); box-shadow: var(--shadow);
+    transition: transform .35s var(--ease), border-color .35s var(--ease);
+  }
+  .demo:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--phy) 60%, transparent); }
+  #demo { display: block; width: 100%; height: 230px; }
+  .demo-cap { padding: 12px 16px 14px; border-top: 1px solid var(--line); }
+  .demo-cap b { display: block; font-size: .95rem; }
+  .demo-cap span { font-size: .82rem; color: var(--phy); }
+
+  /* 找實驗：搜尋、主題、只看有動畫 */
+  .finder { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .search { flex: 1 1 280px; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-2); }
+  .search:focus-within { border-color: var(--phy); }
+  .search svg { width: 18px; height: 18px; color: var(--ink-faint); flex: none; }
+  .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 1rem; }
+  .search input::placeholder { color: var(--ink-faint); }
+  .only { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: .9rem; color: var(--ink-soft); min-height: 44px; user-select: none; }
+  .only input { position: absolute; opacity: 0; pointer-events: none; }
+  .only .track { position: relative; width: 44px; height: 26px; border-radius: 999px; background: rgba(255,255,255,.14); transition: background .2s; }
+  .only .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  .only input:checked + .track { background: var(--phy); }
+  .only input:checked + .track::after { transform: translateX(18px); }
+  .only input:focus-visible + .track { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .topics { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+  .topic {
+    min-height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; font-size: .88rem;
+    color: var(--ink-soft); background: transparent; border: 1px solid var(--line-2);
+    transition: background .2s, color .2s, border-color .2s;
+  }
+  .topic:hover { color: var(--ink); }
+  .topic[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
+  .results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: var(--ink-soft); font-size: .9rem; }
+  .results-head button { min-height: 40px; padding: 0 14px; border-radius: 999px; cursor: pointer; color: var(--ink); background: var(--surface); border: 1px solid var(--line-2); }
+  .empty { padding: 40px 20px; text-align: center; color: var(--ink-faint); border: 1px dashed var(--line-2); border-radius: var(--radius); }
+  .where { font-size: .74rem; color: var(--ink-faint); }
+
   /* 高中：冊 → 章 → 節 */
   .book { margin-top: 34px; }
   .book:first-of-type { margin-top: 0; }
@@ -189,7 +229,14 @@
   footer { border-top: 1px solid var(--line); text-align: center; padding: 28px 24px; font-size: .8rem; color: var(--ink-faint); }
 
   /* ===== RWD：平板與手機 ===== */
+  @media (max-width: 960px) {
+    .hero { grid-template-columns: 1fr; }
+    .demo { max-width: 520px; }
+  }
   @media (max-width: 760px) {
+    .topics { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+    .topics::-webkit-scrollbar { display: none; }
+    .topic { flex: none; }
     .nav-inner { padding: 10px 16px; }
     .nav-links { display: none; }
     .hero { padding: 36px 16px 20px; }
@@ -241,6 +288,7 @@
 
 <!-- 主視覺 -->
 <section class="hero" id="top">
+  <div class="hero-text">
   <p class="eyebrow">108 課綱 · 國中・高中自然科學</p>
   <h1>把看不見的自然現象，<br><span class="glow">變成看得見的 3D 動畫。</span></h1>
   <p>從觀察出發，親手調整變因、看見結果。依科目與年級整理的互動實驗，理解生命、物質、能量與地球的運作。</p>
@@ -250,6 +298,14 @@
     <span style="--c:var(--bio)"><i></i>生物</span>
     <span style="--c:var(--earth)"><i></i>地科</span>
   </div>
+  </div>
+  <a class="demo" href="shm-lab.html" aria-label="開啟簡諧運動實驗">
+    <canvas id="demo" aria-hidden="true"></canvas>
+    <div class="demo-cap">
+      <b>3 秒看懂：圓周運動的影子，就是簡諧運動</b>
+      <span>點我打開實驗 →</span>
+    </div>
+  </a>
 </section>
 
 <main>
@@ -257,12 +313,23 @@
   <section class="grades" id="grades" aria-label="依年級瀏覽">
     <div class="section-head">
       <div>
-        <h2>依年級瀏覽</h2>
-        <p>正規班課程，國中依 108 課綱章節編排，高中依翰林版課本目錄。</p>
+        <h2>找實驗</h2>
+        <p>可以依年級、依主題或直接搜尋。國中依 108 課綱章節編排，高中依翰林版課本目錄。</p>
       </div>
     </div>
-    <div class="grade-tabs" id="gradeTabs" role="tablist" aria-label="年級切換"></div>
-    <div id="courseRoot"></div>
+    <div class="finder">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="q" placeholder="搜尋單元，例如：折射、颱風、細胞" aria-label="搜尋單元" autocomplete="off">
+      </div>
+      <label class="only"><input type="checkbox" id="onlyAnim"><span class="track"></span>只看有動畫</label>
+    </div>
+    <div class="topics" id="topics" role="group" aria-label="依主題瀏覽"></div>
+    <div id="results" hidden></div>
+    <div id="gradeView">
+      <div class="grade-tabs" id="gradeTabs" role="tablist" aria-label="年級切換"></div>
+      <div id="courseRoot"></div>
+    </div>
   </section>
 </main>
 
@@ -441,13 +508,14 @@ const isExternal = url => /^https?:\/\//.test(url || '');
 const extAttr = url => isExternal(url) ? 'target="_blank" rel="noopener"' : '';
 
 /** 一張單元卡：no 是左上角的編號（國中 01、02…；高中 1-1、1-2…） */
-function unitCard(u, subject, no) {
+function unitCard(u, subject, no, where = '') {
   const s = SUBJECTS[subject];
   const more = (u.more || []).map(m =>
     `<a href="${esc(m.url)}" ${extAttr(m.url)}>${PLAY_SVG}${esc(m.label)}</a>`).join('');
   const inner = `
     <div class="unit-art">${s.art}<span class="unit-no${no.includes('-') || no.includes('章') ? ' sec' : ''}">${esc(no)}</span><span class="unit-tag">${s.name}</span></div>
     <div class="unit-body">
+      ${where ? `<span class="where">${esc(where)}</span>` : ''}
       <h3 class="unit-title">${esc(u.title)}</h3>
       ${more ? `<div class="more">${more}</div>` : ''}
       <div class="unit-foot">${u.url
@@ -493,6 +561,126 @@ function renderCourses() {
     </section>`).join('');
 }
 
+/* =========================================================
+   找實驗：搜尋 ＋ 依主題 ＋ 只看有動畫
+   主題用單元名稱的關鍵字判斷，一個單元可以屬於好幾個主題
+   ========================================================= */
+const TOPICS = [
+  ['all',     '全部'],
+  ['measure', '測量與方法', /測量|不確定|因次|科學的|物理學簡介/],
+  ['motion',  '運動與力',   /運動|力|牛頓|慣性|摩擦|壓力|浮力|動量|碰撞|靜力|向量|拋射|位移|速度|加速度|落體|簡諧|角動量/],
+  ['energy',  '能量',       /能|功率|功與|作的功/],
+  ['wave',    '波動與光',   /波|光|聲|透鏡|折射|干涉|繞射|共鳴|共振|都卜勒|色散|惠更斯/],
+  ['heat',    '熱',         /熱|溫度|氣體/],
+  ['em',      '電與磁',     /電|磁/],
+  ['chem',    '物質與化學', /物質|化學|溶液|溶解|酸鹼|氧化|有機|原子|分子|元素|反應|莫耳|資源/],
+  ['life',    '生命',       null, 'bio'],
+  ['earth',   '地球與天氣', /地球|板塊|斷層|地震|天氣|氣壓|鋒面|颱風|海洋|海水|大氣|陸地|氣候|地殼|地表|氣象/],
+  ['space',   '天文與宇宙', /宇宙|天體|月相|周日|星|行星|衛星|克卜勒|萬有引力/],
+  ['modern',  '近代物理',   /量子|光電|原子核|波粒|物質波|X 射線|黑體|電子的發現|密立坎|質能|拉塞福|波耳/]
+];
+
+/** 把國中、高中所有單元攤平成一張清單 */
+const ALL_UNITS = COURSES.flatMap(c => c.units
+  ? c.units.map((u, i) => ({ ...u, no: pad(i + 1), where: c.title }))
+  : c.books.flatMap(b => b.chapters.flatMap(([, secs]) => secs.map(([no, title, url]) =>
+      ({ title, url, subject: b.subject, no, where: `${c.tabLabel} · ${b.name.split('　')[0]}` })))));
+
+function setupFinder() {
+  let topic = 'all';
+  const q = document.getElementById('q'), only = document.getElementById('onlyAnim');
+  const results = document.getElementById('results'), gradeView = document.getElementById('gradeView');
+  document.getElementById('topics').innerHTML = TOPICS.map(([k, n]) =>
+    `<button class="topic" data-k="${k}" aria-pressed="${k === topic}">${n}</button>`).join('');
+
+  const inTopic = u => {
+    if (topic === 'all') return true;
+    const [, , re, subj] = TOPICS.find(t => t[0] === topic);
+    return subj ? u.subject === subj : re.test(u.title);
+  };
+  function update() {
+    const term = q.value.trim().toLowerCase();
+    const active = term || topic !== 'all' || only.checked;
+    results.hidden = !active;
+    gradeView.hidden = !!active;
+    if (!active) return;
+    const list = ALL_UNITS.filter(u => inTopic(u) && (!only.checked || u.url) &&
+      (!term || `${u.title} ${u.where} ${SUBJECTS[u.subject].name}`.toLowerCase().includes(term)));
+    const anim = list.filter(u => u.url).length;
+    results.innerHTML = `
+      <div class="results-head"><span>找到 ${list.length} 個單元，其中 ${anim} 個有動畫</span><button id="clearFind">回到依年級瀏覽</button></div>
+      ${list.length
+        ? `<div class="unit-grid">${list.map(u => unitCard(u, u.subject, u.no, u.where)).join('')}</div>`
+        : '<div class="empty">找不到符合的單元，換個關鍵字試試。</div>'}`;
+  }
+  document.getElementById('topics').addEventListener('click', e => {
+    const b = e.target.closest('.topic');
+    if (!b) return;
+    topic = b.dataset.k;
+    document.querySelectorAll('.topic').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    update();
+  });
+  q.addEventListener('input', update);
+  only.addEventListener('change', update);
+  results.addEventListener('click', e => {
+    if (!e.target.closest('#clearFind')) return;
+    q.value = ''; only.checked = false; topic = 'all';
+    document.querySelectorAll('.topic').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.k === 'all')));
+    update();
+  });
+}
+
+/* =========================================================
+   主視覺示範：參考圓的影子 → 正弦曲線
+   ========================================================= */
+function setupDemo() {
+  const cv = document.getElementById('demo'), ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W = 0, H = 0, dpr = 1, visible = true, last = performance.now(), th = 0;
+  const trail = [];
+  function size() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+  }
+  function draw() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const R = Math.min(70, H * 0.32), cx = R + 28, cy = H / 2, ax = cx + R + 40;
+    const px = cx + R * Math.cos(th), py = cy - R * Math.sin(th);
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(91,156,255,.55)';
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([4, 5]); ctx.strokeStyle = 'rgba(238,241,250,.3)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ax, py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, cy); ctx.lineTo(W - 12, cy); ctx.stroke();
+    ctx.setLineDash([]);
+    // 正弦曲線：最新的點在影子點，往右是較早的時間
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.5; ctx.beginPath();
+    trail.forEach((y, i) => { const x = ax + i * 1.6; i ? ctx.lineTo(x, cy - y * R) : ctx.moveTo(x, cy - y * R); });
+    ctx.stroke();
+    ctx.fillStyle = '#ffd166'; ctx.beginPath(); ctx.arc(ax, py, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(91,156,255,.7)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fill();
+  }
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    if (visible && !document.hidden) {
+      th += dt * 2.2;
+      trail.unshift(Math.sin(th));
+      if (trail.length > Math.max(10, (W - 150) / 1.6)) trail.pop();
+      draw();
+    }
+    requestAnimationFrame(loop);
+  }
+  size();
+  addEventListener('resize', size);
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cv);
+  if (reduce) { th = 0.8; for (let i = 0; i < 200; i++) trail.push(Math.sin(th - i * 0.035)); draw(); }
+  else requestAnimationFrame(loop);
+}
+
 /* ===== 切換年級 ===== */
 function switchGrade(id, { scroll = false, remember = true } = {}) {
   if (!COURSES.some(c => c.id === id)) id = COURSES[0].id;
@@ -520,6 +708,8 @@ function bindEvents() {
 /* ===== 初始化 ===== */
 renderCourses();
 bindEvents();
+setupFinder();
+setupDemo();
 const hash = location.hash.slice(1);
 // 從實驗頁「回課程總覽」（#g7 / #g8 / #g9）回來時，切到該年級並直接捲過去
 const fromLab = COURSES.some(c => c.id === hash);
