@@ -180,7 +180,9 @@
       <label class="sw" style="--c:var(--x)"><input type="checkbox" id="showX"><span class="track"></span><i></i>顯示位移 x</label>
       <label class="sw" style="--c:var(--v)"><input type="checkbox" id="showV"><span class="track"></span><i></i>顯示速度 v</label>
       <label class="sw" style="--c:var(--a)"><input type="checkbox" id="showA"><span class="track"></span><i></i>顯示加速度 a／回復力 F</label>
-      <label class="sw" style="--c:#c9d3ee"><input type="checkbox" id="showStrobe" checked><span class="track"></span>頻閃軌跡<small>每 T/16 一格</small></label>
+      <label class="sw" style="--c:#8fb3ff"><input type="checkbox" id="showTrail" checked><span class="track"></span>速度拖影<small>越快尾巴越長</small></label>
+      <label class="sw" style="--c:#8fb3ff"><input type="checkbox" id="showCue" checked><span class="track"></span>最快／最慢提示</label>
+      <label class="sw" style="--c:#8fb3ff"><input type="checkbox" id="showMeter"><span class="track"></span>速度計</label>
       <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showProj" checked><span class="track"></span>投影輔助線</label>
       <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showGraph" checked><span class="track"></span>圖表區<small>x、v、a 對時間</small></label>
     </div>
@@ -253,12 +255,13 @@
     const graph = $('showGraph').checked && H > 420;
     const SH = graph ? Math.round(H * 0.58) : H;
     // 每公分像素：同時受高度（彈簧要掛得下）與寬度（圓直徑 2R + 間距 0.7R + 留白）限制
-    const ppc = Math.max(3, Math.min((0.56 * SH - 110) / A_MAX, (0.44 * SH - 40) / A_MAX, (W - 220) / (2.7 * A_MAX)));
+    const meter = $('showMeter').checked ? 90 : 0;            // 速度計要多留的寬度
+    const ppc = Math.max(3, Math.min((0.56 * SH - 110) / A_MAX, (0.44 * SH - 40) / A_MAX, (W - 220 - meter) / (2.7 * A_MAX)));
     const Rmax = A_MAX * ppc;
     const cy = SH * 0.56;
     // 水平排列：參考圓 ｜ 木塊，整組置中
     const gap = Math.max(90, Rmax * 0.7);
-    const cx = Math.max(Rmax + 56, (W - (2 * Rmax + gap + 70)) / 2 + Rmax);
+    const cx = Math.max(Rmax + 56, (W - (2 * Rmax + gap + 70 + meter)) / 2 + Rmax);
     const bx = cx + Rmax + gap;
     L = { ppc, Rmax, cx, cy, bx, ceil: cy - Rmax - 90, SH, graph, gTop: SH + 6, gLeft: 92, gRight: W - 24 };
   }
@@ -339,21 +342,19 @@
     const by = py;                                                              // 木塊中心 = 投影高度
     line(bx - 70, ceil, bx + 70, ceil, 'rgba(238,241,250,.6)', 3);
     for (let i = -60; i <= 60; i += 14) line(bx + i, ceil, bx + i + 10, ceil - 10, 'rgba(238,241,250,.3)', 1.2);
-    // 頻閃軌跡：每隔 T/16 的位置留一個殘影。圓上等間距（等速率），木塊兩端密、中間疏（不是等速）
-    if ($('showStrobe').checked) {
-      const N = 16;
-      for (let k = 1; k < N; k++) {
-        const t = S.theta - k * 2 * Math.PI / N, fade = 0.5 * (1 - k / N) + 0.08;
-        const gy = cy - R * Math.sin(t);
-        ctx.globalAlpha = fade;
-        ctx.fillStyle = '#c9d3ee';
-        ctx.beginPath(); ctx.arc(cx + R * Math.cos(t), gy, 4.5, 0, Math.PI * 2); ctx.fill();
-        line(bx - bw / 2 - 10, gy, bx + bw / 2 + 10, gy, '#8fb3ff', 2.5);   // 木塊中心的殘影線
-        ctx.fillStyle = '#ffd166';
-        ctx.beginPath(); ctx.arc(bx - bw / 2 - 2, gy, 3, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      text('殘影：兩端擠在一起＝慢，中間拉開＝快', bx, Math.min(cy + R + bh / 2 + 22, L.SH - 10), COL.dim, 12, 'center');
+    // 速度拖影（教學輔助，強調快慢的感覺）：木塊後方拖一道尾巴，越快越長，到端點縮成 0
+    const sp = Math.abs(Math.cos(S.theta));                 // 0（端點）～ 1（平衡點）
+    if ($('showTrail').checked && sp > 0.03) {
+      const dir = Math.cos(S.theta) > 0 ? 1 : -1;           // 往上動時尾巴在下方，往下動時在上方
+      const len = sp * sp * Math.max(80, R * 1.2);          // 平方讓「接近端點就縮短」更明顯
+      const y0 = by + dir * bh / 2, y1 = y0 + dir * len;
+      const g = ctx.createLinearGradient(0, y0, 0, y1);
+      g.addColorStop(0, `rgba(143,179,255,${0.6 * sp})`);
+      g.addColorStop(1, 'rgba(143,179,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(bx - bw / 2 + 4, Math.min(y0, y1), bw - 8, len);
+      [-bw / 2 - 8, bw / 2 + 8].forEach(off =>
+        line(bx + off, y0, bx + off, y0 + dir * len * 0.7, `rgba(238,241,250,${0.55 * sp})`, 2));
     }
     drawSpring(bx, ceil, by - bh / 2);
     ctx.fillStyle = '#2a3560'; ctx.strokeStyle = '#8fb3ff'; ctx.lineWidth = 2;
@@ -361,6 +362,22 @@
     text(`${S.m.toFixed(1)} kg`, bx, by, COL.text, 12, 'center', 'bold');
     // 木塊中心的標記點（和影子點同高）
     ctx.fillStyle = COL.x; ctx.beginPath(); ctx.arc(bx - bw / 2 - 2, by, 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // 最快／最慢提示：經過平衡點、到達端點時淡入
+    if ($('showCue').checked) {
+      const fast = Math.max(0, 1 - Math.abs(Math.sin(S.theta)) / 0.25);
+      const slow = Math.max(0, 1 - sp / 0.3);
+      if (fast > 0) cue('最快！', fast, COL.v, bx - bw / 2 - 34, by);
+      if (slow > 0) cue('最慢（瞬間停）', slow, '#ffb36b', bx - bw / 2 - 34, by);
+    }
+    // 速度計：直立的速率條，平衡點滿格、端點歸零
+    if ($('showMeter').checked) {
+      const mx = bx + 118, mh = Math.max(120, 2 * R), top = cy - mh / 2;
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; roundRect(mx - 9, top, 18, mh, 9); ctx.fill();
+      ctx.fillStyle = COL.v; roundRect(mx - 9, top + mh * (1 - sp), 18, Math.max(2, mh * sp), 9); ctx.fill();
+      text('速率', mx, top - 14, COL.dim, 12, 'center');
+      text(`${(S.A * omega() * sp).toFixed(0)} cm/s`, mx, top + mh + 14, COL.v, 12, 'center', 'bold');
+    }
 
     // ---- 向量 ----
     const maxL = Math.max(60, 1.3 * R + 30);
@@ -389,6 +406,17 @@
     if (!S.playing && !S.drag) text('已暫停：可拖曳圓上的質點或木塊', 18, 24, COL.dim, 13);
   }
 
+  /** 提示小標籤（右對齊在 x 的左邊） */
+  function cue(str, a, color, x, y) {
+    ctx.font = 'bold 15px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+    const w = ctx.measureText(str).width + 22;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = 'rgba(11,16,32,.85)'; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    roundRect(x - w, y - 15, w, 30, 15); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(str, x - w / 2, y + 1);
+    ctx.globalAlpha = 1;
+  }
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -507,6 +535,7 @@
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
   }));
   $('showGraph').addEventListener('change', layout);
+  $('showMeter').addEventListener('change', layout);
   $('collapse').addEventListener('click', () => {
     const c = $('panel').classList.toggle('collapsed');
     $('collapse').textContent = c ? '展開' : '收合';
