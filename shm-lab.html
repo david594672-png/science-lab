@@ -148,8 +148,8 @@
       </div>
       <div class="seg" role="group" aria-label="播放速度">
         <button data-speed="0.25" aria-pressed="false">0.25×</button>
-        <button data-speed="0.5" aria-pressed="false">0.5× 慢動作</button>
-        <button data-speed="1" aria-pressed="true">1×</button>
+        <button data-speed="0.5" aria-pressed="true">0.5× 慢動作</button>
+        <button data-speed="1" aria-pressed="false">1×</button>
       </div>
     </div>
 
@@ -180,6 +180,7 @@
       <label class="sw" style="--c:var(--x)"><input type="checkbox" id="showX"><span class="track"></span><i></i>顯示位移 x</label>
       <label class="sw" style="--c:var(--v)"><input type="checkbox" id="showV"><span class="track"></span><i></i>顯示速度 v</label>
       <label class="sw" style="--c:var(--a)"><input type="checkbox" id="showA"><span class="track"></span><i></i>顯示加速度 a／回復力 F</label>
+      <label class="sw" style="--c:#c9d3ee"><input type="checkbox" id="showStrobe" checked><span class="track"></span>頻閃軌跡<small>每 T/16 一格</small></label>
       <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showProj" checked><span class="track"></span>投影輔助線</label>
       <label class="sw" style="--c:#9aa6c8"><input type="checkbox" id="showGraph" checked><span class="track"></span>圖表區<small>x、v、a 對時間</small></label>
     </div>
@@ -230,7 +231,7 @@
   const S = {
     A: 10, m: 1, k: 10,          // cm、kg、N/m
     theta: 0,                    // 相位角（rad），x = A sin θ
-    playing: true, speed: 1,
+    playing: true, speed: 0.5,
     simT: 0, trace: [],
     drag: null
   };
@@ -338,6 +339,22 @@
     const by = py;                                                              // 木塊中心 = 投影高度
     line(bx - 70, ceil, bx + 70, ceil, 'rgba(238,241,250,.6)', 3);
     for (let i = -60; i <= 60; i += 14) line(bx + i, ceil, bx + i + 10, ceil - 10, 'rgba(238,241,250,.3)', 1.2);
+    // 頻閃軌跡：每隔 T/16 的位置留一個殘影。圓上等間距（等速率），木塊兩端密、中間疏（不是等速）
+    if ($('showStrobe').checked) {
+      const N = 16;
+      for (let k = 1; k < N; k++) {
+        const t = S.theta - k * 2 * Math.PI / N, fade = 0.5 * (1 - k / N) + 0.08;
+        const gy = cy - R * Math.sin(t);
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = '#c9d3ee';
+        ctx.beginPath(); ctx.arc(cx + R * Math.cos(t), gy, 4.5, 0, Math.PI * 2); ctx.fill();
+        line(bx - bw / 2 - 10, gy, bx + bw / 2 + 10, gy, '#8fb3ff', 2.5);   // 木塊中心的殘影線
+        ctx.fillStyle = '#ffd166';
+        ctx.beginPath(); ctx.arc(bx - bw / 2 - 2, gy, 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      text('殘影：兩端擠在一起＝慢，中間拉開＝快', bx, Math.min(cy + R + bh / 2 + 22, L.SH - 10), COL.dim, 12, 'center');
+    }
     drawSpring(bx, ceil, by - bh / 2);
     ctx.fillStyle = '#2a3560'; ctx.strokeStyle = '#8fb3ff'; ctx.lineWidth = 2;
     roundRect(bx - bw / 2, by - bh / 2, bw, bh, 8); ctx.fill(); ctx.stroke();
