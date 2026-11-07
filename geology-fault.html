@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="earth" data-tone="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -148,6 +148,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 
@@ -248,8 +249,8 @@ renderer.toneMappingExposure = 1.35;
 $('scene').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x110b08);
-scene.fog = new THREE.FogExp2(0x110b08, 0.01);
+scene.background = new THREE.Color(0x0b0f14);
+scene.fog = new THREE.FogExp2(0x0b0f14, 0.01);
 
 const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 300);
 const controls = new OrbitControls(camera, renderer.domElement);

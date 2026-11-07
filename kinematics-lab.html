@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="phy">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -121,6 +121,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 
@@ -215,7 +216,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 $('scene').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe4ece6);
+scene.background = new THREE.Color(0xe6edf6);
 scene.add(new THREE.HemisphereLight(0xffffff, 0xc9d6cd, 1.25));
 const sun = new THREE.DirectionalLight(0xffffff, 2.0);
 sun.position.set(-6, 14, 9);

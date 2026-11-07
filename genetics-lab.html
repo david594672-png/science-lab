@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>遺傳</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="遺傳棋盤方格與子代統計"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>遺傳</h1>
+  <p class="sub">國一生物 · 孟德爾遺傳、ABO 血型、性別決定</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="pea" aria-pressed="true">孟德爾<br>（豌豆）</button>
+      <button class="mode" data-k="abo">ABO<br>血型</button>
+      <button class="mode" data-k="sex">性別<br>決定</button>
+    </div>
+
+    <div class="group" id="parentsBox">
+      <div class="group-title">父親的基因型</div>
+      <div class="chips" id="dad"></div>
+      <div class="group-title" style="margin-top:12px">母親的基因型</div>
+      <div class="chips" id="mom"></div>
+    </div>
+
+    <div class="group">
+      <div class="row">
+        <button class="btn primary grow" id="breedBtn">生 100 個子代</button>
+        <button class="btn" id="clearBtn">清除</button>
+      </div>
+      <div class="result" id="ratio"></div>
+    </div>
+
+    <div class="group">
+      <p class="note" id="modeNote"></p>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  /* 每種模式：可選的基因型、配子拆法、表現型判斷、顏色 */
+  const MODES = {
+    pea: {
+      title: '豌豆種子形狀', options: ['RR', 'Rr', 'rr'], dad: 'Rr', mom: 'Rr',
+      gametes: g => [g[0], g[1]],
+      sortPair: (a, b) => [a, b].sort((x, y) => (x === x.toUpperCase() ? -1 : 1) - (y === y.toUpperCase() ? -1 : 1)).join(''),
+      pheno: g => g.includes('R') ? '圓粒' : '皺粒',
+      colors: { '圓粒': '#4fd18b', '皺粒': '#ffd166' },
+      note: '<b>R</b> 是顯性（圓粒），<b>r</b> 是隱性（皺粒）。只要有一個 R 就是圓粒；兩個都是 r 才是皺粒。孟德爾用 Rr × Rr，子代約 <b>3 圓 : 1 皺</b>。'
+    },
+    abo: {
+      title: 'ABO 血型', options: ['IᴬIᴬ', 'Iᴬi', 'IᴮIᴮ', 'Iᴮi', 'IᴬIᴮ', 'ii'], dad: 'Iᴬi', mom: 'Iᴮi',
+      gametes: g => g === 'ii' ? ['i', 'i'] : g.match(/I[ᴬᴮ]|i/g),
+      sortPair: (a, b) => [a, b].sort((x, y) => (x === 'i') - (y === 'i') || x.localeCompare(y)).join(''),
+      pheno: g => g.includes('Iᴬ') && g.includes('Iᴮ') ? 'AB 型' : g.includes('Iᴬ') ? 'A 型' : g.includes('Iᴮ') ? 'B 型' : 'O 型',
+      colors: { 'A 型': '#ff5d8f', 'B 型': '#4cc9f0', 'AB 型': '#a58bff', 'O 型': '#ffd166' },
+      note: 'ABO 血型由 <b>Iᴬ、Iᴮ、i</b> 三種對偶基因決定（複對偶基因）。Iᴬ 和 Iᴮ 對 i 是顯性；Iᴬ 和 Iᴮ 同時存在就是 <b>AB 型</b>。A 型 × B 型的父母，可能生出四種血型的孩子。'
+    },
+    sex: {
+      title: '性別', options: ['XY'], dad: 'XY', mom: 'XX', momOptions: ['XX'],
+      gametes: g => [g[0], g[1]],
+      sortPair: (a, b) => [a, b].sort().join(''),
+      pheno: g => g.includes('Y') ? '男生' : '女生',
+      colors: { '男生': '#4cc9f0', '女生': '#ff8fa8' },
+      note: '人有 23 對染色體，其中 1 對是<b>性染色體</b>。女生 XX、男生 XY。卵只會帶 X，精子帶 X 或 Y，所以<b>生男生女由精子決定</b>，每一胎的機率都是 1/2。'
+    }
+  };
+  const S = { mode: 'pea', dad: 'Rr', mom: 'Rr', counts: null, born: 0, anim: 0 };
+
+  function renderParents() {
+    const M = MODES[S.mode];
+    const chips = (id, opts, sel) => {
+      $(id).style.setProperty('--n', Math.min(3, opts.length));
+      $(id).innerHTML = opts.map(o => `<button class="btn" data-k="${o}" aria-pressed="${o === sel}">${o}<br><small style="opacity:.7">${M.pheno(o)}</small></button>`).join('');
+    };
+    chips('dad', M.options, S.dad);
+    chips('mom', M.momOptions || M.options, S.mom);
+    Lab.bindGroup('#dad .btn', k => { S.dad = k; S.counts = null; update(); });
+    Lab.bindGroup('#mom .btn', k => { S.mom = k; S.counts = null; update(); });
+    $('modeNote').innerHTML = M.note;
+    $('breedBtn').textContent = S.mode === 'sex' ? '生 100 個寶寶' : '生 100 個子代';
+  }
+
+  /** 棋盤方格：4 格（父配子 × 母配子） */
+  function square() {
+    const M = MODES[S.mode], d = M.gametes(S.dad), m = M.gametes(S.mom);
+    const cells = [];
+    m.forEach(a => d.forEach(b => cells.push(M.sortPair(b, a))));
+    return { d, m, cells };
+  }
+  function expected() {
+    const M = MODES[S.mode], { cells } = square(), p = {}, g = {};
+    cells.forEach(c => { p[M.pheno(c)] = (p[M.pheno(c)] || 0) + 1; g[c] = (g[c] || 0) + 1; });
+    return { p, g };
+  }
+  function update() {
+    const { p, g } = expected();
+    const gs = Object.entries(g).map(([k, v]) => `${k}：${v}/4`).join('、');
+    const ps = Object.entries(p).map(([k, v]) => `<b style="color:${MODES[S.mode].colors[k]}">${k}</b> ${v}/4（${v * 25}%）`).join('、');
+    let html = `<b>預期</b><br>基因型：${gs}<br>表現型：${ps}`;
+    if (S.counts) {
+      const got = Object.entries(S.counts).map(([k, v]) => `<b style="color:${MODES[S.mode].colors[k]}">${k}</b> ${v} 個`).join('、');
+      html += `<br><br><b>實際生出 ${S.born} 個</b><br>${got}<br><span style="color:var(--muted)">每生一個都是機率事件，數量越多越接近預期比例。</span>`;
+    }
+    $('ratio').innerHTML = html;
+  }
+
+  $('breedBtn').addEventListener('click', () => {
+    const M = MODES[S.mode], { d, m } = square();
+    S.counts = S.counts || {};
+    for (let i = 0; i < 100; i++) {
+      const c = M.sortPair(d[Math.random() * 2 | 0], m[Math.random() * 2 | 0]);
+      const ph = M.pheno(c);
+      S.counts[ph] = (S.counts[ph] || 0) + 1;
+    }
+    S.born += 100; S.anim = 0;
+    update();
+  });
+  $('clearBtn').addEventListener('click', () => { S.counts = null; S.born = 0; update(); });
+
+  /* ===== 畫面 ===== */
+  function draw(ctx, W, H, dt) {
+    S.anim = Math.min(1, S.anim + dt * 2);
+    const M = MODES[S.mode], { d, m, cells } = square();
+    const portrait = H > W;
+    const size = Math.min(portrait ? W * 0.6 : W * 0.42, H * (portrait ? 0.45 : 0.62));
+    const cs = size / 3, x0 = portrait ? W / 2 - size / 2 : W * 0.06, y0 = portrait ? 20 : (H - size) / 2;
+    // 標題列：父親配子
+    Lab.text(`父親 ${S.dad} 的精子`, x0 + cs * 2, y0 + cs * 0.25, '#4cc9f0', 14, 'center', 'bold');
+    Lab.text(`母親 ${S.mom}`, x0 + cs * 0.5, y0 + cs * 1.5 - cs * 0.6, '#ff8fa8', 13, 'center', 'bold');
+    Lab.text('的卵', x0 + cs * 0.5, y0 + cs * 1.5 - cs * 0.42, '#ff8fa8', 13, 'center', 'bold');
+    d.forEach((g, i) => { Lab.circle(x0 + cs * (1.5 + i), y0 + cs * 0.65, cs * 0.24, 'rgba(76,201,240,.2)', '#4cc9f0'); Lab.text(g, x0 + cs * (1.5 + i), y0 + cs * 0.65, '#fff', 18, 'center', 'bold'); });
+    m.forEach((g, i) => { Lab.circle(x0 + cs * 0.5, y0 + cs * (1.5 + i), cs * 0.24, 'rgba(255,143,168,.2)', '#ff8fa8'); Lab.text(g, x0 + cs * 0.5, y0 + cs * (1.5 + i), '#fff', 18, 'center', 'bold'); });
+    cells.forEach((c, i) => {
+      const r = Math.floor(i / 2), col = i % 2, ph = M.pheno(c), color = M.colors[ph];
+      const x = x0 + cs * (1 + col), y = y0 + cs * (1 + r);
+      Lab.card(x + 4, y + 4, cs - 8, cs - 8, color + '33', color, 12);
+      Lab.text(c, x + cs / 2, y + cs * 0.4, '#fff', 20, 'center', 'bold');
+      Lab.text(ph, x + cs / 2, y + cs * 0.68, color, 14, 'center', 'bold');
+    });
+    // 右邊（或下方）：子代統計長條圖
+    const bx = portrait ? 24 : W * 0.56, by = portrait ? y0 + size + 30 : y0, bw = portrait ? W - 48 : W * 0.4, bh = portrait ? H - by - 20 : size;
+    Lab.card(bx, by, bw, bh, 'rgba(255,255,255,.03)', 'rgba(255,255,255,.1)', 14);
+    Lab.text(S.counts ? `子代統計（共 ${S.born} 個）` : '按「生 100 個子代」看統計', bx + bw / 2, by + 22, 'rgba(238,241,250,.75)', 14, 'center', 'bold');
+    const { p } = expected(), keys = Object.keys(M.colors).filter(k => p[k] || (S.counts && S.counts[k]));
+    const colW = (bw - 40) / Math.max(1, keys.length), baseY = by + bh - 40, maxH = bh - 90;
+    keys.forEach((k, i) => {
+      const x = bx + 20 + i * colW + colW / 2, exp = (p[k] || 0) / 4;
+      const real = S.counts ? (S.counts[k] || 0) / S.born : 0;
+      const h = real * maxH * S.anim;
+      Lab.card(x - colW * 0.28, baseY - h, colW * 0.56, h, M.colors[k], null, 8);
+      const ey = baseY - exp * maxH;
+      Lab.line(x - colW * 0.38, ey, x + colW * 0.38, ey, '#fff', 2, [5, 4]);
+      Lab.text(`預期 ${Math.round(exp * 100)}%`, x, ey - 12, 'rgba(255,255,255,.75)', 12);
+      if (S.counts) Lab.text(`${Math.round(real * 100)}%`, x, baseY - h - (Math.abs(ey - (baseY - h)) < 26 ? 34 : 12), M.colors[k], 14, 'center', 'bold');
+      Lab.text(k, x, baseY + 20, M.colors[k], 14, 'center', 'bold');
+    });
+  }
+
+  Lab.bindGroup('.mode', k => {
+    S.mode = k; S.dad = MODES[k].dad; S.mom = MODES[k].mom; S.counts = null; S.born = 0;
+    renderParents(); update();
+  });
+  Lab.init({ draw });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

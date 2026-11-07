@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>人類與環境</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="人類與環境互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>人類與環境</h1>
+  <p class="sub">國一生物 · 溫室效應、外來種與生物多樣性</p>
+
+  <div class="body">
+    <div class="modes" style="--n:2">
+      <button class="mode" data-k="green" aria-pressed="true">溫室效應</button>
+      <button class="mode" data-k="alien">外來種<br>入侵</button>
+    </div>
+
+    <div data-mode="green">
+      <div class="group">
+        <div class="ctrl">
+          <label for="co2">大氣中的 CO₂ <output id="co2Val"></output></label>
+          <input type="range" id="co2" min="0" max="1000" step="10" value="420">
+        </div>
+        <div class="chips" style="--n:3">
+          <button class="btn" data-co2="0">沒有溫室氣體</button>
+          <button class="btn" data-co2="280">工業革命前</button>
+          <button class="btn" data-co2="420">現在</button>
+        </div>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt>地表平均溫度</dt><dd id="gT"></dd>
+          <dt>和工業革命前相比</dt><dd id="gD"></dd>
+        </dl>
+        <p class="note" style="margin-top:8px">陽光（黃色）穿過大氣使地表變暖；地表放出的<b>紅外線</b>（紅色）有一部分被 CO₂ 等<b>溫室氣體</b>吸收、再放回地表。溫室效應本身讓地球適合生物居住，但溫室氣體<b>增加太多</b>，會使全球暖化。</p>
+      </div>
+    </div>
+
+    <div data-mode="alien" hidden>
+      <div class="group">
+        <div class="row">
+          <button class="btn primary grow" id="introBtn">放入外來種</button>
+          <button class="btn grow" id="removeBtn">🧤 人工移除</button>
+        </div>
+        <div class="row">
+          <button class="btn grow" id="alienPlay">暫停</button>
+          <button class="btn grow" id="alienReset">重來</button>
+        </div>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt style="color:#4fd18b">原生種</dt><dd id="aN"></dd>
+          <dt style="color:#ff5d8f">外來種</dt><dd id="aI"></dd>
+        </dl>
+        <p class="note" style="margin-top:8px">外來種在新環境常常<b>沒有天敵</b>、繁殖又快，會搶走原生種的空間和養分，使生物多樣性下降。台灣的例子：<b>小花蔓澤蘭、福壽螺、綠鬣蜥</b>。及早發現、及早移除最有效。</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  const S = { mode: 'green', co2: 420, Tshow: 15, photons: [], spawn: 0,
+    grid: null, cols: 36, rows: 22, alienPlay: true, tick: 0, hist: [] };
+
+  /* ===== 溫室效應 ===== */
+  // 地表均溫：沒有溫室氣體約 −18 °C；工業革命前約 14 °C；CO₂ 每加倍約 +3 °C（示意）
+  const temp = c => c <= 0 ? -18 : c < 280 ? -18 + 32 * Math.sqrt(c / 280) : 14 + 3 * Math.log2(c / 280);
+  Lab.bindSlider('co2', v => { S.co2 = v; }, v => v + ' ppm');
+  document.querySelectorAll('[data-co2]').forEach(b => b.addEventListener('click', () => {
+    const el = $('co2'); el.value = b.dataset.co2; el.dispatchEvent(new Event('input'));
+  }));
+  function drawGreen(ctx, W, H, dt) {
+    const T = temp(S.co2);
+    S.Tshow += (T - S.Tshow) * Math.min(1, dt * 2);
+    const ground = H * 0.8, atmTop = H * 0.18, atmBot = H * 0.42;
+    // 天空與大氣層
+    const warm = Math.max(0, Math.min(1, (S.Tshow + 18) / 40));
+    ctx.fillStyle = `rgba(${Math.round(60 + 120 * warm)},${Math.round(90 - 30 * warm)},${Math.round(150 - 90 * warm)},.18)`;
+    ctx.fillRect(0, atmTop, W, atmBot - atmTop);
+    Lab.text('大氣層（溫室氣體）', 20, atmTop + 16, 'rgba(238,241,250,.6)', 13, 'left');
+    // CO₂ 分子（數量隨濃度）
+    const n = Math.round(S.co2 / 25);
+    for (let i = 0; i < n; i++) {
+      const x = ((i * 97) % 1000) / 1000 * W, y = atmTop + 20 + ((i * 53) % 100) / 100 * (atmBot - atmTop - 30);
+      Lab.circle(x, y, 4, '#9aa6c8'); Lab.circle(x - 7, y, 3, '#ff8fa8'); Lab.circle(x + 7, y, 3, '#ff8fa8');
+    }
+    // 地表
+    ctx.fillStyle = `rgb(${Math.round(40 + 120 * warm)},${Math.round(110 - 30 * warm)},${Math.round(70 - 30 * warm)})`;
+    ctx.fillRect(0, ground, W, H - ground);
+    Lab.circle(W * 0.85, H * 0.08, 30, '#ffd166');
+    // 光子：陽光往下；到地面變紅外線往上；穿過大氣時依 CO₂ 機率被吸收、往下放回
+    S.spawn += dt;
+    while (S.spawn > 0.12) {
+      S.spawn -= 0.12;
+      S.photons.push({ x: W * (0.1 + Math.random() * 0.75), y: H * 0.1, vy: 260, kind: 'sun' });
+    }
+    const absorb = Math.min(0.85, S.co2 / 1100);
+    S.photons = S.photons.filter(p => {
+      p.y += p.vy * dt;
+      if (p.kind === 'sun' && p.y >= ground) { p.kind = 'ir'; p.vy = -170; p.checked = false; }
+      if (p.kind === 'ir' && !p.checked && p.y < (atmTop + atmBot) / 2) {
+        p.checked = true;
+        if (Math.random() < absorb) { p.vy = 170; p.kind = 'back'; }
+      }
+      if (p.kind === 'back' && p.y >= ground) return false;
+      if (p.y < -10) return false;
+      return true;
+    });
+    S.photons.forEach(p => {
+      if (p.kind === 'sun') Lab.line(p.x, p.y - 14, p.x, p.y, '#ffd166', 3);
+      else {
+        ctx.strokeStyle = p.kind === 'back' ? '#ff9f43' : '#ff5d8f'; ctx.lineWidth = 2.5; ctx.beginPath();
+        for (let k = 0; k <= 12; k++) { const yy = p.y + (p.vy > 0 ? -k : k) * 1.4; const xx = p.x + Math.sin(k * 0.9 + p.y * 0.05) * 4; k ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+        ctx.stroke();
+      }
+    });
+    // 溫度計
+    const tx = W - 70, ty = H * 0.25, th = H * 0.5, f = Math.max(0, Math.min(1, (S.Tshow + 20) / 45));
+    Lab.card(tx - 12, ty, 24, th, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.25)', 12);
+    const tc = S.Tshow > 16 ? '#ff5d8f' : S.Tshow < 0 ? '#4cc9f0' : '#4fd18b';
+    Lab.card(tx - 8, ty + th * (1 - f), 16, th * f, tc, null, 8);
+    Lab.circle(tx, ty + th + 14, 20, tc);
+    Lab.text(`${S.Tshow.toFixed(1)} °C`, tx - 26, ty + th * (1 - f), tc, 20, 'right', 'bold');
+    Lab.text('陽光', 30, 30, '#ffd166', 14, 'left', 'bold');
+    Lab.text('紅外線（地表散熱）', 30, 52, '#ff5d8f', 14, 'left', 'bold');
+    Lab.text('被溫室氣體吸收、放回地表', 30, 74, '#ff9f43', 14, 'left', 'bold');
+    Lab.text(S.co2 === 0 ? '沒有溫室效應：地球會冷到約 −18 °C' : '', W / 2, ground + 30, '#fff', 16, 'center', 'bold');
+  }
+
+  /* ===== 外來種入侵（格子模擬） ===== */
+  // 0 空地、1 原生種、2 外來種
+  function resetGrid() {
+    S.grid = Array.from({ length: S.rows }, () => Array.from({ length: S.cols }, () => Math.random() < 0.75 ? 1 : 0));
+    S.hist = [];
+  }
+  resetGrid();
+  const count = v => S.grid.reduce((t, r) => t + r.filter(c => c === v).length, 0);
+  $('introBtn').addEventListener('click', () => {
+    for (let i = 0; i < 3; i++) S.grid[(Math.random() * S.rows) | 0][(Math.random() * S.cols) | 0] = 2;
+  });
+  $('removeBtn').addEventListener('click', () => {
+    S.grid.forEach(r => r.forEach((c, j) => { if (c === 2 && Math.random() < 0.7) r[j] = 0; }));
+  });
+  $('alienPlay').addEventListener('click', () => { S.alienPlay = !S.alienPlay; $('alienPlay').textContent = S.alienPlay ? '暫停' : '播放'; });
+  $('alienReset').addEventListener('click', resetGrid);
+  function stepAlien() {
+    const g = S.grid, R = S.rows, C = S.cols, next = g.map(r => r.slice());
+    for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) {
+      const nb = [[i - 1, j], [i + 1, j], [i, j - 1], [i, j + 1]].filter(([a, b]) => a >= 0 && b >= 0 && a < R && b < C).map(([a, b]) => g[a][b]);
+      const nI = nb.filter(v => v === 2).length, nN = nb.filter(v => v === 1).length;
+      if (g[i][j] === 0) {
+        if (nI && Math.random() < 0.35 * nI) next[i][j] = 2;          // 外來種繁殖快
+        else if (nN && Math.random() < 0.12 * nN) next[i][j] = 1;
+      } else if (g[i][j] === 1) {
+        if (nI && Math.random() < 0.08 * nI) next[i][j] = 2;          // 搶走原生種的位置
+      }
+    }
+    S.grid = next;
+    S.hist.push([count(1), count(2)]); if (S.hist.length > 200) S.hist.shift();
+  }
+  function drawAlien(ctx, W, H, dt) {
+    if (S.alienPlay) { S.tick += dt; if (S.tick > 0.25) { S.tick = 0; stepAlien(); } }
+    const gh = H * 0.62, cs = Math.min((W - 40) / S.cols, (gh - 30) / S.rows), x0 = (W - cs * S.cols) / 2, y0 = 20;
+    S.grid.forEach((r, i) => r.forEach((c, j) => {
+      const x = x0 + j * cs, y = y0 + i * cs;
+      ctx.fillStyle = c === 1 ? 'rgba(79,209,139,.75)' : c === 2 ? 'rgba(255,93,143,.85)' : 'rgba(138,106,74,.25)';
+      ctx.fillRect(x + 1, y + 1, cs - 2, cs - 2);
+    }));
+    const total = S.rows * S.cols;
+    Lab.chart(24, y0 + cs * S.rows + 16, W - 48, H - (y0 + cs * S.rows + 16) - 16, [
+      { data: S.hist.map(h => h[0] / total * 100), color: '#4fd18b', n: 200 },
+      { data: S.hist.map(h => h[1] / total * 100), color: '#ff5d8f', n: 200 }
+    ], { min: 0, max: 100, yLabel: '覆蓋率 (%)', xLabel: '時間 →' });
+  }
+
+  /* ===== 主程式 ===== */
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.init({
+    draw(ctx, W, H, dt) { S.mode === 'green' ? drawGreen(ctx, W, H, dt) : drawAlien(ctx, W, H, dt); },
+    ui() {
+      const T = temp(S.co2), d = T - 14;
+      $('gT').textContent = T.toFixed(1) + ' °C';
+      $('gD').textContent = S.co2 === 0 ? '—' : (d >= 0 ? '+' : '') + d.toFixed(1) + ' °C';
+      const total = S.rows * S.cols;
+      $('aN').textContent = Math.round(count(1) / total * 100) + '%';
+      $('aI').textContent = Math.round(count(2) / total * 100) + '%';
+    }
+  });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

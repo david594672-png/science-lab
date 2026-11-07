@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="bio">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -125,6 +125,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 
@@ -218,7 +219,7 @@ scene.background = (() => {
   c.width = 2; c.height = 256;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#e6f0fa'); grad.addColorStop(1, '#ffffff');
+  grad.addColorStop(0, '#e3eedb'); grad.addColorStop(1, '#f6faf1');
   g.fillStyle = grad; g.fillRect(0, 0, 2, 256);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;

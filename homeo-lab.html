@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>生物的恆定性</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="恆定性互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>生物的恆定性</h1>
+  <p class="sub">國一生物 · 體溫、血糖、水分的調節</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="temp" aria-pressed="true">體溫</button>
+      <button class="mode" data-k="sugar">血糖</button>
+      <button class="mode" data-k="water">水分</button>
+    </div>
+
+    <div data-mode="temp">
+      <div class="group">
+        <div class="ctrl">
+          <label for="env">環境溫度 <output id="envVal"></output></label>
+          <input type="range" id="env" min="0" max="45" step="1" value="25">
+        </div>
+        <div class="seg" style="--n:2" id="actSeg">
+          <button data-k="rest" aria-pressed="true">休息</button>
+          <button data-k="run" aria-pressed="false">運動</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-title">身體的反應</div>
+        <dl class="live">
+          <dt>體溫</dt><dd id="tBody"></dd>
+          <dt>皮膚血管</dt><dd id="tVessel"></dd>
+          <dt>流汗</dt><dd id="tSweat"></dd>
+          <dt>肌肉顫抖</dt><dd id="tShiver"></dd>
+        </dl>
+      </div>
+    </div>
+
+    <div data-mode="sugar" hidden>
+      <div class="group">
+        <div class="row">
+          <button class="btn primary grow" id="eatBtn">🍚 吃一餐</button>
+          <button class="btn grow" id="runBtn">🏃 運動</button>
+        </div>
+        <label class="sw" style="--c:#ff5d8f"><input type="checkbox" id="diabetes"><span class="track"></span>胰島素分泌不足（糖尿病）</label>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt>血糖</dt><dd id="gVal"></dd>
+          <dt style="color:#4cc9f0">胰島素</dt><dd id="gIns"></dd>
+          <dt style="color:#ffd166">升糖素</dt><dd id="gGlu"></dd>
+        </dl>
+        <p class="note" style="margin-top:8px">胰臟分泌兩種激素：<b>胰島素</b>讓血糖下降（葡萄糖進入細胞、肝臟合成肝糖）；<b>升糖素</b>讓血糖上升（肝糖分解成葡萄糖）。</p>
+      </div>
+    </div>
+
+    <div data-mode="water" hidden>
+      <div class="group">
+        <div class="row">
+          <button class="btn primary grow" id="drinkBtn">💧 喝一大杯水</button>
+          <button class="btn grow" id="sweatBtn">☀ 大量流汗</button>
+        </div>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt>體內水分</dt><dd id="wBody"></dd>
+          <dt>尿量</dt><dd id="wUrine"></dd>
+          <dt>尿的顏色</dt><dd id="wColor"></dd>
+        </dl>
+        <p class="note" style="margin-top:8px"><b>腎臟</b>調節水分：水喝多了，尿量變多、尿色淡；流汗失水時，尿量變少、尿色深，同時會覺得口渴。</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  const S = {
+    mode: 'temp',
+    env: 25, run: false, T: 37, dil: 0.5, sweat: 0, shiver: 0, Th: [],
+    G: 90, ins: 0, glu: 0, food: 0, exer: 0, Gh: [],
+    water: 60, urine: 1, drink: 0, loss: 0, Wh: [], clock: 0
+  };
+  const push = (arr, v, n = 240) => { arr.push(v); if (arr.length > n) arr.shift(); };
+
+  /* ===== 體溫 ===== */
+  Lab.bindSlider('env', v => { S.env = v; }, v => v + ' °C');
+  Lab.bindGroup('#actSeg button', k => { S.run = k === 'run'; });
+  function stepTemp(dt) {
+    // 回饋控制：太熱 → 血管擴張、流汗；太冷 → 血管收縮、顫抖
+    const err = S.T - 37;
+    S.dil += ((err > 0 ? 1 : err < -0.05 ? 0 : 0.5) - S.dil) * dt * 1.5;
+    S.sweat += ((err > 0.05 ? Math.min(1, err * 3) : 0) - S.sweat) * dt * 1.5;
+    S.shiver += ((err < -0.1 ? Math.min(1, -err * 3) : 0) - S.shiver) * dt * 1.5;
+    const produce = (S.run ? 3 : 1) + S.shiver * 1.6;
+    const loss = (0.04 + 0.08 * S.dil) * (S.T - S.env) + S.sweat * 2.4 * (S.env > 40 ? 0.7 : 1);
+    S.T += (produce - loss) * dt * 0.08;
+    S.T = Math.max(34, Math.min(41, S.T));
+  }
+  function drawTemp(ctx, W, H, t) {
+    const cx = W * 0.3, cy = H * 0.45, s = Math.min(W * 0.18, H * 0.3);
+    const shake = S.shiver > 0.1 ? Math.sin(t * 60) * 3 * S.shiver : 0;
+    const skin = `rgb(${Math.round(230 + 25 * S.dil)},${Math.round(190 - 40 * S.dil)},${Math.round(170 - 40 * S.dil)})`;
+    ctx.save(); ctx.translate(shake, 0);
+    Lab.circle(cx, cy - s * 0.95, s * 0.28, skin);
+    Lab.card(cx - s * 0.38, cy - s * 0.65, s * 0.76, s * 1.05, skin, null, s * 0.2);
+    Lab.card(cx - s * 0.34, cy + s * 0.38, s * 0.28, s * 0.85, skin, null, 10);
+    Lab.card(cx + s * 0.06, cy + s * 0.38, s * 0.28, s * 0.85, skin, null, 10);
+    Lab.card(cx - s * 0.62, cy - s * 0.55, s * 0.22, s * 0.85, skin, null, 10);
+    Lab.card(cx + s * 0.4, cy - s * 0.55, s * 0.22, s * 0.85, skin, null, 10);
+    ctx.restore();
+    // 汗珠
+    if (S.sweat > 0.05) for (let i = 0; i < Math.round(S.sweat * 14); i++) {
+      const x = cx + Math.sin(i * 2.3) * s * 0.5, y = cy - s * 0.7 + ((t * 40 + i * 37) % (s * 1.6));
+      Lab.circle(x, y, 4, 'rgba(76,201,240,.8)');
+    }
+    if (S.run) Lab.text('🏃', cx + s * 0.9, cy - s, '#fff', 34);
+    Lab.text(S.env >= 30 ? '☀' : S.env <= 10 ? '❄' : '', cx - s * 0.9, cy - s, '#fff', 34);
+    // 溫度計
+    const tx = W * 0.62, ty = H * 0.12, th = H * 0.5;
+    Lab.card(tx - 12, ty, 24, th, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.2)', 12);
+    const f = (S.T - 34) / 7, col = S.T > 37.5 ? '#ff5d8f' : S.T < 36.5 ? '#4cc9f0' : '#4fd18b';
+    Lab.card(tx - 8, ty + th * (1 - f), 16, th * f, col, null, 8);
+    Lab.circle(tx, ty + th + 14, 20, col);
+    Lab.text(S.T.toFixed(1) + ' °C', tx + 34, ty + th * (1 - f), col, 20, 'left', 'bold');
+    Lab.line(tx - 22, ty + th * (1 - 3 / 7), tx + 22, ty + th * (1 - 3 / 7), 'rgba(255,255,255,.5)', 1.5, [4, 4]);
+    Lab.text('37 °C', tx - 28, ty + th * (1 - 3 / 7), 'rgba(238,241,250,.6)', 12, 'right');
+    // 曲線
+    Lab.chart(W * 0.08, H * 0.74, W * 0.84, H * 0.22, [{ data: S.Th, color: col, n: 240 }],
+      { min: 35, max: 39, yLabel: '體溫 (°C)', xLabel: '時間 →', ref: { v: 37, label: '37 °C' } });
+  }
+
+  /* ===== 血糖 ===== */
+  $('eatBtn').addEventListener('click', () => { S.food += 60; });
+  $('runBtn').addEventListener('click', () => { S.exer += 40; });
+  function stepSugar(dt) {
+    const absorb = Math.min(S.food, 6 * dt); S.food -= absorb;            // 約 10 秒慢慢吸收
+    const use = Math.min(S.exer, 14 * dt); S.exer -= use;
+    const diabetic = $('diabetes').checked;
+    const insTarget = S.G > 100 ? Math.min(1, (S.G - 100) / 60) * (diabetic ? 0.06 : 1) : 0;
+    const gluTarget = S.G < 85 ? Math.min(1, (85 - S.G) / 20) : 0;
+    S.ins += (insTarget - S.ins) * dt * 1.2;
+    S.glu += (gluTarget - S.glu) * dt * 1.2;
+    S.G += absorb * 1.6 - use * 0.6 + (-S.ins * 12 + S.glu * 7 - (S.G - 90) * 0.004) * dt;
+    S.G = Math.max(40, Math.min(300, S.G));
+  }
+  function drawSugar(ctx, W, H, t) {
+    const y0 = H * 0.08;
+    // 胰臟、肝臟、血管
+    const px = W * 0.25, lx = W * 0.65, vy = y0 + 150;
+    Lab.card(px - 90, y0 + 20, 180, 60, 'rgba(255,209,102,.18)', '#ffd166', 28); Lab.text('胰臟', px, y0 + 50, '#ffd166', 18, 'center', 'bold');
+    Lab.card(lx - 90, y0 + 20, 180, 60, 'rgba(255,93,143,.18)', '#ff5d8f', 28); Lab.text('肝臟（肝糖）', lx, y0 + 50, '#ff8fa8', 18, 'center', 'bold');
+    Lab.line(40, vy, W - 40, vy, 'rgba(255,93,143,.5)', 18);
+    Lab.text('血液', 50, vy - 22, 'rgba(255,143,168,.8)', 12, 'left');
+    const nG = Math.round((S.G - 40) / 8);
+    for (let i = 0; i < nG; i++) Lab.circle(60 + ((i * 53 + t * 60) % (W - 120)), vy + Math.sin(i * 7) * 4, 4.5, '#fff');
+    if (S.ins > 0.05) { Lab.arrow(px - 30, y0 + 82, px - 30, vy - 14, '#4cc9f0', 3); Lab.pill('胰島素', px - 30, y0 + 112, '#4cc9f0', 13); Lab.arrow(lx - 40, vy - 14, lx - 40, y0 + 84, '#4cc9f0', 3); Lab.text('葡萄糖 → 肝糖', lx - 46, y0 + 114, '#4cc9f0', 12, 'right'); }
+    if (S.glu > 0.05) { Lab.arrow(px + 30, y0 + 82, px + 30, vy - 14, '#ffd166', 3); Lab.pill('升糖素', px + 30, y0 + 112, '#ffd166', 13); Lab.arrow(lx + 40, y0 + 84, lx + 40, vy - 14, '#ffd166', 3); Lab.text('肝糖 → 葡萄糖', lx + 46, y0 + 114, '#ffd166', 12, 'left'); }
+    if (S.food > 0) Lab.pill('吸收葡萄糖中', W * 0.45, vy + 40, '#fff', 13);
+    if (S.exer > 0) Lab.pill('肌肉消耗葡萄糖', W * 0.45, vy + 40, '#4fd18b', 13);
+    const col = S.G > 140 ? '#ff5d8f' : S.G < 70 ? '#ffd166' : '#4fd18b';
+    Lab.text(`血糖 ${Math.round(S.G)} mg/dL`, W / 2, vy + 82, col, 24, 'center', 'bold');
+    Lab.chart(W * 0.06, H * 0.58, W * 0.88, H * 0.36, [{ data: S.Gh, color: col, n: 240 }],
+      { min: 40, max: 260, yLabel: '血糖 (mg/dL)', xLabel: '時間 →', ref: { v: 90, label: '正常約 70～110' } });
+  }
+
+  /* ===== 水分 ===== */
+  $('drinkBtn').addEventListener('click', () => { S.drink += 8; });
+  $('sweatBtn').addEventListener('click', () => { S.loss += 8; });
+  function stepWater(dt) {
+    const d = Math.min(S.drink, 4 * dt), l = Math.min(S.loss, 4 * dt);
+    S.drink -= d; S.loss -= l;
+    const target = Math.max(0.15, Math.min(3, 1 + (S.water - 60) * 0.5));   // 水多 → 尿多
+    S.urine += (target - S.urine) * dt * 0.8;
+    S.water += d - l - (S.urine - 1) * dt * 0.6 - 0.02 * dt;
+    S.water = Math.max(50, Math.min(70, S.water));
+  }
+  function drawWater(ctx, W, H, t) {
+    const cx = W * 0.3, cy = H * 0.4;
+    // 腎臟（兩顆豆形）
+    [-1, 1].forEach(d => { ctx.fillStyle = 'rgba(255,143,168,.4)'; ctx.strokeStyle = '#ff8fa8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx + d * 70, cy, 40, 64, d * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
+    Lab.text('腎臟', cx, cy - 90, '#ff8fa8', 18, 'center', 'bold');
+    Lab.line(cx - 60, cy + 60, cx - 10, cy + 150, '#ffd166', 5); Lab.line(cx + 60, cy + 60, cx + 10, cy + 150, '#ffd166', 5);
+    // 膀胱與尿滴（顏色：水多淡、水少深）
+    const conc = Math.max(0, Math.min(1, (65 - S.water) / 12));
+    const uc = `rgb(${255},${Math.round(240 - 70 * conc)},${Math.round(160 - 140 * conc)})`;
+    Lab.card(cx - 50, cy + 150, 100, 70, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.3)', 30);
+    Lab.card(cx - 46, cy + 154 + 62 * (1 - Math.min(1, S.urine / 3)), 92, 62 * Math.min(1, S.urine / 3), uc, null, 26);
+    const drops = Math.round(S.urine * 3);
+    for (let i = 0; i < drops; i++) Lab.circle(cx, cy + 236 + ((t * 80 + i * 25) % 60), 4, uc);
+    // 水分量表
+    const gx = W * 0.65, gy = H * 0.12, gh = H * 0.55;
+    Lab.card(gx - 30, gy, 60, gh, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.2)', 14);
+    const f = (S.water - 50) / 20;
+    Lab.card(gx - 26, gy + gh * (1 - f), 52, gh * f, 'rgba(76,201,240,.6)', null, 12);
+    Lab.text('體內水分', gx, gy - 16, '#4cc9f0', 15, 'center', 'bold');
+    Lab.text(S.water > 63 ? '偏多' : S.water < 57 ? '偏少（口渴）' : '剛好', gx, gy + gh + 22, '#4cc9f0', 15, 'center', 'bold');
+    if (S.drink > 0) Lab.pill('💧 喝水中', gx, gy + gh + 56, '#4cc9f0', 14);
+    if (S.loss > 0) Lab.pill('☀ 流汗失水', gx, gy + gh + 56, '#ffd166', 14);
+    Lab.chart(W * 0.06, H * 0.78, W * 0.88, H * 0.18, [{ data: S.Wh, color: '#ffd166', n: 240 }], { min: 0, max: 3, yLabel: '尿量', xLabel: '時間 →' });
+  }
+
+  window.homeo = { S, stepTemp, stepSugar, stepWater };   // 除錯／驗證用
+
+  /* ===== 主程式 ===== */
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.init({
+    draw(ctx, W, H, dt, t) {
+      // 三種調節都一直在背景運作，切換模式時狀態連續
+      stepTemp(dt); stepSugar(dt); stepWater(dt);
+      S.clock += dt;
+      if (S.clock > 0.1) { S.clock = 0; push(S.Th, S.T); push(S.Gh, S.G); push(S.Wh, S.urine); }
+      if (S.mode === 'temp') drawTemp(ctx, W, H, t);
+      else if (S.mode === 'sugar') drawSugar(ctx, W, H, t);
+      else drawWater(ctx, W, H, t);
+    },
+    ui() {
+      $('tBody').textContent = S.T.toFixed(1) + ' °C';
+      $('tVessel').textContent = S.dil > 0.65 ? '擴張（皮膚變紅、散熱）' : S.dil < 0.35 ? '收縮（減少散熱）' : '正常';
+      $('tSweat').textContent = S.sweat > 0.1 ? '流汗中（蒸發散熱）' : '沒有';
+      $('tShiver').textContent = S.shiver > 0.1 ? '顫抖中（產熱）' : '沒有';
+      $('gVal').textContent = Math.round(S.G) + ' mg/dL';
+      $('gIns').textContent = S.ins > 0.05 ? '分泌中' : '少';
+      $('gGlu').textContent = S.glu > 0.05 ? '分泌中' : '少';
+      $('wBody').textContent = S.water > 63 ? '偏多' : S.water < 57 ? '偏少' : '剛好';
+      $('wUrine').textContent = S.urine > 1.5 ? '多' : S.urine < 0.6 ? '少' : '正常';
+      $('wColor').textContent = S.water > 62 ? '很淡' : S.water < 57 ? '深黃' : '淡黃';
+    }
+  });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

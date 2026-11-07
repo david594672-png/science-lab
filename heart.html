@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="bio">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -154,6 +154,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 
@@ -337,7 +338,7 @@ renderer.toneMappingExposure = 1.05;
 $('scene').appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeef3f7);
+scene.background = new THREE.Color(0xedf4e7);
 scene.add(new THREE.AmbientLight(0xffffff, 0.75));
 scene.add(new THREE.HemisphereLight(0xffffff, 0xd6dde6, 0.6));
 const sun = new THREE.DirectionalLight(0xffffff, 2.1);

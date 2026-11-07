@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>生態系</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="生態系互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>生態系</h1>
+  <p class="sub">國一生物 · 食物網、族群消長、能量流動</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="web" aria-pressed="true">食物網</button>
+      <button class="mode" data-k="pop">族群<br>消長</button>
+      <button class="mode" data-k="pyramid">能量塔與<br>生物累積</button>
+    </div>
+
+    <div data-mode="web">
+      <div class="group">
+        <div class="result" id="webInfo">點畫面上的一種生物，把它從生態系中<b>移除</b>，看看其他生物會怎樣。</div>
+        <div class="row" style="margin-top:10px"><button class="btn grow" id="webReset">全部放回來</button></div>
+      </div>
+      <div class="group">
+        <p class="note">箭頭表示「被吃 → 吃牠的生物」，也就是<b>能量流動的方向</b>。生產者（植物）把太陽能轉成化學能；分解者把遺體分解，讓物質回到環境。</p>
+      </div>
+    </div>
+
+    <div data-mode="pop" hidden>
+      <div class="group">
+        <div class="ctrl">
+          <label for="grass">草的生長速度 <output id="grassVal"></output></label>
+          <input type="range" id="grass" min="0.3" max="1.5" step="0.1" value="1">
+        </div>
+        <div class="row">
+          <button class="btn primary grow" id="popPlay">暫停</button>
+          <button class="btn grow" id="popHunt">🏹 大量獵捕老鷹</button>
+          <button class="btn" id="popReset">重來</button>
+        </div>
+      </div>
+      <div class="group">
+        <dl class="live">
+          <dt style="color:#4fd18b">草</dt><dd id="pG"></dd>
+          <dt style="color:#ffd166">兔子</dt><dd id="pR"></dd>
+          <dt style="color:#ff5d8f">老鷹</dt><dd id="pE"></dd>
+        </dl>
+        <p class="note" style="margin-top:8px">兔子多 → 老鷹食物多、跟著變多 → 兔子被吃而變少 → 老鷹食物不夠也變少……兩者的數量<b>此起彼落</b>，維持動態平衡。</p>
+      </div>
+    </div>
+
+    <div data-mode="pyramid" hidden>
+      <div class="group">
+        <div class="seg" style="--n:2" id="pyrSeg">
+          <button data-k="energy" aria-pressed="true">能量塔</button>
+          <button data-k="toxin" aria-pressed="false">生物累積</button>
+        </div>
+        <div class="ctrl" style="margin-top:10px">
+          <label for="sun">生產者固定的能量 <output id="sunVal"></output></label>
+          <input type="range" id="sun" min="1000" max="20000" step="1000" value="10000">
+        </div>
+      </div>
+      <div class="group">
+        <p class="note" id="pyrNote"></p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  const S = { mode: 'web', removed: new Set(), pop: { G: 80, R: 50, E: 3, t: 0, h: [] }, popPlay: true, grow: 1, pyr: 'energy', sun: 10000, toxT: 0 };
+
+  /* ===== 食物網 ===== */
+  const NODES = {
+    grass: { n: '草', e: '🌿', x: 0.2, y: 0.85, lvl: '生產者' },
+    tree: { n: '樹', e: '🌳', x: 0.62, y: 0.85, lvl: '生產者' },
+    insect: { n: '昆蟲', e: '🦗', x: 0.12, y: 0.58, lvl: '初級消費者' },
+    rabbit: { n: '兔子', e: '🐇', x: 0.38, y: 0.6, lvl: '初級消費者' },
+    squirrel: { n: '松鼠', e: '🐿', x: 0.7, y: 0.58, lvl: '初級消費者' },
+    frog: { n: '青蛙', e: '🐸', x: 0.14, y: 0.32, lvl: '次級消費者' },
+    snake: { n: '蛇', e: '🐍', x: 0.4, y: 0.3, lvl: '次級消費者' },
+    eagle: { n: '老鷹', e: '🦅', x: 0.55, y: 0.08, lvl: '最高級消費者' },
+    fungi: { n: '分解者', e: '🍄', x: 0.9, y: 0.85, lvl: '分解者' }
+  };
+  const EATS = [['grass', 'insect'], ['grass', 'rabbit'], ['tree', 'squirrel'], ['insect', 'frog'], ['frog', 'snake'], ['rabbit', 'snake'],
+    ['rabbit', 'eagle'], ['snake', 'eagle'], ['squirrel', 'eagle'], ['squirrel', 'snake']];
+  /** 移除後的影響：被牠吃的（獵物）變多；吃牠的（掠食者）變少；只吃牠的會非常危險 */
+  function effects() {
+    const eff = {};
+    S.removed.forEach(r => {
+      EATS.forEach(([a, b]) => {
+        if (b === r && !S.removed.has(a)) eff[a] = '↑';                          // 獵物少了天敵
+        if (a === r && !S.removed.has(b)) {
+          const other = EATS.filter(([x, y]) => y === b && !S.removed.has(x)).length;
+          eff[b] = other ? '↓' : '⚠';                                             // 掠食者少了食物
+        }
+      });
+    });
+    if (S.removed.has('grass') && S.removed.has('tree')) Object.keys(NODES).forEach(k => { if (!S.removed.has(k) && k !== 'fungi') eff[k] = '⚠'; });
+    return eff;
+  }
+  function webClick(x, y) {
+    const W = Lab.W, H = Lab.H;
+    const hit = Object.entries(NODES).find(([, v]) => Math.hypot(x - (40 + v.x * (W - 80)), y - (40 + v.y * (H - 80))) < 40);
+    if (!hit || hit[0] === 'fungi') return;
+    const [k, v] = hit;
+    S.removed.has(k) ? S.removed.delete(k) : S.removed.add(k);
+    const eff = effects(), up = [], down = [];
+    Object.entries(eff).forEach(([kk, s]) => (s === '↑' ? up : down).push(NODES[kk].n + (s === '⚠' ? '（食物來源只剩牠，很危險）' : '')));
+    $('webInfo').innerHTML = S.removed.size === 0 ? '點畫面上的一種生物，把它從生態系中<b>移除</b>。'
+      : `移除了：<b>${[...S.removed].map(r => NODES[r].n).join('、')}</b><br>可能變多：${up.join('、') || '—'}<br>可能變少：${down.join('、') || '—'}<br><span style="color:var(--muted)">食物網越複雜，少了一種生物時，其他生物還有別的食物可吃，生態系比較穩定。</span>`;
+  }
+  $('webReset').addEventListener('click', () => { S.removed.clear(); webClick(-999, -999); });
+  function drawWeb(ctx, W, H, t) {
+    const P = k => ({ x: 40 + NODES[k].x * (W - 80), y: 40 + NODES[k].y * (H - 80) });
+    const eff = effects();
+    EATS.forEach(([a, b]) => {
+      const A = P(a), B = P(b), off = S.removed.has(a) || S.removed.has(b);
+      const d = Math.hypot(B.x - A.x, B.y - A.y), ux = (B.x - A.x) / d, uy = (B.y - A.y) / d;
+      ctx.globalAlpha = off ? 0.15 : 0.8;
+      Lab.arrow(A.x + ux * 34, A.y + uy * 34, B.x - ux * 36, B.y - uy * 36, '#ffd166', 2.5);
+      ctx.globalAlpha = 1;
+    });
+    // 分解者：所有生物的遺體都會被分解
+    const F = P('fungi');
+    Object.keys(NODES).filter(k => k !== 'fungi').forEach(k => { const p = P(k); Lab.line(p.x, p.y, F.x, F.y, 'rgba(165,139,255,.12)', 1, [3, 6]); });
+    Object.entries(NODES).forEach(([k, v]) => {
+      const p = P(k), off = S.removed.has(k);
+      ctx.globalAlpha = off ? 0.3 : 1;
+      Lab.circle(p.x, p.y, 32, 'rgba(255,255,255,.06)', off ? '#ff5d8f' : 'rgba(255,255,255,.25)', 2);
+      Lab.text(v.e, p.x, p.y - 2, '#fff', 30);
+      Lab.text(v.n, p.x, p.y + 46, '#eef1fa', 13, 'center', 'bold');
+      ctx.globalAlpha = 1;
+      if (off) Lab.text('✕', p.x, p.y, '#ff5d8f', 44, 'center', 'bold');
+      if (eff[k]) Lab.pill(eff[k] === '↑' ? '變多 ↑' : eff[k] === '⚠' ? '危險 ⚠' : '變少 ↓', p.x + 44, p.y - 30, eff[k] === '↑' ? '#4fd18b' : '#ff5d8f', 12);
+    });
+    Lab.circle(W - 60, 40, 22, '#ffd166'); Lab.text('☀', W - 60, 40, '#b36b1d', 20);
+  }
+
+  /* ===== 族群消長（草 → 兔 → 鷹） ===== */
+  Lab.bindSlider('grass', v => { S.grow = v; }, v => v.toFixed(1) + '×');
+  $('popPlay').addEventListener('click', () => { S.popPlay = !S.popPlay; $('popPlay').textContent = S.popPlay ? '暫停' : '播放'; });
+  $('popHunt').addEventListener('click', () => { S.pop.E = Math.max(0.5, S.pop.E * 0.2); });
+  $('popReset').addEventListener('click', () => { S.pop = { G: 80, R: 50, E: 3, t: 0, h: [] }; });
+  function stepPop(dt) {
+    const p = S.pop, k = dt * 1.6;
+    // 兔子–老鷹的捕食者–獵物模型；草越好長，兔子的出生率越高，環境容納量設很大，震盪才能持續好幾個週期
+    for (let i = 0; i < 8; i++) {
+      const dR = 0.6 * S.grow * p.R * (1 - p.R / 900) - 0.06 * p.R * p.E;
+      const dE = 0.01 * p.R * p.E - 0.3 * p.E;
+      p.R = Math.max(0.5, p.R + dR * k / 8); p.E = Math.max(0.3, p.E + dE * k / 8);
+    }
+    p.G = Math.max(5, 110 * Math.min(1.2, S.grow) - 0.9 * p.R);          // 兔子多，草被吃得少（顯示用）
+    p.t += dt;
+    if (p.t > 0.08) { p.t = 0; p.h.push([p.G, p.R, p.E * 4]); if (p.h.length > 300) p.h.shift(); }
+  }
+  function drawPop(ctx, W, H, t) {
+    const p = S.pop;
+    // 上方：用圖示數量表示族群大小
+    const rows = [['🌿', p.G, 3, '#4fd18b'], ['🐇', p.R, 1.5, '#ffd166'], ['🦅', p.E, 0.5, '#ff5d8f']];
+    rows.forEach(([e, v, per, c], i) => {
+      const y = 40 + i * 54, n = Math.min(30, Math.round(v / per));
+      Lab.text(e, 30, y, '#fff', 24);
+      for (let j = 0; j < n; j++) Lab.text(e, 66 + j * 24, y, '#fff', 18);
+    });
+    Lab.chart(24, 210, W - 48, H - 234, [
+      { data: p.h.map(h => h[0]), color: '#4fd18b', n: 300 },
+      { data: p.h.map(h => h[1]), color: '#ffd166', n: 300 },
+      { data: p.h.map(h => h[2]), color: '#ff5d8f', n: 300 }
+    ], { min: 0, max: 130, yLabel: '族群數量（老鷹 ×4 顯示）', xLabel: '時間 →' });
+    [['草', '#4fd18b'], ['兔子', '#ffd166'], ['老鷹', '#ff5d8f']].forEach(([n, c], i) => {
+      const x = W - 230 + i * 70, y = 226;
+      Lab.line(x, y, x + 18, y, c, 4); Lab.text(n, x + 24, y, c, 13, 'left', 'bold');
+    });
+  }
+
+  /* ===== 能量塔與生物累積 ===== */
+  Lab.bindSlider('sun', v => { S.sun = v; }, v => v.toLocaleString() + ' 單位');
+  Lab.bindGroup('#pyrSeg button', k => {
+    S.pyr = k; S.toxT = 0;
+    $('pyrNote').innerHTML = k === 'energy'
+      ? '能量沿食物鏈傳遞時，大部分用在生物自己的呼吸作用、變成熱散失，只有約 <b>10%</b> 傳到下一層。所以食物鏈通常只有 4～5 層，最高級消費者的數量最少。'
+      : '有些物質（例如<b>重金屬、DDT</b>）進入生物體後不易分解、排出，會沿著食物鏈越積越多，<b>營養階層越高，體內濃度越高</b>，這叫生物累積（生物放大）。';
+  });
+  function drawPyramid(ctx, W, H, dt) {
+    const L = [['生產者', '🌿 植物', '#4fd18b'], ['初級消費者', '🐛 毛毛蟲', '#ffd166'], ['次級消費者', '🐦 小鳥', '#ff9f43'], ['最高級消費者', '🦅 老鷹', '#ff5d8f']];
+    const cx = W / 2, base = H - 50, lh = Math.min(100, (H - 120) / 4), maxW = Math.min(W - 60, 640);
+    if (S.pyr === 'energy') {
+      L.forEach(([lvl, who, c], i) => {
+        const w = maxW * Math.pow(0.55, i), y = base - (i + 1) * lh;     // 寬度示意（真實是 10%，畫面不等比）
+        Lab.card(cx - w / 2, y, w, lh - 8, c + '33', c, 10);
+        Lab.text(`${lvl}　${who}`, cx, y + lh * 0.32, '#fff', 15, 'center', 'bold');
+        Lab.text(`${Math.round(S.sun * Math.pow(0.1, i)).toLocaleString()} 單位能量`, cx, y + lh * 0.64, c, 14, 'center', 'bold');
+        if (i < 3) Lab.text('× 10%', cx + w / 2 + 34, y - 4, 'rgba(238,241,250,.6)', 13);
+      });
+      Lab.text('其餘約 90% 經呼吸作用變成熱散失', cx, 30, 'rgba(238,241,250,.6)', 14);
+    } else {
+      S.toxT = Math.min(1, S.toxT + dt * 0.4);
+      const conc = [0.04, 0.4, 4, 25];
+      L.forEach(([lvl, who, c], i) => {
+        const y = base - (i + 1) * lh, w = Math.min(maxW, 260);
+        Lab.card(cx - w / 2, y, w, lh - 8, 'rgba(255,255,255,.04)', c, 10);
+        Lab.text(`${who}`, cx - w / 2 + 16, y + lh * 0.32, '#fff', 15, 'left', 'bold');
+        Lab.text(`DDT 濃度 ${conc[i]} ppm`, cx - w / 2 + 16, y + lh * 0.64, c, 14, 'left');
+        const dots = Math.round(Math.min(40, [2, 6, 16, 36][i] * S.toxT));
+        for (let j = 0; j < dots; j++) Lab.circle(cx + w / 2 + 16 + (j % 10) * 11, y + 14 + Math.floor(j / 10) * 11, 4, '#a58bff');
+      });
+      Lab.text('紫色點：體內累積的有毒物質（濃度示意）', cx, 30, '#a58bff', 14);
+    }
+  }
+
+  /* ===== 主程式 ===== */
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.init({
+    draw(ctx, W, H, dt, t) {
+      if (S.popPlay) stepPop(dt);
+      if (S.mode === 'web') drawWeb(ctx, W, H, t);
+      else if (S.mode === 'pop') drawPop(ctx, W, H, t);
+      else drawPyramid(ctx, W, H, dt);
+    },
+    down(x, y) { if (S.mode === 'web') webClick(x, y); return false; },
+    ui() { $('pG').textContent = Math.round(S.pop.G); $('pR').textContent = Math.round(S.pop.R); $('pE').textContent = Math.round(S.pop.E); }
+  });
+  window.eco = { S, stepPop };   // 除錯／驗證用
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="phy">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -106,6 +106,7 @@
   }
 }
 </script>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 
@@ -218,7 +219,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 $('scene').appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const BG = new THREE.Color(0xefe5da), BG_NIGHT = new THREE.Color(0x394063);
+const BG = new THREE.Color(0xe6edf6), BG_NIGHT = new THREE.Color(0x394063);
 scene.background = BG.clone();
 // 環境光源：讓透明玻璃有反光可看
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -387,7 +388,7 @@ const M1 = (() => {
   const group = new THREE.Group();
   const T_ROOM = 25, H0 = 1.4, KL = 0.036, KG = 0.011, TAU_G = 0.5, TAU_L = 2.5, BX = 4.3, LIFT = 2.75;
   const PLACES = { table: { x: 0, y: 0, T: T_ROOM }, hot: { x: -BX, y: 0.08, T: 80 }, cold: { x: BX, y: 0.08, T: 0 } };
-  const table = new THREE.Mesh(new RoundedBoxGeometry(15, 0.4, 6, 4, 0.18), clay(0xd8c6b3));
+  const table = new THREE.Mesh(new RoundedBoxGeometry(15, 0.4, 6, 4, 0.18), clay(0xcfdbec));
   table.position.y = -0.2; table.receiveShadow = true; group.add(table);
 
   // 兩個燒杯
@@ -567,7 +568,7 @@ const M2 = (() => {
   };
   ['m2SA', 'm2SB'].forEach(id => { $(id).innerHTML = Object.entries(SUBS).map(([k, s]) => `<option value="${k}">${s.name}（S = ${s.S}）</option>`).join(''); });
   $('m2SA').value = 'water'; $('m2SB').value = 'sand';
-  const table = new THREE.Mesh(new RoundedBoxGeometry(14, 0.4, 6, 4, 0.18), clay(0xd8c6b3));
+  const table = new THREE.Mesh(new RoundedBoxGeometry(14, 0.4, 6, 4, 0.18), clay(0xcfdbec));
   table.position.y = -0.2; table.receiveShadow = true; group.add(table);
 
   function makeCup(id, x, color) {
@@ -949,7 +950,7 @@ const M4 = (() => {
   const plate = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.07, 10, 48), clay(0x3b3d44, { metalness: 0.4 }));
   plate.rotation.x = Math.PI / 2; plate.position.y = 1.08;
   group.add(shadowed(stove), knob, plate);
-  const table = new THREE.Mesh(new RoundedBoxGeometry(12, 0.4, 6, 4, 0.18), clay(0xd8c6b3));
+  const table = new THREE.Mesh(new RoundedBoxGeometry(12, 0.4, 6, 4, 0.18), clay(0xcfdbec));
   table.position.y = -0.2; table.receiveShadow = true; group.add(table);
   const flames = [];
   for (let i = 0; i < 16; i++) {

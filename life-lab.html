@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>生命的特性</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="生命的特性互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>生命的特性</h1>
+  <p class="sub">國一生物 · 生命現象、組成層次與細胞</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="judge" aria-pressed="true">是不是<br>生物？</button>
+      <button class="mode" data-k="level">組成層次</button>
+      <button class="mode" data-k="cell">細胞構造</button>
+    </div>
+
+    <!-- 模式一：是不是生物 -->
+    <div data-mode="judge">
+      <div class="group">
+        <div class="group-title">選一個東西</div>
+        <div class="chips" style="--n:4" id="things"></div>
+      </div>
+      <div class="group">
+        <div class="row">
+          <button class="btn primary grow" id="revealBtn">逐項檢查生命現象</button>
+        </div>
+        <div class="result" id="verdict">先猜猜看：它是不是生物？再按上面的按鈕逐項檢查。</div>
+      </div>
+      <div class="group">
+        <p class="note">判斷是不是生物，要<b>綜合</b>看：是否由<b>細胞</b>構成、能不能<b>代謝、生長、感應、生殖</b>。只符合其中一兩項（例如火會「長大」）不算生物。</p>
+      </div>
+    </div>
+
+    <!-- 模式二：組成層次 -->
+    <div data-mode="level" hidden>
+      <div class="group">
+        <div class="seg" style="--n:2" id="kindSeg">
+          <button data-k="animal" aria-pressed="true">動物（人）</button>
+          <button data-k="plant" aria-pressed="false">植物</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="ctrl">
+          <label for="zoom">放大程度 <output id="zoomVal"></output></label>
+          <input type="range" id="zoom" min="0" max="4" step="1" value="0">
+        </div>
+        <div class="result" id="levelInfo"></div>
+      </div>
+      <div class="group">
+        <p class="note">由小到大：<b>細胞 → 組織 → 器官 → 器官系統 → 個體</b>。植物沒有「器官系統」這一層，器官直接組成個體。</p>
+      </div>
+    </div>
+
+    <!-- 模式三：細胞構造 -->
+    <div data-mode="cell" hidden>
+      <div class="group">
+        <div class="seg" style="--n:2" id="cellSeg">
+          <button data-k="animal" aria-pressed="true">動物細胞</button>
+          <button data-k="plant" aria-pressed="false">植物細胞</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="group-title">點畫面上的構造看功能</div>
+        <div class="result" id="partInfo">點一下細胞裡的構造。</div>
+      </div>
+      <div class="group">
+        <p class="note">植物細胞比動物細胞多了<b>細胞壁、葉綠體</b>，而且有<b>大型液胞</b>。動物和植物細胞都有細胞膜、細胞核、細胞質、粒線體。</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  const TRAITS = ['由細胞構成', '代謝（吸收、利用能量）', '生長', '感應（對刺激反應）', '生殖（產生後代）'];
+  // 每項：1 有、0 沒有、0.5 只有像（不算真的）
+  const THINGS = [
+    { k: 'cat', emoji: '🐱', name: '貓', t: [1, 1, 1, 1, 1], v: '是生物', why: '五項生命現象都有。' },
+    { k: 'seed', emoji: '🌰', name: '休眠的種子', t: [1, 1, 1, 1, 1], v: '是生物', why: '看起來不動，但種子由細胞構成，仍在進行很微弱的代謝，條件適合就會發芽、長大。' },
+    { k: 'mimosa', emoji: '🌿', name: '含羞草', t: [1, 1, 1, 1, 1], v: '是生物', why: '植物也會感應：含羞草被碰觸，葉子會合起來。' },
+    { k: 'yeast', emoji: '🍞', name: '酵母菌', t: [1, 1, 1, 1, 1], v: '是生物', why: '單細胞生物，一個細胞就能完成所有生命現象（會讓麵包發酵）。' },
+    { k: 'fire', emoji: '🔥', name: '火焰', t: [0, 0.5, 0.5, 0, 0.5], v: '不是生物', why: '火會「消耗燃料、變大、蔓延」，只是很像代謝、生長、生殖；它不是由細胞構成，也不會對刺激產生反應。' },
+    { k: 'crystal', emoji: '🧂', name: '鹽的結晶', t: [0, 0, 0.5, 0, 0], v: '不是生物', why: '結晶會「長大」，但只是外面一直堆積，不是由細胞吸收養分生長。' },
+    { k: 'robot', emoji: '🤖', name: '機器人', t: [0, 0.5, 0, 0.5, 0], v: '不是生物', why: '用電、有感測器，看起來像代謝與感應，但沒有細胞、不會自己生長或生殖。' },
+    { k: 'virus', emoji: '🦠', name: '病毒', t: [0, 0, 0, 0, 0.5], v: '介於生物與非生物之間', why: '病毒沒有細胞構造，自己不能代謝；只有進入其他生物的細胞，才能利用宿主複製出新病毒。' }
+  ];
+  const S = { mode: 'judge', thing: THINGS[0], shown: 0, revealT: 0, kind: 'animal', zoom: 0, zoomAnim: 0, cell: 'animal', part: null };
+
+  /* ---------- 是不是生物 ---------- */
+  $('things').innerHTML = THINGS.map((t, i) =>
+    `<button class="btn" data-k="${t.k}" aria-pressed="${i === 0}" style="flex-direction:column;display:flex;align-items:center;justify-content:center;gap:2px;min-height:58px"><span style="font-size:1.3rem">${t.emoji}</span><span style="font-size:.74rem">${t.name}</span></button>`).join('');
+  Lab.bindGroup('#things .btn', k => {
+    S.thing = THINGS.find(t => t.k === k); S.shown = 0;
+    $('verdict').textContent = `先猜猜看：「${S.thing.name}」是不是生物？再按上面的按鈕逐項檢查。`;
+  });
+  $('revealBtn').addEventListener('click', () => {
+    if (S.shown < TRAITS.length) { S.shown = TRAITS.length; S.revealT = 0; }
+    const t = S.thing;
+    $('verdict').innerHTML = `<b>${t.name}：${t.v}</b><br>${t.why}`;
+  });
+
+  function drawJudge(ctx, W, H, dt) {
+    if (S.shown && S.revealT < TRAITS.length) S.revealT += dt * 2.2;      // 一項一項亮起來
+    const t = S.thing, cx = W / 2;
+    const top = Math.max(30, H * 0.08);
+    Lab.text(t.emoji, cx, top + 60, '#fff', 84);
+    Lab.text(t.name, cx, top + 130, '#eef1fa', 22, 'center', 'bold');
+    const w = Math.min(520, W - 40), x = cx - w / 2, rowH = Math.min(56, (H - top - 230) / TRAITS.length);
+    TRAITS.forEach((name, i) => {
+      const y = top + 165 + i * (rowH + 6);
+      const on = S.shown && S.revealT > i;
+      const v = t.t[i];
+      const col = !on ? 'rgba(255,255,255,.14)' : v === 1 ? '#4fd18b' : v === 0.5 ? '#ffd166' : '#ff5d8f';
+      Lab.card(x, y, w, rowH, 'rgba(255,255,255,.04)', col, 14);
+      Lab.text(name, x + 18, y + rowH / 2, '#eef1fa', 16, 'left');
+      const mark = !on ? '？' : v === 1 ? '✓ 有' : v === 0.5 ? '△ 只是很像' : '✗ 沒有';
+      Lab.text(mark, x + w - 18, y + rowH / 2, on ? col : 'rgba(238,241,250,.4)', 16, 'right', 'bold');
+    });
+    if (S.shown && S.revealT >= TRAITS.length) {
+      const y = top + 165 + TRAITS.length * (rowH + 6) + 26;
+      const col = t.v === '是生物' ? '#4fd18b' : t.v === '不是生物' ? '#ff5d8f' : '#ffd166';
+      Lab.pill(t.v, cx, y, col, 18);
+    }
+  }
+
+  /* ---------- 組成層次 ---------- */
+  const LEVELS = {
+    animal: [
+      ['個體', '人', '一個完整的生物，能獨立生活。'],
+      ['器官系統', '消化系統', '好幾個器官合作完成同一項工作，例如消化系統：口、食道、胃、小腸、大腸。'],
+      ['器官', '胃', '由不同組織組成、有特定功能，例如胃可以磨碎與初步消化食物。'],
+      ['組織', '肌肉組織', '形態、功能相似的細胞聚在一起，例如肌肉組織能收縮。'],
+      ['細胞', '肌肉細胞', '生物構造與功能的基本單位。']
+    ],
+    plant: [
+      ['個體', '一株植物', '一個完整的生物。'],
+      ['器官', '葉', '植物沒有器官系統，器官（根、莖、葉、花、果實、種子）直接組成個體。葉是行光合作用的主要器官。'],
+      ['組織', '葉肉組織', '含有很多葉綠體的細胞聚在一起，負責光合作用。'],
+      ['細胞', '葉肉細胞', '有細胞壁、葉綠體和液胞的植物細胞。'],
+      ['細胞', '葉肉細胞', '有細胞壁、葉綠體和液胞的植物細胞。']
+    ]
+  };
+  Lab.bindGroup('#kindSeg button', k => { S.kind = k; const z = $('zoom'); z.max = k === 'plant' ? 3 : 4; if (+z.value > +z.max) z.value = z.max; z.dispatchEvent(new Event('input')); });
+  Lab.bindSlider('zoom', v => {
+    S.zoom = v;
+    const [lv, ex, info] = LEVELS[S.kind][v];
+    $('levelInfo').innerHTML = `<b>${lv}</b>：${ex}<br>${info}`;
+  }, v => (LEVELS[S.kind][v] || [''])[0]);
+
+  function drawLevel(ctx, W, H, dt) {
+    S.zoomAnim += (S.zoom - S.zoomAnim) * Math.min(1, dt * 6);
+    const levels = LEVELS[S.kind], n = S.kind === 'plant' ? 4 : 5;
+    // 上方：階梯
+    const stepW = Math.min(150, (W - 40) / n), sx = W / 2 - stepW * n / 2;
+    for (let i = 0; i < n; i++) {
+      const on = i === S.zoom;
+      Lab.card(sx + i * stepW + 4, 20, stepW - 8, 44, on ? 'rgba(79,209,139,.25)' : 'rgba(255,255,255,.04)', on ? '#4fd18b' : 'rgba(255,255,255,.12)', 12);
+      Lab.text(levels[i][0], sx + i * stepW + stepW / 2, 42, on ? '#fff' : 'rgba(238,241,250,.6)', 14, 'center', on ? 'bold' : '');
+      if (i < n - 1) Lab.text('→', sx + (i + 1) * stepW, 42, 'rgba(238,241,250,.4)', 14);
+    }
+    const cx = W / 2, cy = (H + 80) / 2, size = Math.min(W, H - 100) * 0.38;
+    const z = Math.round(S.zoomAnim);
+    const fade = 1 - Math.min(1, Math.abs(S.zoomAnim - z) * 2);
+    ctx.globalAlpha = Math.max(0.15, fade);
+    (S.kind === 'animal' ? drawAnimal : drawPlant)(ctx, z, cx, cy, size);
+    ctx.globalAlpha = 1;
+    Lab.text(`${levels[z][0]}：${levels[z][1]}`, cx, H - 30, '#4fd18b', 18, 'center', 'bold');
+  }
+  function cellGrid(cx, cy, size, plant) {
+    const n = 5, cw = size * 2 / n;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const x = cx - size + i * cw, y = cy - size + j * cw * 0.7;
+      Lab.card(x + 2, y + 2, cw - 4, cw * 0.7 - 4, plant ? 'rgba(79,209,139,.18)' : 'rgba(255,93,143,.18)', plant ? '#4fd18b' : '#ff8fa8', plant ? 3 : 10);
+      Lab.circle(x + cw / 2, y + cw * 0.35, cw * 0.1, plant ? '#2f7a52' : '#b03a5b');
+      if (plant) for (let k = 0; k < 3; k++) Lab.circle(x + cw * (0.25 + k * 0.25), y + cw * 0.55, cw * 0.06, '#4fd18b');
+    }
+  }
+  function drawAnimal(ctx, z, cx, cy, s) {
+    if (z === 0) {                                   // 人形
+      Lab.circle(cx, cy - s * 0.75, s * 0.18, '#ffd6b0');
+      Lab.card(cx - s * 0.25, cy - s * 0.55, s * 0.5, s * 0.75, '#5b9cff', null, s * 0.12);
+      Lab.card(cx - s * 0.22, cy + s * 0.2, s * 0.18, s * 0.6, '#3d6fc4', null, 8); Lab.card(cx + s * 0.04, cy + s * 0.2, s * 0.18, s * 0.6, '#3d6fc4', null, 8);
+      Lab.circle(cx + s * 0.05, cy - s * 0.2, s * 0.09, null, '#ffd166', 3);
+      Lab.text('放大看 →', cx + s * 0.55, cy - s * 0.2, '#ffd166', 14);
+    } else if (z === 1) {                            // 消化系統
+      const c = ctx; c.strokeStyle = '#ff8fa8'; c.lineWidth = s * 0.07; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(cx, cy - s * 0.9); c.lineTo(cx, cy - s * 0.45); c.stroke();
+      Lab.circle(cx + s * 0.12, cy - s * 0.32, s * 0.2, 'rgba(255,93,143,.5)', '#ff5d8f', 3);
+      c.beginPath(); for (let i = 0; i <= 40; i++) { const t = i / 40, x = cx + Math.sin(t * 18) * s * 0.3, y = cy - s * 0.05 + t * s * 0.55; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.lineWidth = s * 0.05; c.stroke();
+      c.strokeStyle = '#c96f8a'; c.lineWidth = s * 0.09;
+      c.beginPath(); c.moveTo(cx - s * 0.45, cy + s * 0.55); c.lineTo(cx - s * 0.45, cy - s * 0.1); c.lineTo(cx + s * 0.45, cy - s * 0.1); c.lineTo(cx + s * 0.45, cy + s * 0.6); c.stroke();
+      [['食道', cx + s * 0.2, cy - s * 0.75], ['胃', cx + s * 0.55, cy - s * 0.32], ['小腸', cx, cy + s * 0.75], ['大腸', cx + s * 0.7, cy + s * 0.2]]
+        .forEach(([t, x, y]) => Lab.pill(t, x, y, '#ffd166', 13));
+    } else if (z === 2) {                            // 胃
+      const c = ctx; c.fillStyle = 'rgba(255,93,143,.35)'; c.strokeStyle = '#ff5d8f'; c.lineWidth = 4;
+      c.beginPath(); c.ellipse(cx, cy, s * 0.7, s * 0.45, -0.3, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.strokeStyle = '#ffd166'; c.lineWidth = s * 0.06;
+      c.beginPath(); c.ellipse(cx, cy, s * 0.62, s * 0.37, -0.3, 0, Math.PI * 2); c.stroke();
+      Lab.text('胃壁：肌肉組織 + 上皮組織 + …', cx, cy + s * 0.75, '#ffd166', 15);
+    } else if (z === 3) cellGrid(cx, cy, s * 0.8, false);
+    else drawCell(ctx, cx, cy, s * 0.8, 'animal', false);
+  }
+  function drawPlant(ctx, z, cx, cy, s) {
+    if (z === 0) {
+      Lab.line(cx, cy + s * 0.8, cx, cy - s * 0.5, '#7a9b4f', 8);
+      [[-1, -0.3], [1, -0.1], [-1, 0.15], [1, 0.4]].forEach(([d, y]) => {
+        const c = ctx; c.fillStyle = '#4fd18b'; c.beginPath(); c.ellipse(cx + d * s * 0.28, cy + y * s, s * 0.26, s * 0.1, d * 0.4, 0, Math.PI * 2); c.fill();
+      });
+      Lab.circle(cx, cy - s * 0.62, s * 0.14, '#ff8fa8');
+      Lab.line(cx - s * 0.3, cy + s * 0.8, cx + s * 0.3, cy + s * 0.8, '#8a6a4a', 4);
+      Lab.circle(cx + s * 0.28, cy - s * 0.1, s * 0.15, null, '#ffd166', 3);
+      Lab.text('放大看 →', cx + s * 0.7, cy - s * 0.1, '#ffd166', 14);
+    } else if (z === 1) {
+      const c = ctx; c.fillStyle = 'rgba(79,209,139,.5)'; c.strokeStyle = '#4fd18b'; c.lineWidth = 4;
+      c.beginPath(); c.ellipse(cx, cy, s * 0.8, s * 0.38, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+      Lab.line(cx - s * 0.8, cy, cx + s * 0.7, cy, '#2f7a52', 3);
+      for (let i = -3; i <= 3; i++) { Lab.line(cx + i * s * 0.18, cy, cx + i * s * 0.18 + s * 0.12, cy - s * 0.25, '#2f7a52', 2); Lab.line(cx + i * s * 0.18, cy, cx + i * s * 0.18 + s * 0.12, cy + s * 0.25, '#2f7a52', 2); }
+      Lab.text('植物沒有器官系統：根、莖、葉等器官直接組成個體', cx, cy + s * 0.65, '#ffd166', 15);
+    } else if (z === 2) cellGrid(cx, cy, s * 0.8, true);
+    else drawCell(ctx, cx, cy, s * 0.8, 'plant', false);
+  }
+
+  /* ---------- 細胞構造 ---------- */
+  const PARTS = {
+    wall: ['細胞壁', '只有植物細胞有。在細胞膜外面，堅硬，用來支持和保護細胞。'],
+    membrane: ['細胞膜', '控制物質進出細胞。'],
+    nucleus: ['細胞核', '含有遺傳物質（DNA），控制細胞的生命活動。'],
+    cytoplasm: ['細胞質', '細胞膜以內、細胞核以外的部分，許多化學反應在這裡進行。'],
+    mito: ['粒線體', '進行呼吸作用，分解養分、釋放能量。動物、植物細胞都有。'],
+    chloro: ['葉綠體', '只有植物（綠色部分）的細胞有。進行光合作用，製造養分。'],
+    vacuole: ['液胞', '植物細胞的液胞很大，儲存水分和物質，讓細胞保持飽滿。']
+  };
+  let hits = [];
+  function drawCell(ctx, cx, cy, s, kind, interactive) {
+    const plant = kind === 'plant', c = ctx;
+    hits = [];
+    const sel = k => interactive && S.part === k;
+    if (plant) {
+      Lab.card(cx - s, cy - s * 0.72, s * 2, s * 1.44, 'rgba(79,209,139,.08)', sel('wall') ? '#ffd166' : '#4fd18b', 10);
+      c.lineWidth = sel('wall') ? 8 : 6; c.stroke();
+      Lab.card(cx - s * 0.93, cy - s * 0.65, s * 1.86, s * 1.3, 'rgba(126,224,180,.15)', sel('membrane') ? '#ffd166' : 'rgba(238,241,250,.7)', 8);
+      hits.push(['wall', p => insideRect(p, cx - s, cy - s * 0.72, s * 2, s * 1.44) && !insideRect(p, cx - s * 0.9, cy - s * 0.62, s * 1.8, s * 1.24)]);
+      hits.push(['membrane', p => insideRect(p, cx - s * 0.93, cy - s * 0.65, s * 1.86, s * 1.3) && !insideRect(p, cx - s * 0.86, cy - s * 0.58, s * 1.72, s * 1.16)]);
+      Lab.card(cx - s * 0.35, cy - s * 0.45, s * 0.95, s * 0.9, 'rgba(91,156,255,.18)', sel('vacuole') ? '#ffd166' : 'rgba(91,156,255,.6)', s * 0.3);
+      hits.push(['vacuole', p => insideRect(p, cx - s * 0.35, cy - s * 0.45, s * 0.95, s * 0.9)]);
+      [[-0.75, -0.45], [-0.5, -0.45], [-0.75, -0.15], [-0.5, -0.15], [0.74, -0.45], [0.74, 0.45]].forEach(([dx, dy]) => {
+        const x = cx + dx * s, y = cy + dy * s;
+        c.fillStyle = '#4fd18b'; c.strokeStyle = sel('chloro') ? '#ffd166' : '#2f7a52'; c.lineWidth = 2;
+        c.beginPath(); c.ellipse(x, y, s * 0.09, s * 0.05, 0.4, 0, Math.PI * 2); c.fill(); c.stroke();
+        hits.push(['chloro', p => Math.hypot(p[0] - x, p[1] - y) < s * 0.1]);
+      });
+    } else {
+      c.fillStyle = 'rgba(255,143,168,.12)'; c.strokeStyle = sel('membrane') ? '#ffd166' : 'rgba(238,241,250,.75)'; c.lineWidth = sel('membrane') ? 5 : 3;
+      c.beginPath(); c.ellipse(cx, cy, s, s * 0.72, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+      hits.push(['membrane', p => { const d = ((p[0] - cx) / s) ** 2 + ((p[1] - cy) / (s * 0.72)) ** 2; return d < 1.08 && d > 0.85; }]);
+    }
+    // 粒線體
+    (plant ? [[0.74, 0.02], [-0.12, 0.52]] : [[0.55, 0.35], [-0.55, 0.38], [0.6, -0.35]]).forEach(([dx, dy]) => {
+      const x = cx + dx * s, y = cy + dy * s;
+      c.fillStyle = '#ff9f43'; c.strokeStyle = sel('mito') ? '#ffd166' : '#b36b1d'; c.lineWidth = 2;
+      c.beginPath(); c.ellipse(x, y, s * 0.12, s * 0.06, -0.5, 0, Math.PI * 2); c.fill(); c.stroke();
+      hits.push(['mito', p => Math.hypot(p[0] - x, p[1] - y) < s * 0.12]);
+    });
+    // 細胞核
+    const nx = plant ? cx - s * 0.62 : cx - s * 0.1, ny = plant ? cy + s * 0.36 : cy;
+    Lab.circle(nx, ny, s * 0.2, 'rgba(165,139,255,.6)', sel('nucleus') ? '#ffd166' : '#a58bff', 3);
+    hits.push(['nucleus', p => Math.hypot(p[0] - nx, p[1] - ny) < s * 0.2]);
+    hits.push(['cytoplasm', p => plant ? insideRect(p, cx - s * 0.86, cy - s * 0.58, s * 1.72, s * 1.16) : ((p[0] - cx) / s) ** 2 + ((p[1] - cy) / (s * 0.72)) ** 2 < 0.85]);
+    if (interactive) {
+      const L = plant
+        ? [['細胞壁', cx - s * 1.05, cy - s * 0.85], ['液胞', cx + s * 0.15, cy - s * 0.58], ['葉綠體', cx - s * 0.6, cy - s * 0.6], ['細胞核', nx, ny + s * 0.32]]
+        : [['細胞膜', cx + s * 0.75, cy - s * 0.65], ['細胞核', nx, ny + s * 0.32], ['粒線體', cx + s * 0.55, cy + s * 0.55], ['細胞質', cx - s * 0.5, cy - s * 0.3]];
+      L.forEach(([t, x, y]) => Lab.text(t, x, y, 'rgba(238,241,250,.85)', 13, 'center', 'bold'));
+    }
+  }
+  const insideRect = (p, x, y, w, h) => p[0] > x && p[0] < x + w && p[1] > y && p[1] < y + h;
+  Lab.bindGroup('#cellSeg button', k => { S.cell = k; S.part = null; $('partInfo').textContent = '點一下細胞裡的構造。'; });
+
+  /* ---------- 主程式 ---------- */
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.init({
+    draw(ctx, W, H, dt) {
+      if (S.mode === 'judge') drawJudge(ctx, W, H, dt);
+      else if (S.mode === 'level') drawLevel(ctx, W, H, dt);
+      else {
+        const s = Math.min(W * 0.36, H * 0.48);
+        drawCell(ctx, W / 2, H / 2, s, S.cell, true);
+        Lab.text(S.cell === 'plant' ? '植物細胞' : '動物細胞', W / 2, 30, '#4fd18b', 18, 'center', 'bold');
+      }
+    },
+    down(x, y) {
+      if (S.mode !== 'cell') return false;
+      // 先檢查小構造，再檢查大範圍的液胞、膜、細胞質
+      const order = ['nucleus', 'mito', 'chloro', 'vacuole', 'membrane', 'wall', 'cytoplasm'];
+      const h = order.map(k => hits.find(([kk, f]) => kk === k && f([x, y]))).find(Boolean);
+      if (!h) return false;
+      S.part = h[0];
+      const [n, d] = PARTS[h[0]];
+      $('partInfo').innerHTML = `<b>${n}</b>：${d}`;
+      return false;
+    }
+  });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

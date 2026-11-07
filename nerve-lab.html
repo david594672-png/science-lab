@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>生物的協調作用</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="協調作用互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>生物的協調作用</h1>
+  <p class="sub">國一生物 · 神經系統、內分泌系統、植物的向性</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="path" aria-pressed="true">反射與<br>意識</button>
+      <button class="mode" data-k="hormone">神經與<br>激素</button>
+      <button class="mode" data-k="plant">植物的<br>向性</button>
+    </div>
+
+    <div data-mode="path">
+      <div class="group">
+        <div class="seg" style="--n:2" id="pathSeg">
+          <button data-k="reflex" aria-pressed="true">縮手反射</button>
+          <button data-k="conscious" aria-pressed="false">接球（有意識）</button>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn primary grow" id="fireBtn">給刺激 ▶</button></div>
+        <div class="result" id="pathInfo"></div>
+      </div>
+      <div class="group">
+        <div class="group-title">測測你的反應時間</div>
+        <div class="row"><button class="btn grow" id="rtBtn">開始測驗</button></div>
+        <div class="result" id="rtInfo">按「開始測驗」，畫面變綠色時立刻點一下畫面。</div>
+      </div>
+    </div>
+
+    <div data-mode="hormone" hidden>
+      <div class="group">
+        <div class="row"><button class="btn primary grow" id="raceBtn">同時開始 ▶</button></div>
+        <div class="result">
+          <b>神經</b>：訊號沿神經傳導，<b>很快</b>，只傳到特定的器官。<br>
+          <b>激素</b>：內分泌腺把激素分泌到<b>血液</b>，隨血液流到全身，<b>較慢</b>，但作用範圍廣、時間長。
+        </div>
+      </div>
+      <div class="group">
+        <p class="note">例如受到驚嚇時：神經讓你馬上跳開；腎上腺素隨血液流到全身，讓心跳加快一段時間。</p>
+      </div>
+    </div>
+
+    <div data-mode="plant" hidden>
+      <div class="group">
+        <div class="ctrl">
+          <label for="light">光源方向 <output id="lightVal"></output></label>
+          <input type="range" id="light" min="-70" max="70" step="5" value="45">
+        </div>
+        <div class="row">
+          <button class="btn primary grow" id="growBtn">讓它長幾天 ▶</button>
+          <button class="btn" id="resetPlant">重種</button>
+        </div>
+        <label class="sw"><input type="checkbox" id="showAuxin" checked><span class="track"></span>顯示生長素分布</label>
+      </div>
+      <div class="group">
+        <p class="note">莖<b>向光</b>生長（向光性）；根<b>向下</b>生長（向地性）。光照使<b>生長素</b>移到背光的一側，背光側長得比較快，莖就彎向光源。</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  const S = { mode: 'path', kind: 'reflex', fire: -1, rt: null, race: -1, light: 45, bend: 0, target: 0, growing: 0 };
+
+  /* ===== 反射與意識：神經路徑 ===== */
+  const PATHS = {
+    reflex: { steps: ['受器（皮膚）', '感覺神經', '脊髓', '運動神經', '動器（肌肉）'], time: 0.05,
+      info: '縮手反射：<b>受器 → 感覺神經 → 脊髓 → 運動神經 → 動器</b>。不經過大腦，路徑短、反應快，屬於反射。手縮回來之後，訊息才傳到大腦，你才感覺到「好燙」。' },
+    conscious: { steps: ['受器（眼睛）', '感覺神經', '大腦', '脊髓', '運動神經', '動器（肌肉）'], time: 0.25,
+      info: '接球：<b>受器（眼）→ 感覺神經 → 大腦 → 脊髓 → 運動神經 → 動器</b>。大腦要判斷球的位置再下命令，路徑比較長，反應比較慢。' }
+  };
+  Lab.bindGroup('#pathSeg button', k => { S.kind = k; S.fire = -1; $('pathInfo').innerHTML = PATHS[k].info; });
+  $('fireBtn').addEventListener('click', () => { S.fire = 0; });
+
+  function pathPoints(W, H) {
+    const cx = W * 0.5, top = H * 0.12;
+    const brain = { x: cx, y: top + 50 }, spine = { x: cx, y: H * 0.55 };
+    const hand = { x: W * 0.16, y: H * 0.62 }, muscle = { x: W * 0.3, y: H * 0.42 }, eye = { x: cx + 70, y: top + 55 };
+    return S.kind === 'reflex'
+      ? { pts: [hand, { x: W * 0.32, y: H * 0.66 }, spine, { x: W * 0.36, y: H * 0.48 }, muscle], brain, spine, hand, muscle, eye }
+      : { pts: [eye, { x: cx + 40, y: top + 70 }, brain, spine, { x: W * 0.36, y: H * 0.48 }, muscle], brain, spine, hand, muscle, eye };
+  }
+  function drawPath(ctx, W, H, dt) {
+    const P = pathPoints(W, H), steps = PATHS[S.kind].steps;
+    // 身體示意：腦、脊髓、手臂
+    ctx.fillStyle = 'rgba(165,139,255,.25)'; ctx.strokeStyle = '#a58bff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(P.brain.x, P.brain.y, 70, 46, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    Lab.text('大腦', P.brain.x, P.brain.y, '#cdbfff', 16, 'center', 'bold');
+    Lab.line(P.brain.x, P.brain.y + 46, P.spine.x, H * 0.82, 'rgba(165,139,255,.6)', 14);
+    Lab.text('脊髓', P.spine.x + 34, H * 0.7, '#cdbfff', 15, 'left', 'bold');
+    Lab.line(P.spine.x - 30, H * 0.4, P.hand.x + 20, P.hand.y - 10, 'rgba(255,214,176,.25)', 34);   // 手臂
+    Lab.circle(P.hand.x, P.hand.y, 22, 'rgba(255,214,176,.5)');
+    if (S.kind === 'reflex') { Lab.text('🔥', P.hand.x - 10, P.hand.y + 46, '#fff', 30); }
+    else { Lab.circle(P.eye.x, P.eye.y, 14, '#fff', '#4cc9f0', 3); Lab.circle(P.eye.x, P.eye.y, 6, '#0b1020'); Lab.text('⚾', P.eye.x + 120, P.eye.y + 10, '#fff', 30); }
+    Lab.card(P.muscle.x - 34, P.muscle.y - 16, 68, 32, 'rgba(255,93,143,.3)', '#ff5d8f', 16);
+    Lab.text('肌肉', P.muscle.x, P.muscle.y, '#fff', 13, 'center', 'bold');
+    // 路徑
+    const pts = P.pts;
+    for (let i = 0; i < pts.length - 1; i++) Lab.line(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, i === 0 || i === pts.length - 3 ? 'rgba(76,201,240,.55)' : 'rgba(255,209,102,.55)', 4, [8, 6]);
+    // 訊號
+    const total = PATHS[S.kind].time;
+    if (S.fire >= 0) {
+      S.fire += dt * (S.kind === 'reflex' ? 0.9 : 0.36);          // 動畫放慢，但比例保留：反射快、意識慢
+      const f = Math.min(1, S.fire), seg = f * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(seg)), t = seg - i;
+      const x = pts[i].x + (pts[i + 1].x - pts[i].x) * t, y = pts[i].y + (pts[i + 1].y - pts[i].y) * t;
+      Lab.circle(x, y, 16, 'rgba(255,209,102,.3)'); Lab.circle(x, y, 8, '#ffd166');
+      Lab.pill(steps[Math.min(steps.length - 1, Math.round(seg))], x, y - 34, '#ffd166', 14);
+      if (f >= 1) Lab.pill(`完成！約 ${total} 秒`, P.muscle.x, P.muscle.y + 44, '#4fd18b', 15);
+    }
+    // 步驟列
+    // 步驟列：避開左下角的「學習任務／全螢幕」按鈕
+    const left = 200, sw = Math.min(140, (W - left - 16) / steps.length);
+    steps.forEach((s, i) => {
+      const x = left + i * sw + sw / 2, y = H - 34;
+      const on = S.fire >= 0 && Math.min(1, S.fire) * (pts.length - 1) >= i - 0.01;
+      Lab.card(x - sw / 2 + 3, y - 18, sw - 6, 36, on ? 'rgba(255,209,102,.2)' : 'rgba(255,255,255,.04)', on ? '#ffd166' : 'rgba(255,255,255,.12)', 10);
+      Lab.text(s, x, y, on ? '#fff' : 'rgba(238,241,250,.55)', 12);
+    });
+  }
+
+  /* 反應時間測驗：畫面變綠時點一下 */
+  $('rtBtn').addEventListener('click', () => {
+    S.rt = { phase: 'wait', at: performance.now() + 1200 + Math.random() * 2500 };
+    $('rtInfo').textContent = '準備……畫面變綠色時立刻點一下畫面！';
+  });
+  function rtTap() {
+    if (!S.rt) return false;
+    const now = performance.now();
+    if (S.rt.phase === 'wait') { S.rt = null; $('rtInfo').textContent = '太早點了！再試一次。'; return true; }
+    if (S.rt.phase === 'go') {
+      const ms = Math.round(now - S.rt.at);
+      S.rt = { phase: 'done', ms };
+      $('rtInfo').innerHTML = `你的反應時間：<b>${ms} 毫秒</b>（${(ms / 1000).toFixed(2)} 秒）。<br>看到 → 大腦判斷 → 下命令，是有意識的反應，所以比縮手反射（約 0.05 秒）慢。`;
+      return true;
+    }
+    return false;
+  }
+
+  /* ===== 神經與激素賽跑 ===== */
+  $('raceBtn').addEventListener('click', () => { S.race = 0; });
+  function drawHormone(ctx, W, H, dt) {
+    if (S.race >= 0) S.race += dt;
+    const t = Math.max(0, S.race);
+    const midX = W / 2;
+    Lab.line(midX, 30, midX, H - 30, 'rgba(255,255,255,.1)', 1);
+    // 左：神經
+    Lab.text('神經系統', W * 0.25, 34, '#ffd166', 18, 'center', 'bold');
+    const a = { x: W * 0.08, y: H * 0.5 }, b = { x: W * 0.42, y: H * 0.5 };
+    Lab.circle(a.x, a.y, 24, 'rgba(165,139,255,.35)', '#a58bff', 3); Lab.text('腦', a.x, a.y, '#fff', 14, 'center', 'bold');
+    Lab.line(a.x + 24, a.y, b.x - 30, b.y, 'rgba(255,209,102,.6)', 4);
+    Lab.card(b.x - 30, b.y - 18, 60, 36, 'rgba(255,93,143,.3)', '#ff5d8f', 14); Lab.text('肌肉', b.x, b.y, '#fff', 13, 'center', 'bold');
+    if (S.race >= 0) {
+      const f = Math.min(1, t / 0.6);
+      Lab.circle(a.x + 24 + (b.x - 30 - a.x - 24) * f, a.y, 9, '#ffd166');
+      if (f >= 1) Lab.pill('0.6 秒就到了', W * 0.25, H * 0.5 + 60, '#ffd166', 15);
+    }
+    Lab.text('快、只到特定器官', W * 0.25, H - 40, 'rgba(238,241,250,.7)', 14);
+    // 右：激素（血管環 + 多個器官）
+    Lab.text('內分泌系統（激素）', W * 0.75, 34, '#4cc9f0', 18, 'center', 'bold');
+    const cx = W * 0.75, cy = H * 0.5, rx = Math.min(W * 0.2, 200), ry = Math.min(H * 0.3, 180);
+    ctx.strokeStyle = 'rgba(255,93,143,.45)'; ctx.lineWidth = 14;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    Lab.text('血液循環', cx, cy, 'rgba(255,143,168,.8)', 13);
+    const gland = { x: cx - rx, y: cy };
+    Lab.circle(gland.x, gland.y, 20, '#4cc9f0'); Lab.text('腺體', gland.x - 44, gland.y, '#4cc9f0', 13, 'center', 'bold');
+    const organs = [0.6, 1.4, 2.2, 3.0, 3.8, 4.6].map((ang, i) => ({ ang, name: ['心臟', '肝臟', '肌肉', '腎臟', '皮膚', '腸'][i] }));
+    organs.forEach(o => {
+      const x = cx + Math.cos(Math.PI + o.ang) * (rx + 34), y = cy + Math.sin(Math.PI + o.ang) * (ry + 30);
+      const reached = S.race >= 0 && t > 1.2 + o.ang * 1.1;
+      Lab.card(x - 26, y - 14, 52, 28, reached ? 'rgba(76,201,240,.3)' : 'rgba(255,255,255,.04)', reached ? '#4cc9f0' : 'rgba(255,255,255,.2)', 12);
+      Lab.text(o.name, x, y, reached ? '#fff' : 'rgba(238,241,250,.5)', 12);
+    });
+    if (S.race >= 0) {
+      for (let i = 0; i < 26; i++) {                       // 激素分子隨血液慢慢擴散
+        const born = i * 0.18; if (t < born) continue;
+        const ang = Math.PI + (t - born) * 0.9;
+        ctx.globalAlpha = Math.max(0, 1 - (t - born) / 9);
+        Lab.circle(cx + Math.cos(ang) * rx, cy + Math.sin(ang) * ry, 5, '#4cc9f0');
+        ctx.globalAlpha = 1;
+      }
+      Lab.pill(`已經 ${t.toFixed(1)} 秒`, cx, cy + ry + 60, '#4cc9f0', 14);
+    }
+    Lab.text('慢、隨血液到全身、作用久', W * 0.75, H - 40, 'rgba(238,241,250,.7)', 14);
+  }
+
+  /* ===== 植物的向性 ===== */
+  Lab.bindSlider('light', v => { S.light = v; }, v => v === 0 ? '正上方' : (v < 0 ? `左上 ${-v}°` : `右上 ${v}°`));
+  $('growBtn').addEventListener('click', () => { S.growing = 3; });
+  $('resetPlant').addEventListener('click', () => { S.bend = 0; S.growing = 0; });
+  function drawPlant(ctx, W, H, dt) {
+    const target = S.light * Math.PI / 180 * 0.9;
+    if (S.growing > 0) { S.growing -= dt; S.bend += (target - S.bend) * Math.min(1, dt * 0.8); }
+    const ground = H * 0.66, bx = W / 2;
+    ctx.fillStyle = 'rgba(138,106,74,.35)'; ctx.fillRect(0, ground, W, H - ground);
+    Lab.line(0, ground, W, ground, '#8a6a4a', 3);
+    // 光源
+    const la = S.light * Math.PI / 180, lx = bx + Math.sin(la) * H * 0.55, ly = ground - Math.cos(la) * H * 0.55;
+    Lab.circle(lx, ly, 26, '#ffd166'); Lab.text('☀', lx, ly, '#b36b1d', 22);
+    for (let i = -2; i <= 2; i++) Lab.line(lx + i * 10, ly + 30, bx + i * 18, ground - 160, 'rgba(255,209,102,.18)', 2);
+    // 莖：越往上越彎
+    const len = H * 0.36, n = 24, pts = [];
+    let x = bx, y = ground, ang = 0;
+    for (let i = 0; i <= n; i++) { pts.push([x, y]); ang = S.bend * (i / n); x += Math.sin(ang) * len / n; y -= Math.cos(ang) * len / n; }
+    ctx.strokeStyle = '#7ec850'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath();
+    pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke();
+    const [tx, ty] = pts[n];
+    ctx.fillStyle = '#4fd18b'; ctx.beginPath(); ctx.ellipse(tx - 14, ty, 16, 7, -0.4 + ang, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(tx + 14, ty, 16, 7, 0.4 + ang, 0, Math.PI * 2); ctx.fill();
+    // 生長素：集中在背光的一側
+    if ($('showAuxin').checked && Math.abs(S.light) > 2) {
+      const side = S.light > 0 ? -1 : 1;
+      for (let i = 4; i < n; i += 3) {
+        const [px, py] = pts[i], a2 = S.bend * (i / n);
+        Lab.circle(px + side * Math.cos(a2) * 9, py + side * Math.sin(a2) * 9, 4, '#ff9f43');   // 莖的垂直方向偏移到背光側
+      }
+      Lab.pill('生長素（背光側）', bx + side * 120, ground - len * 0.55, '#ff9f43', 13);
+    }
+    // 根：向地性
+    ctx.strokeStyle = '#e9d8b4'; ctx.lineWidth = 4;
+    [[0, 1], [-0.5, 0.7], [0.5, 0.7]].forEach(([dx, k]) => { ctx.beginPath(); ctx.moveTo(bx, ground); ctx.quadraticCurveTo(bx + dx * 50, ground + 40 * k, bx + dx * 30, ground + 110 * k); ctx.stroke(); });
+    Lab.text('根：向地性（往下長）', bx, H - 26, '#e9d8b4', 14);
+    Lab.text(S.growing > 0 ? '生長中……' : `莖彎曲 ${Math.round(Math.abs(S.bend) * 180 / Math.PI)}°`, 24, 30, '#7ec850', 15, 'left', 'bold');
+  }
+
+  /* ===== 主程式 ===== */
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.init({
+    draw(ctx, W, H, dt, t) {
+      if (S.rt && S.rt.phase !== 'done') {
+        if (S.rt.phase === 'wait' && performance.now() >= S.rt.at) { S.rt.phase = 'go'; S.rt.at = performance.now(); }
+        ctx.fillStyle = S.rt.phase === 'go' ? '#1f9d5a' : '#3a1d2a'; ctx.fillRect(0, 0, W, H);
+        Lab.text(S.rt.phase === 'go' ? '現在！點一下！' : '等畫面變綠色……', W / 2, H / 2, '#fff', 32, 'center', 'bold');
+        return;
+      }
+      if (S.mode === 'path') drawPath(ctx, W, H, dt);
+      else if (S.mode === 'hormone') drawHormone(ctx, W, H, dt);
+      else drawPlant(ctx, W, H, dt);
+    },
+    down() { rtTap(); return false; }
+  });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

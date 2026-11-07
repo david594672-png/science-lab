@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>地球上的生物</title>
+<link rel="stylesheet" href="lab-kit.css">
+</head>
+<body>
+<canvas id="cv" aria-label="生物分類互動畫面"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g7">← 回課程總覽</a>
+  <h1>地球上的生物</h1>
+  <p class="sub">國一生物 · 檢索表、五界、分類階層與學名</p>
+
+  <div class="body">
+    <div class="modes" style="--n:2">
+      <button class="mode" data-k="key" aria-pressed="true">二分法<br>檢索表</button>
+      <button class="mode" data-k="rank">分類階層<br>與學名</button>
+    </div>
+
+    <div data-mode="key">
+      <div class="group">
+        <div class="group-title">選一種生物</div>
+        <div class="chips" style="--n:4" id="orgs"></div>
+      </div>
+      <div class="group">
+        <div class="result" id="question"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary grow" id="yesBtn">是</button>
+          <button class="btn grow" id="noBtn">否</button>
+          <button class="btn" id="restartBtn">重來</button>
+        </div>
+      </div>
+      <div class="group">
+        <p class="note">檢索表每一題只有「是／否」兩個選項（二分法），一題一題縮小範圍，最後找到生物屬於哪一<b>界</b>。</p>
+      </div>
+    </div>
+
+    <div data-mode="rank" hidden>
+      <div class="group">
+        <div class="group-title">生物 A</div>
+        <div class="chips" style="--n:3" id="rankA"></div>
+        <div class="group-title" style="margin-top:12px">生物 B</div>
+        <div class="chips" style="--n:3" id="rankB"></div>
+      </div>
+      <div class="group">
+        <div class="result" id="rankInfo"></div>
+      </div>
+      <div class="group">
+        <p class="note">分類階層由大到小：<b>界、門、綱、目、科、屬、種</b>。兩種生物相同的階層越多（越往下），親緣關係越近。學名用<b>二名法</b>：屬名 + 種小名，例如人是 <i>Homo sapiens</i>。</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const { $ } = Lab;
+  /* ===== 二分法檢索表 ===== */
+  // 節點：q 題目、yes/no 下一個節點（字串 = 界名）
+  const KEY = {
+    q1: { q: '細胞有細胞核嗎？', yes: 'q2', no: '原核生物界' },
+    q2: { q: '能行光合作用嗎？', yes: 'q3', no: 'q4' },
+    q3: { q: '有根、莖、葉等器官的分化嗎？', yes: '植物界', no: '原生生物界' },
+    q4: { q: '細胞有細胞壁，靠「吸收」獲得養分嗎？', yes: '真菌界', no: 'q5' },
+    q5: { q: '是單細胞生物嗎？', yes: '原生生物界', no: '動物界' }
+  };
+  const KC = { '原核生物界': '#a58bff', '原生生物界': '#4cc9f0', '真菌界': '#ffd166', '植物界': '#4fd18b', '動物界': '#ff8fa8' };
+  // 每種生物對各題的正確答案
+  const ORGS = [
+    { k: 'ecoli', e: '🦠', n: '大腸桿菌', a: { q1: 0 }, ans: '原核生物界' },
+    { k: 'blue', e: '🟢', n: '藍綠菌', a: { q1: 0 }, ans: '原核生物界' },
+    { k: 'para', e: '🫧', n: '草履蟲', a: { q1: 1, q2: 0, q4: 0, q5: 1 }, ans: '原生生物界' },
+    { k: 'alga', e: '🌊', n: '水綿（藻類）', a: { q1: 1, q2: 1, q3: 0 }, ans: '原生生物界' },
+    { k: 'mush', e: '🍄', n: '香菇', a: { q1: 1, q2: 0, q4: 1 }, ans: '真菌界' },
+    { k: 'yeast', e: '🍞', n: '酵母菌', a: { q1: 1, q2: 0, q4: 1 }, ans: '真菌界' },
+    { k: 'fern', e: '🌿', n: '蕨類', a: { q1: 1, q2: 1, q3: 1 }, ans: '植物界' },
+    { k: 'rose', e: '🌹', n: '玫瑰', a: { q1: 1, q2: 1, q3: 1 }, ans: '植物界' },
+    { k: 'snail', e: '🐌', n: '蝸牛', a: { q1: 1, q2: 0, q4: 0, q5: 0 }, ans: '動物界' },
+    { k: 'frog', e: '🐸', n: '青蛙', a: { q1: 1, q2: 0, q4: 0, q5: 0 }, ans: '動物界' },
+    { k: 'coral', e: '🪸', n: '珊瑚', a: { q1: 1, q2: 0, q4: 0, q5: 0 }, ans: '動物界' },
+    { k: 'mold', e: '🍊', n: '橘子上的黴菌', a: { q1: 1, q2: 0, q4: 1 }, ans: '真菌界' }
+  ];
+  const S = { mode: 'key', org: ORGS[0], node: 'q1', path: [], a: 'human', b: 'chimp' };
+
+  $('orgs').innerHTML = ORGS.map((o, i) => `<button class="btn" data-k="${o.k}" aria-pressed="${i === 0}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:58px;gap:2px"><span style="font-size:1.25rem">${o.e}</span><span style="font-size:.72rem">${o.n}</span></button>`).join('');
+  Lab.bindGroup('#orgs .btn', k => { S.org = ORGS.find(o => o.k === k); restart(); });
+  function restart() { S.node = 'q1'; S.path = []; showQ(); }
+  function answer(yes) {
+    if (!KEY[S.node]) return;
+    S.path.push([S.node, yes]);
+    S.node = yes ? KEY[S.node].yes : KEY[S.node].no;
+    showQ();
+  }
+  function showQ() {
+    const o = S.org;
+    if (KEY[S.node]) {
+      $('question').innerHTML = `<b>${o.e} ${o.n}</b><br>第 ${S.path.length + 1} 題：${KEY[S.node].q}`;
+      $('yesBtn').disabled = $('noBtn').disabled = false;
+    } else {
+      const ok = S.node === o.ans;
+      const wrong = S.path.find(([q, y]) => q in o.a && !!o.a[q] !== y);
+      $('question').innerHTML = `<b>${o.e} ${o.n} → ${S.node}</b><br>` + (ok
+        ? '✓ 答對了！'
+        : `✗ 正確答案是「${o.ans}」。再想想這題：${KEY[wrong ? wrong[0] : 'q1'].q}`);
+      $('yesBtn').disabled = $('noBtn').disabled = true;
+    }
+  }
+  $('yesBtn').addEventListener('click', () => answer(true));
+  $('noBtn').addEventListener('click', () => answer(false));
+  $('restartBtn').addEventListener('click', restart);
+
+  function drawKey(ctx, W, H) {
+    // 檢索樹的位置（相對座標）
+    const P = {
+      q1: [0.5, 0.1], '原核生物界': [0.14, 0.32], q2: [0.62, 0.3],
+      q3: [0.36, 0.52], q4: [0.82, 0.5], '植物界': [0.2, 0.78], 'pro1': [0.5, 0.78],
+      '真菌界': [0.66, 0.74], q5: [0.88, 0.7], 'pro2': [0.74, 0.93], '動物界': [0.95, 0.93]
+    };
+    const pos = k => ({ x: 30 + P[k][0] * (W - 60), y: 30 + P[k][1] * (H - 60) });
+    const EDGES = [['q1', '原核生物界', '否'], ['q1', 'q2', '是'], ['q2', 'q3', '是'], ['q2', 'q4', '否'], ['q3', '植物界', '是'], ['q3', 'pro1', '否'],
+      ['q4', '真菌界', '是'], ['q4', 'q5', '否'], ['q5', 'pro2', '是'], ['q5', '動物界', '否']];
+    const taken = new Set(S.path.map(([q, y]) => q + (y ? '是' : '否')));
+    EDGES.forEach(([a, b, lab]) => {
+      const A = pos(a), B = pos(b), on = taken.has(a + lab);
+      Lab.line(A.x, A.y, B.x, B.y, on ? '#ffd166' : 'rgba(238,241,250,.18)', on ? 4 : 2);
+      Lab.text(lab, (A.x + B.x) / 2 + 10, (A.y + B.y) / 2, on ? '#ffd166' : 'rgba(238,241,250,.45)', 13, 'center', 'bold');
+    });
+    Object.keys(P).forEach(k => {
+      const p = pos(k), isQ = !!KEY[k];
+      const name = k.startsWith('pro') ? '原生生物界' : k;
+      const cur = S.node === k || (S.node === '原生生物界' && ((k === 'pro1' && S.path.some(([q]) => q === 'q3')) || (k === 'pro2' && S.path.some(([q]) => q === 'q5'))));
+      if (isQ) {
+        ctx.font = `bold 13px ${Lab.FONT}`;
+        const w = Math.min(230, ctx.measureText(KEY[k].q).width + 24);
+        Lab.card(p.x - w / 2, p.y - 20, w, 40, cur ? 'rgba(255,209,102,.25)' : 'rgba(255,255,255,.05)', cur ? '#ffd166' : 'rgba(255,255,255,.2)', 12);
+        Lab.text(KEY[k].q, p.x, p.y, '#eef1fa', 13, 'center', 'bold');
+      } else {
+        const c = KC[name];
+        Lab.card(p.x - 58, p.y - 20, 116, 40, cur ? c + '55' : c + '1a', c, 20);
+        Lab.text(name, p.x, p.y, cur ? '#fff' : c, 14, 'center', 'bold');
+      }
+    });
+    Lab.text(`${S.org.e} ${S.org.n}`, 30, 30, '#fff', 20, 'left', 'bold');
+  }
+
+  /* ===== 分類階層 ===== */
+  const RANKS = ['界', '門', '綱', '目', '科', '屬', '種'];
+  const TAXA = {
+    human: { n: '人', e: '🧑', sci: 'Homo sapiens', t: ['動物界', '脊索動物門', '哺乳綱', '靈長目', '人科', '人屬', '智人'] },
+    chimp: { n: '黑猩猩', e: '🐒', sci: 'Pan troglodytes', t: ['動物界', '脊索動物門', '哺乳綱', '靈長目', '人科', '黑猩猩屬', '黑猩猩'] },
+    cat: { n: '家貓', e: '🐱', sci: 'Felis catus', t: ['動物界', '脊索動物門', '哺乳綱', '食肉目', '貓科', '貓屬', '家貓'] },
+    lion: { n: '獅子', e: '🦁', sci: 'Panthera leo', t: ['動物界', '脊索動物門', '哺乳綱', '食肉目', '貓科', '豹屬', '獅'] },
+    tiger: { n: '老虎', e: '🐯', sci: 'Panthera tigris', t: ['動物界', '脊索動物門', '哺乳綱', '食肉目', '貓科', '豹屬', '虎'] },
+    chicken: { n: '雞', e: '🐔', sci: 'Gallus gallus', t: ['動物界', '脊索動物門', '鳥綱', '雞形目', '雉科', '原雞屬', '原雞'] }
+  };
+  const chipsFor = (id, sel) => {
+    $(id).innerHTML = Object.entries(TAXA).map(([k, v]) => `<button class="btn" data-k="${k}" aria-pressed="${k === sel}">${v.e} ${v.n}</button>`).join('');
+  };
+  chipsFor('rankA', S.a); chipsFor('rankB', S.b);
+  Lab.bindGroup('#rankA .btn', k => { S.a = k; rankInfo(); });
+  Lab.bindGroup('#rankB .btn', k => { S.b = k; rankInfo(); });
+  function shared() { const A = TAXA[S.a].t, B = TAXA[S.b].t; let n = 0; while (n < 7 && A[n] === B[n]) n++; return n; }
+  function rankInfo() {
+    const n = shared(), A = TAXA[S.a], B = TAXA[S.b];
+    $('rankInfo').innerHTML = S.a === S.b ? '選兩種不同的生物來比較。'
+      : `<b>${A.n}</b> 和 <b>${B.n}</b> 一直到「${RANKS[n - 1]}」都相同（同${RANKS[n - 1]}：${A.t[n - 1]}），共 <b>${n}</b> 層。<br>` +
+        (n >= 6 ? '同屬，親緣關係非常近。' : n >= 5 ? '同科，親緣關係很近。' : n >= 4 ? '同目，親緣關係算近。' : '只有到比較上層才相同，親緣關係較遠。');
+  }
+  function drawRank(ctx, W, H) {
+    const A = TAXA[S.a], B = TAXA[S.b], n = shared();
+    const top = 70, rowH = Math.min(62, (H - top - 80) / 7), cw = Math.min(260, W * 0.3), gap = 20;
+    const xA = W / 2 - cw - gap / 2 - 30, xB = W / 2 + gap / 2 - 30, xr = xA - 64;
+    Lab.text(`${A.e} ${A.n}`, xA + cw / 2, top - 30, '#4cc9f0', 20, 'center', 'bold');
+    Lab.text(`${B.e} ${B.n}`, xB + cw / 2, top - 30, '#ff8fa8', 20, 'center', 'bold');
+    RANKS.forEach((r, i) => {
+      const y = top + i * rowH, same = i < n;
+      // 漏斗：越往下越窄，代表範圍越小
+      Lab.text(r, xr + 30, y + rowH / 2, 'rgba(238,241,250,.7)', 16, 'center', 'bold');
+      if (same && S.a !== S.b) {
+        Lab.card(xA, y + 4, cw * 2 + gap, rowH - 8, 'rgba(79,209,139,.2)', '#4fd18b', 12);
+        Lab.text(A.t[i], xA + cw + gap / 2, y + rowH / 2, '#fff', 16, 'center', 'bold');
+      } else {
+        Lab.card(xA, y + 4, cw, rowH - 8, 'rgba(76,201,240,.1)', 'rgba(76,201,240,.5)', 12);
+        Lab.card(xB, y + 4, cw, rowH - 8, 'rgba(255,143,168,.1)', 'rgba(255,143,168,.5)', 12);
+        Lab.text(A.t[i], xA + cw / 2, y + rowH / 2, '#eef1fa', 15);
+        Lab.text(B.t[i], xB + cw / 2, y + rowH / 2, '#eef1fa', 15);
+      }
+    });
+    const yS = top + 7 * rowH + 30;
+    Lab.text(`學名：${A.sci}`, xA + cw / 2, yS, '#4cc9f0', 15, 'center', 'italic');
+    Lab.text(`學名：${B.sci}`, xB + cw / 2, yS, '#ff8fa8', 15, 'center', 'italic');
+    Lab.text('（屬名 + 種小名）', W / 2 - 30, yS + 26, 'rgba(238,241,250,.5)', 12);
+  }
+
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); if (k === 'rank') rankInfo(); });
+  restart();
+  Lab.init({ draw(ctx, W, H) { S.mode === 'key' ? drawKey(ctx, W, H) : drawRank(ctx, W, H); } });
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>

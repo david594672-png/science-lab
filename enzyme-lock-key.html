@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="bio">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -130,6 +130,7 @@
     .panel { grid-template-columns: 1fr; padding: 18px; }
   }
 </style>
+<link rel="stylesheet" href="subject-theme.css">
 </head>
 <body>
 <div class="wrap">
@@ -424,7 +425,7 @@ function draw() {
 
 /* ----- 背景 ----- */
 function drawBackground() {
-  background('#faf8f3');
+  background('#f4f8ee');
   noStroke(); fill('#ece7dc');
   for (let x = 20; x < LW; x += 32) for (let y = 20; y < LH; y += 32) circle(x, y, 2.4);
 }
