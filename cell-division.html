@@ -74,22 +74,43 @@ const CHR = [
   { len: 0.55, color: 0x4d8dff, pair: 'B', from: '父' },
   { len: 0.55, color: 0xff5d6c, pair: 'B', from: '母' }
 ];
-const R = 0.11;
+const R = 0.085;
+// 染色體上的橫紋（像染色後看到的深淺帶）
+const bandTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = 4; cv.height = 64; const g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 4, 64);
+  [[6, 3], [14, 5], [24, 2], [31, 4], [40, 3], [47, 6], [57, 3]].forEach(([y, hh]) => { g.fillStyle = 'rgba(0,0,0,.42)'; g.fillRect(0, y, 4, hh); });
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+// 染色分體：兩端微微向外彎，兩條併在一起就成 X 形
+function chromatidGeo(len, dir) {
+  const g = new THREE.CapsuleGeometry(R, len, 8, 14), p = g.attributes.position, half = len / 2 + R;
+  for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setX(i, p.getX(i) + dir * 0.17 * (y / half) ** 2 - dir * 0.045); }
+  g.computeVertexNormals(); return g;
+}
 const chromatids = [];            // [chr][sister]
 CHR.forEach((c, i) => {
   chromatids[i] = [0, 1].map(j => {
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(R, c.len, 6, 12), L.mat(c.color, { roughness: 0.4 }));
+    const m = new THREE.Mesh(chromatidGeo(c.len, j ? 1 : -1), new THREE.MeshPhysicalMaterial({ color: c.color, map: bandTex, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3 }));
     scene.add(m); return m;
   });
-  c.cen = new THREE.Mesh(new THREE.SphereGeometry(R * 1.25, 12, 8), L.mat(0xf2f2f2));
+  c.cen = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 14, 10), L.mat(0xe8e2d0));
   scene.add(c.cen);
 });
 const pairLabels = ['A', 'B'].map(p => L.label('同源染色體 ' + p, () => null));
 
 // 細胞膜（最多 4 個）、細胞核
-const cellMat = () => L.mat(0x8fe0b0, { transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide });
-const cells = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), cellMat()); scene.add(m); return m; });
-const nuclei = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), L.mat(0xc7a6ff, { transparent: true, opacity: 0.14, depthWrite: false })); scene.add(m); return m; });
+// 膜：邊緣亮、中間透明（像顯微鏡下看到的細胞膜）
+const membrane = (color, base, k) => new THREE.ShaderMaterial({
+  uniforms: { c: { value: new THREE.Color(color) }, base: { value: base }, k: { value: k }, op: { value: 1 } },
+  vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+  fragmentShader: 'uniform vec3 c; uniform float base, k, op; varying vec3 vN; varying vec3 vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.4); gl_FragColor = vec4(c, (base + k * f) * op); }',
+  transparent: true, depthWrite: false, side: THREE.DoubleSide
+});
+const cells = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), membrane(0x9ff0c0, 0.015, 0.6)); scene.add(m); return m; });
+const nuclei = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 24), membrane(0xc7a6ff, 0.08, 0.6)); scene.add(m); return m; });
+// 中心體（紡錘體的兩極）
+const centro = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 10), L.glow(0xfff2a8)); scene.add(m); return m; });
 // 紡錘絲
 const spindle = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xd8f5e4, transparent: true, opacity: 0.45 }));
 scene.add(spindle);
@@ -188,11 +209,12 @@ function frame(dt) {
     const src = h0 || h1, dst = h1 || h0;
     m.position.copy(src[0]).lerp(dst[0], f);
     m.scale.setScalar(THREE.MathUtils.lerp(src[1], dst[1], f));
-    m.material.opacity = op;
+    m.material.uniforms.op.value = op / 0.14;
   });
   // 紡錘絲：兩極連到每條染色體的著絲點／染色分體
   const poles = (f < 0.5 ? k0.poles : k1.poles) || null;
   spindle.visible = !!poles && $('showSpindle').checked;
+  centro.forEach((m, ci) => { const pp = poles && poles[ci >> 1]; m.visible = !!pp; if (pp) m.position.copy(pp[ci & 1]); });
   if (spindle.visible) {
     const pts = [];
     poles.forEach(([p0, p1]) => {

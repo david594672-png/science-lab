@@ -67,89 +67,123 @@
   }
   const coldLeft = () => S.kind !== 'warm';        // 冷氣團在左邊？
 
-  function cloud(ctx, x, y, r, a = 0.9) {
-    ctx.fillStyle = `rgba(235,240,248,${a})`;
-    [[0, 0, 1], [-0.8, 0.2, 0.7], [0.8, 0.25, 0.75], [-0.3, -0.45, 0.7], [0.4, -0.4, 0.65]].forEach(([dx, dy, s]) => { ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, r * s, 0, Math.PI * 2); ctx.fill(); });
+  // 積雨雲：高聳的雲塔＋頂部平展的雲砧
+  function cbCloud(ctx, x, base, topY) {
+    const hgt = base - topY;
+    ctx.fillStyle = Lab.lg(0, topY, 0, base + 10, ['#f4f7fb', '#cfd7e3', '#6f7a8c']);
+    ctx.beginPath(); ctx.ellipse(x + 20, topY + 14, 120, 18, 0, 0, Math.PI * 2); ctx.fill();          // 雲砧
+    for (let k = 0; k < 9; k++) {
+      const f = k / 8, r = 30 + 18 * Math.sin(f * Math.PI), yy = base - f * hgt * 0.9, xx = x + Math.sin(k * 1.7) * 18;
+      ctx.beginPath(); ctx.arc(xx - r * 0.5, yy, r, 0, Math.PI * 2); ctx.arc(xx + r * 0.6, yy + 4, r * 0.85, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(60,70,90,.55)'; ctx.beginPath(); ctx.ellipse(x, base + 6, 70, 14, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  // 層狀雲：扁長、灰白
+  function stCloud(ctx, x, y, len, a = 0.85) {
+    ctx.fillStyle = Lab.lg(0, y - 16, 0, y + 14, [`rgba(236,240,247,${a})`, `rgba(150,160,178,${a})`]);
+    ctx.beginPath(); ctx.ellipse(x, y, len, 14, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x - len * 0.3, y - 8, len * 0.5, 11, 0, 0, Math.PI * 2); ctx.fill();
   }
   function rain(ctx, x0, x1, top, t, heavy) {
-    ctx.strokeStyle = heavy ? 'rgba(120,180,255,.9)' : 'rgba(150,195,255,.6)';
-    ctx.lineWidth = heavy ? 2 : 1.3;
-    const step = heavy ? 9 : 16;
+    ctx.strokeStyle = heavy ? 'rgba(160,200,255,.85)' : 'rgba(170,205,255,.55)';
+    ctx.lineWidth = heavy ? 1.8 : 1.2;
+    const step = heavy ? 7 : 13, sp = heavy ? 420 : 240;
     for (let x = x0; x < x1; x += step) {
       for (let k = 0; k < 3; k++) {
-        const y = top + ((t * (heavy ? 260 : 160) + x * 7 + k * 60) % (G - top));
-        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + (heavy ? 12 : 8)); ctx.stroke();
+        const y = top + ((t * sp + x * 37 + k * 97) % (G - top));
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 3, y + (heavy ? 14 : 9)); ctx.stroke();
       }
+      if (((x * 13) | 0) % 3 === 0) { const ph = (t * 3 + x) % 1; ctx.strokeStyle = `rgba(200,225,255,${0.5 * (1 - ph)})`; ctx.beginPath(); ctx.ellipse(x, G - 2, 3 + ph * 6, 1.5 + ph * 2, 0, Math.PI, 0); ctx.stroke(); ctx.strokeStyle = heavy ? 'rgba(160,200,255,.85)' : 'rgba(170,205,255,.55)'; }
     }
+  }
+  function house(ctx, x, y, wd, col, roof) {
+    ctx.fillStyle = col; ctx.fillRect(x - wd / 2, y - wd * 0.75, wd, wd * 0.75);
+    ctx.fillStyle = roof; ctx.beginPath(); ctx.moveTo(x - wd * 0.62, y - wd * 0.75); ctx.lineTo(x, y - wd * 1.25); ctx.lineTo(x + wd * 0.62, y - wd * 0.75); ctx.fill();
+    ctx.fillStyle = '#ffe9a6'; ctx.fillRect(x - wd * 0.3, y - wd * 0.55, wd * 0.2, wd * 0.2); ctx.fillRect(x + wd * 0.1, y - wd * 0.55, wd * 0.2, wd * 0.2);
+    ctx.fillStyle = '#6b4a2b'; ctx.fillRect(x - wd * 0.08, y - wd * 0.3, wd * 0.16, wd * 0.3);
   }
 
   function draw(ctx, w, h, dt, t) {
-    W = w; H = h; G = h * 0.72;
+    W = w; H = h; G = h * 0.7;
     if (S.play) {
       const v = S.kind === 'cold' ? 0.05 : S.kind === 'warm' ? 0.03 : 0;
       S.x = Math.min(0.95, S.x + v * dt);
       if (S.kind === 'stat') S.x = 0.5 + Math.sin(t * 0.6) * 0.01;
       if (S.x >= 0.95) S.play = false, playBtn();
     }
-    const fx = S.x * W, top = 30;
-    // 天空
-    ctx.fillStyle = '#16233a'; ctx.fillRect(0, 0, W, G);
-    // 兩個氣團
+    const fx = S.x * W, top = 0;
     const cl = coldLeft();
+    // 雲與雨的範圍（先算，天空亮度要用）
+    let rainX0, rainX1, heavy;
+    if (S.kind === 'cold') { rainX0 = fx - 40; rainX1 = fx + 60; heavy = true; }
+    else if (S.kind === 'warm') { rainX0 = fx + 10; rainX1 = fx + W * 0.25; heavy = false; }
+    else { rainX0 = fx - W * 0.2; rainX1 = fx + 20; heavy = false; }
+    // 天空
+    ctx.fillStyle = Lab.lg(0, 0, 0, G, ['#25456f', '#4f7fae', '#9cc2df']); ctx.fillRect(0, 0, W, G);
+    const shade = Lab.lg(rainX0 - 120, 0, rainX1 + 120, 0, [[0, 'rgba(20,28,45,0)'], [0.3, 'rgba(20,28,45,.45)'], [0.7, 'rgba(20,28,45,.45)'], [1, 'rgba(20,28,45,0)']]);
+    ctx.fillStyle = shade; ctx.fillRect(0, 0, W, G);
+    // 遠山
+    ctx.fillStyle = 'rgba(40,70,80,.55)'; ctx.beginPath(); ctx.moveTo(0, G);
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, G - 30 - 22 * Math.sin(x / 110) - 10 * Math.sin(x / 37));
+    ctx.lineTo(W, G); ctx.fill();
+    // 兩個氣團（漸層，越靠地面越濃）
     const poly = [];
     for (let hh = 0; hh <= G - top; hh += 6) poly.push([frontX(fx, hh), G - hh]);
-    // 冷空氣區（藍）
     ctx.beginPath();
     if (cl) { ctx.moveTo(0, G); poly.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(0, top); }
     else { ctx.moveTo(W, G); poly.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(W, top); }
-    ctx.closePath(); ctx.fillStyle = 'rgba(70,140,255,.28)'; ctx.fill();
-    // 暖空氣區（橘）
+    ctx.closePath(); ctx.fillStyle = Lab.lg(0, top, 0, G, ['rgba(60,130,255,.12)', 'rgba(60,130,255,.42)']); ctx.fill();
     ctx.beginPath();
     if (cl) { ctx.moveTo(W, G); ctx.lineTo(fx, G); poly.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(W, top); }
     else { ctx.moveTo(0, G); ctx.lineTo(fx, G); poly.forEach(([x, y]) => ctx.lineTo(x, y)); ctx.lineTo(0, top); }
-    ctx.closePath(); ctx.fillStyle = 'rgba(255,140,70,.22)'; ctx.fill();
-    // 鋒面線
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
-    // 暖空氣爬升箭頭（沿鋒面）
-    const along = k => { const i = Math.min(poly.length - 1, Math.floor(k * poly.length)); return poly[i]; };
-    const [ax, ay] = along(0.15), [bx, by] = along(0.55);
-    const off = cl ? 30 : -30;
-    Lab.arrow(ax + off, ay - 10, bx + off * 0.6, by - 10, '#ffa64d', 4, 14);
-    // 氣團推進箭頭
-    const push = (S.kind === 'stat') ? 0 : 1;
-    if (push) {
-      if (cl) Lab.arrow(fx - 170, G - 40, fx - 60, G - 40, '#7fb2ff', 5, 16);
-      else Lab.arrow(fx - 160, G - 60, fx - 50, G - 60, '#ffa64d', 5, 16);
-    } else { Lab.arrow(fx - 150, G - 40, fx - 60, G - 40, '#7fb2ff', 4, 14); Lab.arrow(fx + 150, G - 40, fx + 60, G - 40, '#ffa64d', 4, 14); }
-    Lab.text(cl ? '冷氣團' : '暖氣團', Math.max(70, fx - 230), G - 90, cl ? '#9cc4ff' : '#ffc08a', 18, 'center', 'bold');
-    Lab.text(cl ? '暖氣團' : '冷氣團', Math.min(W - 70, fx + (cl ? 200 : 330)), G - 90, cl ? '#ffc08a' : '#9cc4ff', 18, 'center', 'bold');
-
-    // 雲與雨
-    let rainX0, rainX1, heavy;
-    if (S.kind === 'cold') {
-      // 積雨雲：鋒面正上方、高大
-      for (let k = 0; k < 5; k++) cloud(ctx, fx + 10 + (k % 2) * 25, G * 0.25 + k * 28, 34 - k * 2);
-      rainX0 = fx - 40; rainX1 = fx + 50; heavy = true;
-    } else if (S.kind === 'warm') {
-      // 層狀雲：沿緩坡往前延伸
-      for (let k = 0; k < 9; k++) { const [x, y] = along(0.08 + k * 0.1); cloud(ctx, x, y - 26, 26, 0.75); }
-      rainX0 = fx + 10; rainX1 = fx + W * 0.25; heavy = false;
-    } else {
-      for (let k = 0; k < 7; k++) { const [x, y] = along(0.05 + k * 0.1); cloud(ctx, x, y - 24, 28, 0.85); }
-      rainX0 = fx - W * 0.2; rainX1 = fx + 20; heavy = false;
+    ctx.closePath(); ctx.fillStyle = Lab.lg(0, top, 0, G, ['rgba(255,140,60,.1)', 'rgba(255,140,60,.34)']); ctx.fill();
+    // 鋒面線（發光）
+    ctx.save(); ctx.shadowColor = '#fff'; ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 3; ctx.setLineDash([10, 6]); ctx.beginPath(); poly.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); ctx.setLineDash([]);
+    ctx.restore();
+    Lab.pill('鋒面', poly[Math.floor(poly.length * 0.75)][0] + (cl ? -36 : 36), poly[Math.floor(poly.length * 0.75)][1], '#ffffff', 12);
+    // 暖空氣沿鋒面爬升（流動的小箭頭）
+    const along = k => { const i = Math.max(0, Math.min(poly.length - 1, Math.floor(k * poly.length))); return poly[i]; };
+    const off = cl ? 26 : -26;
+    for (let i = 0; i < 10; i++) {
+      const u = (t * (S.kind === 'cold' ? 0.22 : 0.1) + i / 10) % 1 * 0.7, [x, y] = along(u), [x2, y2] = along(u + 0.03);
+      const al = Math.sin(u / 0.7 * Math.PI);
+      Lab.arrow(x + off, y - 6, x2 + off, y2 - 6, `rgba(255,170,90,${al})`, 3, 9);
     }
-    rain(ctx, rainX0, rainX1, G * 0.45, t, heavy);
+    // 冷空氣貼地推進（流動的小箭頭）
+    if (S.kind !== 'stat') for (let i = 0; i < 6; i++) {
+      const dir = cl ? 1 : -1, span = 200, ph = (t * 40 + i * span / 6) % span;
+      const x = cl ? fx - 30 - span + ph : fx + W * 0.55 * 0.1 + 30 + span - ph;
+      Lab.arrow(x, G - 14 - (i % 2) * 14, x + dir * 22, G - 14 - (i % 2) * 14, `rgba(150,195,255,${Math.sin(ph / span * Math.PI)})`, 3, 9);
+    }
+    // 氣團名稱
+    const cName = (str, x, col) => { Lab.card(x - 46, G - 112, 92, 30, 'rgba(10,18,36,.55)', col, 15); Lab.text(str, x, G - 96, col, 16, 'center', 'bold'); };
+    cName(cl ? '冷氣團' : '暖氣團', Math.max(70, fx - 230), cl ? '#9cc4ff' : '#ffc08a');
+    cName(cl ? '暖氣團' : '冷氣團', Math.min(W - 70, fx + (cl ? 200 : 330)), cl ? '#ffc08a' : '#9cc4ff');
+
+    // 雲
+    if (S.kind === 'cold') {
+      cbCloud(ctx, fx + 10, G * 0.48, G * 0.08);
+      if ((t % 4) < 0.12) { ctx.strokeStyle = '#fffbd0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx + 20, G * 0.52); ctx.lineTo(fx + 4, G * 0.68); ctx.lineTo(fx + 18, G * 0.7); ctx.lineTo(fx, G * 0.9); ctx.stroke(); ctx.fillStyle = 'rgba(255,255,230,.12)'; ctx.fillRect(0, 0, W, G); }
+    } else if (S.kind === 'warm') {
+      for (let k = 0; k < 8; k++) { const [x, y] = along(0.06 + k * 0.11); stCloud(ctx, x + 10, y - 22, 46 + k * 4, 0.9 - k * 0.06); }
+    } else {
+      for (let k = 0; k < 7; k++) { const [x, y] = along(0.05 + k * 0.1); stCloud(ctx, x, y - 20, 50, 0.9); }
+    }
+    rain(ctx, rainX0, rainX1, S.kind === 'cold' ? G * 0.5 : G * 0.45, t, heavy);
     // 地面
-    ctx.fillStyle = '#3d5a35'; ctx.fillRect(0, G, W, H - G);
+    ctx.fillStyle = Lab.lg(0, G, 0, H, ['#4f7d3d', '#2c4a24']); ctx.fillRect(0, G, W, H - G);
+    Lab.line(0, G, W, G, '#7fae5e', 2);
+    for (let x = 18; x < W; x += 70) if (Math.abs(x - TOWN * W) > 60) { ctx.fillStyle = '#5a3d22'; ctx.fillRect(x - 2, G - 14, 4, 14); Lab.circle(x, G - 20, 10, '#2f6b3a'); Lab.circle(x - 5, G - 16, 7, '#3b7d45'); }
     // 小鎮
     const tx = TOWN * W;
-    ctx.fillStyle = '#e8d9b5'; ctx.fillRect(tx - 14, G - 22, 28, 22);
-    ctx.fillStyle = '#c0573f'; ctx.beginPath(); ctx.moveTo(tx - 18, G - 22); ctx.lineTo(tx, G - 38); ctx.lineTo(tx + 18, G - 22); ctx.fill();
-    Lab.text('小鎮', tx, G + 16, '#eef1fa', 13);
+    house(ctx, tx - 22, G, 26, '#e8d9b5', '#c0573f'); house(ctx, tx + 10, G, 32, '#f1e6cc', '#8f4a3a'); house(ctx, tx + 40, G, 22, '#dccba3', '#b35a3c');
+    Lab.pill('小鎮', tx + 8, G + 18, '#eef1fa', 12);
 
     // 天氣圖符號
-    const sy = G + 48, sx0 = 30, sx1 = Math.min(W - 30, 330);
-    Lab.text('天氣圖上的符號：', sx0, sy - 18, 'rgba(238,241,250,.6)', 13, 'left');
+    const sy = G + 62, sx0 = 30, sx1 = Math.min(W * 0.55, 330);
+    Lab.glass(16, G + 34, sx1 + 30, 52, 12);
+    Lab.text('天氣圖符號', sx0, G + 46, 'rgba(238,241,250,.7)', 11, 'left', 'bold');
     ctx.lineWidth = 3;
     for (let x = sx0; x < sx1; x += 40) {
       if (S.kind === 'cold') { ctx.strokeStyle = ctx.fillStyle = '#5c9cff'; ctx.beginPath(); ctx.moveTo(x, sy); ctx.lineTo(x + 40, sy); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + 10, sy); ctx.lineTo(x + 20, sy - 14); ctx.lineTo(x + 30, sy); ctx.fill(); }
@@ -161,7 +195,7 @@
         ctx.beginPath(); if (odd) ctx.arc(x + 20, sy, 10, Math.PI, 0); else { ctx.moveTo(x + 10, sy); ctx.lineTo(x + 20, sy + 14); ctx.lineTo(x + 30, sy); } ctx.fill();
       }
     }
-    Lab.text(S.kind === 'stat' ? '（三角朝暖、半圓朝冷，鋒面不動）' : '（三角形或半圓形朝向鋒面前進的方向）', sx1 + 50, sy, 'rgba(238,241,250,.55)', 12, 'left');
+    Lab.text(S.kind === 'stat' ? '三角朝暖、半圓朝冷，鋒面不動' : '三角形或半圓形朝向鋒面前進的方向', 24, G + 104, 'rgba(238,241,250,.55)', 12, 'left');
 
     // 小鎮天氣
     const inCold = cl ? tx < frontX(fx, 0) : tx > frontX(fx, 0);
@@ -170,9 +204,12 @@
     const target = inCold ? 14 : 24;
     S.temp = S.temp == null ? target : S.temp + (target - S.temp) * Math.min(1, dt * 1.5);
     if (S.play && (S.tick += dt) > 0.2) { S.tick = 0; S.hist.push(S.temp); if (S.hist.length > 120) S.hist.shift(); }
+    // 小鎮上方的天氣小圖示
+    Lab.card(tx - 34, G - 92, 76, 30, 'rgba(10,18,36,.7)', raining ? '#7fb2ff' : '#ffd34d', 15);
+    Lab.text(`${raining ? (heavy ? '⛈' : '🌧') : '⛅'} ${S.temp.toFixed(0)}°C`, tx + 4, G - 77, '#fff', 14, 'center', 'bold');
     // 氣溫紀錄
-    const cw = Math.min(260, W * 0.35), chh = H - G - 90;
-    if (chh > 60 && S.hist.length > 1) Lab.chart(W - cw - 16, G + 76, cw, chh, [{ data: S.hist, color: '#ffa64d', n: 120 }], { min: 10, max: 28, yLabel: '小鎮氣溫', xLabel: '時間 →' });
+    const cw = Math.min(280, W * 0.38), chh = H - G - 46;
+    if (chh > 80) Lab.chart(W - cw - 16, G + 34, cw, chh, [{ data: S.hist, color: '#ffa64d', n: 120 }], { min: 10, max: 28, yLabel: '小鎮氣溫（°C）', xLabel: '時間 →' });
   }
 
   Lab.init({

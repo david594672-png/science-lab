@@ -103,23 +103,182 @@
     },
     /** 簡易折線圖：series = [{data:[..], color, label}], 值域 [min,max] */
     chart(x, y, w, h, series, { min = 0, max = 1, xLabel = '', yLabel = '', ref } = {}) {
-      this.card(x, y, w, h, 'rgba(255,255,255,.03)', 'rgba(255,255,255,.1)', 12);
-      const px = x + 40, py = y + 14, pw = w - 54, ph = h - 40;
-      this.line(px, py + ph, px + pw, py + ph, 'rgba(238,241,250,.3)', 1);
-      this.line(px, py, px, py + ph, 'rgba(238,241,250,.3)', 1);
-      if (yLabel) this.text(yLabel, x + 8, y + 12, 'rgba(238,241,250,.5)', 11, 'left');
-      if (xLabel) this.text(xLabel, px + pw, y + h - 10, 'rgba(238,241,250,.5)', 11, 'right');
+      this.glass(x, y, w, h, 12);
+      const px = x + 40, py = y + 30, pw = w - 54, ph = h - 56;
       const Y = v => py + ph - (v - min) / (max - min) * ph;
+      for (let i = 1; i < 4; i++) this.line(px, py + ph * i / 4, px + pw, py + ph * i / 4, 'rgba(238,241,250,.07)', 1);
+      for (let i = 1; i < 6; i++) this.line(px + pw * i / 6, py, px + pw * i / 6, py + ph, 'rgba(238,241,250,.05)', 1);
+      this.line(px, py + ph, px + pw, py + ph, 'rgba(238,241,250,.35)', 1.2);
+      this.line(px, py, px, py + ph, 'rgba(238,241,250,.35)', 1.2);
+      this.text(String(+max.toFixed(2)), px - 6, py, 'rgba(238,241,250,.45)', 10, 'right');
+      this.text(String(+min.toFixed(2)), px - 6, py + ph, 'rgba(238,241,250,.45)', 10, 'right');
+      if (yLabel) this.text(yLabel, x + 10, y + 10, 'rgba(238,241,250,.6)', 11, 'left', 'bold');
+      if (xLabel) this.text(xLabel, px + pw, y + h - 10, 'rgba(238,241,250,.5)', 11, 'right');
       if (ref) { this.line(px, Y(ref.v), px + pw, Y(ref.v), ref.color || 'rgba(255,255,255,.35)', 1.2, [5, 5]); this.text(ref.label || '', px + 4, Y(ref.v) - 9, ref.color || 'rgba(255,255,255,.5)', 11, 'left'); }
       const c = this.ctx;
       series.forEach(s => {
         if (!s.data.length) return;
-        c.strokeStyle = s.color; c.lineWidth = 2.5; c.lineJoin = 'round'; c.beginPath();
-        const n = s.n || s.data.length;
-        s.data.forEach((v, i) => { const xx = px + i / Math.max(1, n - 1) * pw, yy = Math.max(py, Math.min(py + ph, Y(v))); i ? c.lineTo(xx, yy) : c.moveTo(xx, yy); });
-        c.stroke();
+        const n = s.n || s.data.length, pts = s.data.map((v, i) => [px + i / Math.max(1, n - 1) * pw, Math.max(py, Math.min(py + ph, Y(v)))]);
+        const last = pts[pts.length - 1];
+        // 曲線下淡淡的漸層
+        if (s.fill !== false) {
+          c.beginPath(); c.moveTo(pts[0][0], py + ph); pts.forEach(p => c.lineTo(p[0], p[1])); c.lineTo(last[0], py + ph); c.closePath();
+          c.fillStyle = this.lg(0, py, 0, py + ph, [this.alpha(s.color, .22), this.alpha(s.color, 0)]); c.fill();
+        }
+        c.save(); c.shadowColor = s.color; c.shadowBlur = 8;
+        c.strokeStyle = s.color; c.lineWidth = 2.5; c.lineJoin = 'round'; c.lineCap = 'round'; c.beginPath();
+        pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+        c.stroke(); c.restore();
+        this.circle(last[0], last[1], 4, '#fff', s.color, 2);
       });
       return { px, py, pw, ph, Y };
+    },
+
+    /* ---------- 美術：漸層、陰影、常用物件 ---------- */
+    /** 顏色工具：'#rrggbb' → 調亮（k>0）或調暗（k<0） */
+    rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; },
+    shade(hex, k) {
+      if (hex[0] !== '#') return hex;
+      const t = k > 0 ? 255 : 0, a = Math.abs(k);
+      const [r, g, b] = this.rgb(hex).map(v => Math.round(v + (t - v) * a));
+      return `rgb(${r},${g},${b})`;
+    },
+    alpha(col, a) {
+      if (col[0] === '#') { const [r, g, b] = this.rgb(col); return `rgba(${r},${g},${b},${a})`; }
+      const m = col.match(/[\d.]+/g); return m ? `rgba(${m[0]},${m[1]},${m[2]},${a})` : col;
+    },
+    lg(x0, y0, x1, y1, stops) {
+      const g = this.ctx.createLinearGradient(x0, y0, x1, y1);
+      stops.forEach((s, i) => (Array.isArray(s) ? g.addColorStop(s[0], s[1]) : g.addColorStop(i / Math.max(1, stops.length - 1), s)));
+      return g;
+    },
+    rg(x, y, r0, r1, stops, fx = x, fy = y) {
+      const g = this.ctx.createRadialGradient(fx, fy, r0, x, y, r1);
+      stops.forEach((s, i) => (Array.isArray(s) ? g.addColorStop(s[0], s[1]) : g.addColorStop(i / Math.max(1, stops.length - 1), s)));
+      return g;
+    },
+    /** 毛玻璃資訊框 */
+    glass(x, y, w, h, r = 12) {
+      const c = this.ctx; this.rr(x, y, w, h, r);
+      c.fillStyle = this.lg(0, y, 0, y + h, ['rgba(255,255,255,.07)', 'rgba(255,255,255,.025)']); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,.13)'; c.lineWidth = 1; c.stroke();
+    },
+    /** 地上的柔和橢圓陰影 */
+    shadow(x, y, rx, ry = rx * 0.22, a = 0.4) {
+      const c = this.ctx; c.save(); c.translate(x, y); c.scale(1, ry / rx);
+      c.fillStyle = this.rg(0, 0, 0, rx, [`rgba(0,0,0,${a})`, 'rgba(0,0,0,0)']);
+      c.beginPath(); c.arc(0, 0, rx, 0, Math.PI * 2); c.fill(); c.restore();
+    },
+    /** 立體球 */
+    ball(x, y, r, color = '#ff6b5e') {
+      const c = this.ctx;
+      c.fillStyle = this.rg(x, y, r * 0.1, r, [this.shade(color, 0.55), color, this.shade(color, -0.45)], x - r * 0.35, y - r * 0.4);
+      c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.ellipse(x - r * 0.35, y - r * 0.42, r * 0.28, r * 0.17, -0.6, 0, Math.PI * 2); c.fill();
+    },
+    /** 木箱：x,y 為底邊中心 */
+    crate(x, y, w, h, label, color = '#c98a4a') {
+      const c = this.ctx, x0 = x - w / 2, y0 = y - h;
+      this.shadow(x, y + 2, w * 0.62, 7);
+      this.rr(x0, y0, w, h, 4);
+      c.fillStyle = this.lg(x0, y0, x0, y, [this.shade(color, 0.2), color, this.shade(color, -0.25)]); c.fill();
+      c.save(); c.clip();
+      c.strokeStyle = this.shade(color, -0.35); c.lineWidth = 1;
+      for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(x0, y0 + h * i / 4); c.lineTo(x0 + w, y0 + h * i / 4); c.stroke(); }
+      c.lineWidth = Math.max(5, w * 0.1); c.strokeStyle = this.shade(color, -0.15);
+      c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + w, y); c.stroke();
+      c.restore();
+      c.strokeStyle = this.shade(color, -0.5); c.lineWidth = 3; this.rr(x0 + 1.5, y0 + 1.5, w - 3, h - 3, 3); c.stroke();
+      if (label) { this.card(x - 26, y0 + h / 2 - 11, 52, 22, 'rgba(255,248,230,.92)', null, 5); this.text(label, x, y0 + h / 2 + 1, '#5a3a17', 13, 'center', 'bold'); }
+    },
+    /** 小車：x 為車身中心，y 為地面；spin 為輪子轉角 */
+    car(x, y, s = 1, color = '#4f8cff', spin = 0, label) {
+      const c = this.ctx, W = 120 * s, H = 34 * s, wr = 13 * s, by = y - wr - 4 * s;
+      this.shadow(x, y + 1, W * 0.55, 6 * s);
+      // 車身
+      c.beginPath();
+      c.moveTo(x - W / 2, by); c.lineTo(x - W / 2, by - H * 0.75);
+      c.quadraticCurveTo(x - W / 2, by - H, x - W / 2 + 10 * s, by - H);
+      c.lineTo(x - W * 0.22, by - H); c.lineTo(x - W * 0.08, by - H - 22 * s); c.lineTo(x + W * 0.2, by - H - 22 * s);
+      c.lineTo(x + W * 0.34, by - H); c.lineTo(x + W / 2 - 8 * s, by - H + 2 * s);
+      c.quadraticCurveTo(x + W / 2, by - H + 4 * s, x + W / 2, by - H * 0.5); c.lineTo(x + W / 2, by); c.closePath();
+      c.fillStyle = this.lg(0, by - H - 22 * s, 0, by, [this.shade(color, 0.35), color, this.shade(color, -0.35)]); c.fill();
+      c.strokeStyle = this.shade(color, -0.55); c.lineWidth = 1.5; c.stroke();
+      // 車窗
+      c.beginPath(); c.moveTo(x - W * 0.17, by - H - 1); c.lineTo(x - W * 0.06, by - H - 18 * s); c.lineTo(x + W * 0.18, by - H - 18 * s); c.lineTo(x + W * 0.28, by - H - 1); c.closePath();
+      c.fillStyle = this.lg(0, by - H - 18 * s, 0, by - H, ['#cfe6ff', '#6d93c4']); c.fill();
+      this.line(x + W * 0.06, by - H - 18 * s, x + W * 0.06, by - H - 1, this.shade(color, -0.3), 3 * s);
+      // 車燈、腰線
+      this.circle(x + W / 2 - 5 * s, by - H * 0.62, 4 * s, '#fff3b0');
+      this.circle(x - W / 2 + 4 * s, by - H * 0.62, 3 * s, '#ff5a4d');
+      this.line(x - W / 2 + 4, by - H * 0.35, x + W / 2 - 4, by - H * 0.35, 'rgba(255,255,255,.25)', 1.5);
+      if (label) this.text(label, x - W * 0.08, by - H * 0.55, '#fff', 12 * Math.max(1, s), 'center', 'bold');
+      // 輪子
+      [x - W * 0.3, x + W * 0.3].forEach(wx => this.wheel(wx, y - wr, wr, spin));
+    },
+    wheel(x, y, r, spin = 0) {
+      const c = this.ctx;
+      this.circle(x, y, r, '#1b1f2a', '#0b0d12', 2);
+      this.circle(x, y, r * 0.58, this.rg(x, y, 0, r * 0.6, ['#e8edf5', '#8d97a8']));
+      c.strokeStyle = '#59627a'; c.lineWidth = Math.max(1.5, r * 0.12);
+      for (let i = 0; i < 5; i++) { const a = spin + i * 1.2566; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.55); c.stroke(); }
+      this.circle(x, y, r * 0.14, '#39404f');
+    },
+    /** 人：x,y 為腳底；hand = [dx,dy] 手相對肩膀的位置；lean 身體前傾弧度 */
+    person(x, y, s = 1, { hand = [18, 30], hand2, lean = 0, shirt = '#3fb68b', pants = '#2f3d63', skin = '#f2c6a0', hair = '#2b2118', walk = 0, face = 1 } = {}) {
+      const c = this.ctx;
+      const hipX = x, hipY = y - 52 * s;
+      const shX = hipX + Math.sin(lean) * 44 * s, shY = hipY - Math.cos(lean) * 44 * s;
+      this.shadow(x, y + 1, 22 * s, 5 * s);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      const limb = (x0, y0, x1, y1, x2, y2, col, wd) => { c.strokeStyle = col; c.lineWidth = wd; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+      // 腿（walk 讓腳前後擺）
+      const sw = Math.sin(walk) * 12 * s;
+      limb(hipX, hipY, hipX - 4 * s - sw * 0.5, y - 26 * s, hipX - 8 * s - sw, y - 2 * s, this.shade(pants, -0.2), 10 * s);
+      limb(hipX, hipY, hipX + 6 * s + sw * 0.5, y - 26 * s, hipX + 10 * s + sw, y - 2 * s, pants, 10 * s);
+      this.card(hipX - 14 * s - sw, y - 5 * s, 16 * s, 6 * s, '#222', null, 3 * s);
+      this.card(hipX + 4 * s + sw, y - 5 * s, 16 * s, 6 * s, '#333', null, 3 * s);
+      // 後手
+      const arm = (h, col) => {
+        const hx = shX + h[0] * s, hy = shY + h[1] * s, mx = (shX + hx) / 2, my = (shY + hy) / 2;
+        const L = Math.hypot(hx - shX, hy - shY), bend = Math.max(0, 40 * s - L) * 0.6;
+        const ex = mx - bend * 0.3, ey = my + bend;
+        limb(shX, shY, ex, ey, hx, hy, col, 8 * s);
+        this.circle(hx, hy, 5 * s, skin);
+      };
+      if (hand2) arm(hand2, this.shade(shirt, -0.25));
+      // 身體
+      c.strokeStyle = this.lg(shX, shY, hipX, hipY, [this.shade(shirt, 0.15), this.shade(shirt, -0.15)]); c.lineWidth = 20 * s;
+      c.beginPath(); c.moveTo(shX, shY + 4 * s); c.lineTo(hipX, hipY); c.stroke();
+      // 頭
+      const hx = shX + Math.sin(lean) * 16 * s, hy = shY - Math.cos(lean) * 16 * s;
+      this.circle(hx, hy, 12 * s, this.rg(hx, hy, 2, 13 * s, [this.shade(skin, 0.2), skin, this.shade(skin, -0.2)], hx - 4 * s, hy - 4 * s));
+      c.fillStyle = hair; c.beginPath(); c.arc(hx, hy - 1 * s, 12.5 * s, Math.PI * 1.05, Math.PI * 1.98); c.closePath(); c.fill();
+      this.circle(hx + 5 * s * face, hy + 1 * s, 1.6 * s, '#2a2a2a');
+      // 前手
+      arm(hand, shirt);
+      c.lineCap = 'butt';
+      return { shX, shY };
+    },
+    /** 雲：x,y 為底部中心 */
+    cloud(x, y, s = 1, a = 0.9, tint = '#ffffff') {
+      const c = this.ctx;
+      const puffs = [[-34, -10, 20], [-12, -22, 26], [16, -18, 22], [36, -8, 16], [0, -6, 22]];
+      puffs.forEach(([dx, dy, r]) => {
+        c.fillStyle = this.rg(x + dx * s, y + dy * s, 0, r * s, [this.alpha(tint, a), this.alpha(tint, a * 0.85), this.alpha(tint, 0)], x + dx * s - r * s * 0.3, y + dy * s - r * s * 0.4);
+        c.beginPath(); c.arc(x + dx * s, y + dy * s, r * s * 1.15, 0, Math.PI * 2); c.fill();
+      });
+    },
+    /** 粗箭頭（暗色描邊＋標籤）：讓箭頭在任何背景都清楚 */
+    force(x0, y0, x1, y1, color, label, w = 5) {
+      if (Math.hypot(x1 - x0, y1 - y0) < 3) return;
+      this.arrow(x0, y0, x1, y1, 'rgba(0,0,0,.45)', w + 4, 18);
+      this.arrow(x0, y0, x1, y1, color, w, 15);
+      if (!label) return;
+      const horiz = Math.abs(x1 - x0) > Math.abs(y1 - y0);
+      this.ctx.font = `bold 12px ${this.FONT}`;
+      const pw = this.ctx.measureText(label).width / 2 + 16;
+      this.pill(label, horiz ? (x0 + x1) / 2 : x1 + pw, horiz ? y1 - 22 : (y0 + y1) / 2, color, 12);
     },
 
     /* ---------- 面板 ---------- */

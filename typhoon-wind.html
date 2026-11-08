@@ -84,55 +84,101 @@
     return NAMES[Math.round(((from * 180 / Math.PI) + 360) % 360 / 45) % 8] + '風';
   }
 
+  // 中國東南沿海（示意）
+  const COAST = [[116.5, 23.2], [117.2, 23.6], [117.8, 24.1], [118.2, 24.5], [118.7, 24.7], [119.1, 25.1], [119.5, 25.5], [119.6, 26.0], [119.8, 26.5], [120.2, 26.9], [120.6, 27.6], [116.5, 27.6]];
+  // 風場粒子
+  const PT = Array.from({ length: 420 }, () => ({ lon: 117 + Math.random() * 9, lat: 20 + Math.random() * 8, age: Math.random() * 3 }));
+
+  function smooth(ctx, pts) {
+    // 用中點二次曲線把折線修圓
+    const P = pts.map(([lo, la]) => [X(lo), Y(la)]), n = P.length;
+    ctx.beginPath(); ctx.moveTo((P[0][0] + P[n - 1][0]) / 2, (P[0][1] + P[n - 1][1]) / 2);
+    for (let i = 0; i < n; i++) { const p = P[i], q = P[(i + 1) % n]; ctx.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
+    ctx.closePath();
+  }
+
   function draw(ctx, w, h, dt, t) {
     W = w; H = h; sc = Math.min(w / 9, h / 7.5); ox = w * 0.5; oy = h * 0.5;
     if (S.play) { S.p = Math.min(1, S.p + dt * 0.05); if (S.p >= 1) { S.play = false; playBtn(); } const el = $('prog'); el.value = S.p; Lab.paint(el); }
     // 海
-    ctx.fillStyle = '#123a5c'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = Lab.rg(w * 0.5, h * 0.45, 0, Math.max(w, h) * 0.8, ['#1d5a86', '#123d63', '#0a2342']); ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = 'rgba(255,255,255,.035)'; ctx.lineWidth = 1;
+    for (let y = 10; y < h; y += 22) { ctx.beginPath(); for (let x = 0; x <= w; x += 20) ctx.lineTo(x, y + Math.sin(x / 40 + y + t * 0.6) * 3); ctx.stroke(); }
     // 經緯線
-    for (let lon = 117; lon <= 126; lon++) Lab.line(X(lon), 0, X(lon), h, 'rgba(255,255,255,.06)', 1);
-    for (let lat = 20; lat <= 28; lat++) Lab.line(0, Y(lat), w, Y(lat), 'rgba(255,255,255,.06)', 1);
-    // 台灣
-    ctx.beginPath(); OUT.forEach(([lo, la], i) => (i ? ctx.lineTo(X(lo), Y(la)) : ctx.moveTo(X(lo), Y(la)))); ctx.closePath();
-    ctx.fillStyle = '#4f8a4a'; ctx.fill(); ctx.strokeStyle = '#9fd18a'; ctx.lineWidth = 2; ctx.stroke();
-    // 中央山脈
-    ctx.strokeStyle = 'rgba(40,70,35,.8)'; ctx.lineWidth = 7; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(X(121.55), Y(24.7)); ctx.lineTo(X(121.0), Y(23.5)); ctx.lineTo(X(120.8), Y(22.3)); ctx.stroke();
-    // 路徑
-    const [a, b] = TRACK[S.track];
-    Lab.line(X(a[0]), Y(a[1]), X(b[0]), Y(b[1]), 'rgba(255,200,120,.6)', 2, [8, 8]);
-    // 風場
-    if ($('field').checked) {
-      for (let lon = 117.75; lon < 126; lon += 0.75) for (let lat = 20.5; lat < 27.5; lat += 0.75) {
-        const [wx, wy, v] = wind(lon, lat), L = 10 + 26 * v, x = X(lon), y = Y(lat);
-        Lab.arrow(x, y, x + wx / (v || 1) * L, y - wy / (v || 1) * L, `rgba(180,220,255,${0.25 + 0.6 * v})`, 1.6, 7);
-      }
-    }
-    // 颱風
-    const [cx, cy] = center(), px = X(cx), py = Y(cy), rr = RM * sc;
-    ctx.save(); ctx.translate(px, py); ctx.rotate(-t * 1.5);
-    for (let arm = 0; arm < 3; arm++) {
-      ctx.beginPath();
-      for (let k = 0; k < 40; k++) { const th = arm * 2.1 + k * 0.09, r = 8 + k * rr * 0.05; ctx.lineTo(Math.cos(th) * r, -Math.sin(th) * r); }
-      ctx.strokeStyle = 'rgba(240,245,255,.8)'; ctx.lineWidth = 6; ctx.stroke();
+    for (let lon = 117; lon <= 126; lon++) { Lab.line(X(lon), 0, X(lon), h, 'rgba(255,255,255,.07)', 1); Lab.text(lon + '°E', X(lon) + 3, h - 10, 'rgba(255,255,255,.25)', 10, 'left'); }
+    for (let lat = 20; lat <= 28; lat++) { Lab.line(0, Y(lat), w, Y(lat), 'rgba(255,255,255,.07)', 1); Lab.text(lat + '°N', 4, Y(lat) - 7, 'rgba(255,255,255,.25)', 10, 'left'); }
+    // 大陸沿海
+    ctx.beginPath(); COAST.forEach(([lo, la], i) => (i ? ctx.lineTo(X(lo), Y(la)) : ctx.moveTo(X(lo), Y(la)))); ctx.closePath();
+    ctx.fillStyle = Lab.lg(X(116.5), 0, X(120.5), 0, ['#4e6a48', '#62804f']); ctx.fill();
+    ctx.strokeStyle = 'rgba(200,235,200,.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+    // 台灣：陰影、淺灘、地形漸層
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
+    smooth(ctx, OUT); ctx.fillStyle = '#4f8a4a'; ctx.fill(); ctx.restore();
+    smooth(ctx, OUT); ctx.strokeStyle = 'rgba(160,230,255,.35)'; ctx.lineWidth = 8; ctx.stroke();
+    smooth(ctx, OUT);
+    ctx.fillStyle = Lab.lg(X(120.1), 0, X(121.9), 0, [[0, '#7fb35f'], [0.42, '#6d8f45'], [0.6, '#8a7a4a'], [0.72, '#6d8f45'], [1, '#5f9c55']]); ctx.fill();
+    ctx.strokeStyle = '#d9f0c4'; ctx.lineWidth = 1.5; ctx.stroke();
+    // 中央山脈（山脊與陰影）
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(70,55,30,.55)'; ctx.lineWidth = 12;
+    ctx.beginPath(); ctx.moveTo(X(121.55), Y(24.7)); ctx.quadraticCurveTo(X(121.05), Y(23.6), X(120.82), Y(22.3)); ctx.stroke();
+    ctx.strokeStyle = 'rgba(235,225,200,.55)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(X(121.5), Y(24.6)); ctx.quadraticCurveTo(X(121.0), Y(23.6), X(120.8), Y(22.4)); ctx.stroke();
+    ctx.lineCap = 'butt';
+    // 路徑：走過的實線、還沒走的虛線
+    const [a, b] = TRACK[S.track], [cx, cy] = center();
+    Lab.line(X(a[0]), Y(a[1]), X(cx), Y(cy), 'rgba(255,120,90,.9)', 3);
+    Lab.line(X(cx), Y(cy), X(b[0]), Y(b[1]), 'rgba(255,200,120,.55)', 2, [8, 8]);
+    for (let k = 0; k <= 4; k++) { const f = k / 4; if (f <= S.p) Lab.circle(X(a[0] + (b[0] - a[0]) * f), Y(a[1] + (b[1] - a[1]) * f), 4, '#ff785a', '#fff', 1.5); }
+    // 颱風雲系：中心向外的螺旋雲帶
+    const px = X(cx), py = Y(cy), rr = RM * sc;
+    ctx.save(); ctx.translate(px, py);
+    ctx.fillStyle = Lab.rg(0, 0, rr * 0.2, rr * 3.2, ['rgba(255,255,255,.75)', 'rgba(235,242,250,.45)', 'rgba(235,242,250,0)']);
+    ctx.beginPath(); ctx.arc(0, 0, rr * 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.rotate(-t * 0.8);                               // 北半球：逆時針旋轉
+    for (let arm = 0; arm < 4; arm++) for (let k = 0; k < 32; k++) {
+      const th = arm * Math.PI / 2 + k * 0.13, r = rr * 0.3 + k * rr * 0.085, R = rr * (0.42 - k * 0.0085);
+      const qx = Math.cos(th) * r, qy = -Math.sin(th) * r, al = 0.6 * (1 - k / 32);
+      ctx.fillStyle = Lab.rg(qx, qy, 0, R, [`rgba(255,255,255,${al})`, `rgba(240,246,255,${al * 0.6})`, 'rgba(240,246,255,0)']);
+      ctx.beginPath(); ctx.arc(qx, qy, R, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
-    Lab.circle(px, py, 6, '#ff6b5e');
-    Lab.circle(px, py, rr, null, 'rgba(255,107,94,.4)', 1.5);
-    // 測站與風向標
+    // 颱風眼
+    Lab.circle(px, py, Math.max(5, rr * 0.18), Lab.rg(px, py, 0, rr * 0.2, ['#1b3c63', 'rgba(27,60,99,.2)']));
+    Lab.circle(px, py, rr, null, 'rgba(255,107,94,.5)', 1.5);
+    // 風場：沿著風流動的粒子（越強越亮）
+    if ($('field').checked) {
+      ctx.lineCap = 'round';
+      PT.forEach(p => {
+        const [wx, wy, v] = wind(p.lon, p.lat);
+        p.lon += wx * dt * 0.9; p.lat += wy * dt * 0.9; p.age += dt;
+        if (p.age > 3 || p.lon < 116.5 || p.lon > 126.5 || p.lat < 19.5 || p.lat > 28.5) { p.lon = 117 + Math.random() * 9; p.lat = 20 + Math.random() * 8; p.age = 0; }
+        const al = Math.min(1, p.age * 2, (3 - p.age) * 2) * (0.25 + 0.75 * v), x = X(p.lon), y = Y(p.lat);
+        ctx.strokeStyle = v > 0.7 ? `rgba(255,230,140,${al})` : `rgba(190,225,255,${al})`; ctx.lineWidth = 1.2 + v * 1.6;
+        ctx.beginPath(); ctx.moveTo(x - wx * sc * 0.25, y + wy * sc * 0.25); ctx.lineTo(x, y); ctx.stroke();
+      });
+      ctx.lineCap = 'butt';
+    }
+    // 測站與風向
     ST.forEach((s, i) => {
       const x = X(s[1]), y = Y(s[2]), on = i === S.st;
-      Lab.circle(x, y, on ? 7 : 4, on ? '#ffd34d' : '#fff');
-      Lab.text(s[0], x + 10, y - 10, on ? '#ffd34d' : '#eef1fa', on ? 15 : 12, 'left', 'bold');
+      if (on) { ctx.save(); ctx.shadowColor = '#ffd34d'; ctx.shadowBlur = 14; Lab.circle(x, y, 8, '#ffd34d', '#fff', 2); ctx.restore(); }
+      else Lab.circle(x, y, 4.5, '#fff', 'rgba(0,0,0,.4)', 1.5);
+      Lab.text(s[0], x + 11, y - 11, on ? '#ffd34d' : '#ffffff', on ? 15 : 12, 'left', 'bold');
     });
     const s = ST[S.st], [wx, wy, v] = wind(s[1], s[2]);
-    const x = X(s[1]), y = Y(s[2]), Lr = 30 + 40 * v;
-    Lab.arrow(x - wx / (v || 1) * Lr, y + wy / (v || 1) * Lr, x, y, '#ffd34d', 5, 16);
+    const x = X(s[1]), y = Y(s[2]), Lr = 34 + 44 * v;
+    Lab.force(x - wx / (v || 1) * Lr, y + wy / (v || 1) * Lr, x, y, '#ffd34d', null, 5);
     S.now = { name: dirName(wx, wy), v };
+    Lab.pill(S.now.name, x - wx / (v || 1) * (Lr + 26), y + wy / (v || 1) * (Lr + 26), '#ffd34d', 13);
     // 紀錄風向變化
     if (S.now.name !== S.lastDir) { S.lastDir = S.now.name; S.log.push(S.now.name); if (S.log.length > 10) S.log.shift(); renderLog(); }
-    // 方位
-    Lab.text('N ↑', w - 30, 24, 'rgba(238,241,250,.6)', 14);
+    // 指北針
+    const nx = w - 40, ny = 44;
+    Lab.circle(nx, ny, 22, 'rgba(10,20,40,.6)', 'rgba(255,255,255,.4)', 1.5);
+    ctx.fillStyle = '#ff6b5e'; ctx.beginPath(); ctx.moveTo(nx, ny - 17); ctx.lineTo(nx + 6, ny); ctx.lineTo(nx - 6, ny); ctx.fill();
+    ctx.fillStyle = '#eef1fa'; ctx.beginPath(); ctx.moveTo(nx, ny + 17); ctx.lineTo(nx + 6, ny); ctx.lineTo(nx - 6, ny); ctx.fill();
+    Lab.text('N', nx, ny - 30, '#eef1fa', 12, 'center', 'bold');
   }
   function renderLog() { $('log').innerHTML = S.log.map(d => `<span>${d}</span>`).join(''); }
 

@@ -56,31 +56,55 @@
   const track = x => S.h0 * Math.pow(Math.cos(Math.PI * x), 2) * (x < 0.5 ? 1 : 1.2);   // 右邊比起點高一點
   const LEN = 24;                                       // 軌道水平長度（公尺）
 
+  function room(ctx, w, gy) {
+    // 倉庫：牆面、磚紋、木地板
+    ctx.fillStyle = Lab.lg(0, 0, 0, gy, ['#1b2440', '#2a3558']); ctx.fillRect(0, 0, w, gy);
+    ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = 1;
+    for (let y = gy - 24, r = 0; y > 0; y -= 24, r++) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); for (let x = (r % 2) * 30; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 24); ctx.stroke(); } }
+    ctx.fillStyle = Lab.lg(0, gy, 0, gy + 120, ['#9a6a3d', '#5f3d20']); ctx.fillRect(0, gy, w, 400);
+    for (let y = gy + 14; y < gy + 400; y += 16) Lab.line(0, y, w, y, 'rgba(0,0,0,.18)', 1);
+    Lab.line(0, gy, w, gy, '#c79a68', 2);
+  }
+
   function drawWork(ctx, w, h, dt) {
     if (S.run) { S.s = Math.min(4, S.s + dt * 1.5); if (S.s >= 4) S.run = false; }
-    const gy = h * 0.6, px = 70, sc = Math.min(110, (w - 200) / 5);
-    Lab.line(20, gy, w - 20, gy, 'rgba(255,255,255,.4)', 2);
-    for (let m = 0; m <= 4; m++) { Lab.line(px + m * sc, gy, px + m * sc, gy + 10, 'rgba(255,255,255,.4)', 1.5); Lab.text(m + ' m', px + m * sc, gy + 22, 'rgba(238,241,250,.5)', 12); }
-    const c = S.case;
-    let bx = px, by = gy;
-    if (c === 'push' || c === 'carry') bx = px + S.s * sc;
-    if (c === 'lift') by = gy - S.s * sc * 0.6;
-    if (c === 'carry') by = gy - 70;
-    // 人
-    if (c !== 'lift') {
-      const hx = bx - 50; Lab.circle(hx, gy - 130, 14, '#ffd9a8'); Lab.line(hx, gy - 116, hx, gy - 60, '#ffd9a8', 8); Lab.line(hx, gy - 60, hx - 10, gy, '#ffd9a8', 6); Lab.line(hx, gy - 60, hx + 10, gy, '#ffd9a8', 6);
-      Lab.line(hx, gy - 100, c === 'carry' ? bx : bx - 10, c === 'carry' ? by - 30 : gy - 40, '#ffd9a8', 5);
+    const gy = Math.min(h * 0.66, h - 130), px = 170, sc = Math.min(120, (w - 300) / 4.4), c = S.case, K = 1.35;
+    // 算手要伸到 (tx,ty) 時，相對肩膀的位置（person 的 hand 參數以 s 為單位）
+    const reach = (x, L, tx, ty) => [(tx - x - Math.sin(L) * 44 * K) / K, (ty - (gy - 52 * K - Math.cos(L) * 44 * K)) / K];
+    room(ctx, w, gy);
+    // 地上的尺
+    for (let m = 0; m <= 4; m++) { const x = px + m * sc; Lab.line(x, gy + 6, x, gy + 18, '#ffe9c7', 2); Lab.text(m + ' m', x, gy + 30, '#ffe9c7', 12, 'center', 'bold'); }
+    Lab.line(px, gy + 12, px + 4 * sc, gy + 12, 'rgba(255,233,199,.6)', 2);
+    const CW = 96, CH = 82;
+    let bx = px, by = gy;                       // 箱子底邊中心
+    if (c !== 'lift') bx = px + S.s * sc;
+    if (c === 'lift') by = gy - S.s * Math.min(sc, (gy - 150) / 4);
+    if (c === 'carry') by = gy - 52;
+    if (c === 'push') {
+      const x = bx - CW / 2 - 52;
+      Lab.person(x, gy, K, { lean: 0.38, hand: reach(x, 0.38, bx - CW / 2, gy - 52), hand2: reach(x, 0.38, bx - CW / 2 - 4, gy - 66), walk: S.s * 5, shirt: '#3fb68b' });
+      Lab.crate(bx, by, CW, CH, '10 kg');
+      Lab.force(bx, by - CH / 2, bx + 30 + S.F * 2.4, by - CH / 2, '#ff8a5c', `F = ${S.F} N`);
+    } else if (c === 'lift') {
+      // 起重架：絞盤＋繩子，等速往上提
+      const fx = bx, top = 70;
+      Lab.line(fx - 90, top, fx + 90, top, '#8a93a8', 8); Lab.line(fx - 84, top, fx - 84, gy, '#6c7488', 6); Lab.line(fx + 84, top, fx + 84, gy, '#6c7488', 6);
+      Lab.circle(fx, top + 4, 14, Lab.rg(fx, top + 4, 2, 14, ['#dfe5ef', '#6c7488']), '#3b4252', 2);
+      Lab.line(fx, top + 18, fx, by - CH, '#e8e1cf', 2.5);
+      Lab.crate(bx, by, CW, CH, '10 kg');
+      Lab.force(bx + CW / 2 + 22, by - CH / 2, bx + CW / 2 + 22, by - CH / 2 - 40 - S.F * 2, '#ff8a5c', `F = ${S.F} N`);
+    } else {
+      const x = bx - 36;
+      Lab.person(x, gy, K, { lean: 0.05, hand: reach(x, 0.05, bx - 20, gy - 70), hand2: reach(x, 0.05, bx - 24, gy - 76), walk: S.s * 5, shirt: '#3fb68b' });
+      Lab.crate(bx + 6, gy - 64, CW * 0.75, CH * 0.75, '10 kg');
+      Lab.force(bx + 6, gy - 64 - CH * 0.75 - 6, bx + 6, gy - 64 - CH * 0.75 - 46 - S.F * 2, '#ff8a5c', `F = ${S.F} N`);
     }
-    Lab.card(bx - 10, by - 60, 70, 60, '#c98a4a', '#ffd9a8', 4);
-    Lab.text('10 kg', bx + 25, by - 30, '#fff', 13, 'center', 'bold');
-    // 力與位移箭頭
-    const fx = c === 'push' ? [bx - 10, by - 30, bx - 10 - S.F * 2.4, by - 30] : [bx + 25, by - 60, bx + 25, by - 60 - S.F * 2.4];
-    if (c === 'push') Lab.arrow(fx[2], fx[1], fx[0], fx[1], '#ff8a5c', 5, 14); else Lab.arrow(fx[0], fx[1], fx[2], fx[3], '#ff8a5c', 5, 14);
-    Lab.text(`力 F = ${S.F} N`, c === 'push' ? fx[2] : bx + 70, c === 'push' ? by - 70 : by - 60 - S.F * 1.2, '#ff8a5c', 14, 'center', 'bold');
+    // 位移箭頭
     if (S.s > 0.05) {
-      if (c === 'lift') Lab.arrow(bx + 90, gy, bx + 90, by, '#4fd18b', 4, 12); else Lab.arrow(px + 25, gy + 44, bx + 25, gy + 44, '#4fd18b', 4, 12);
-      Lab.text('位移', c === 'lift' ? bx + 116 : (px + bx) / 2 + 25, c === 'lift' ? (gy + by) / 2 : gy + 64, '#4fd18b', 13);
+      if (c === 'lift') Lab.force(bx - CW / 2 - 40, gy, bx - CW / 2 - 40, by, '#4fd18b', '位移');
+      else Lab.force(px, gy + 52, bx, gy + 52, '#4fd18b', `位移 ${S.s.toFixed(1)} m`);
     }
+    if (c === 'carry' && S.s > 0.3) Lab.pill('力 ⟂ 位移 → 不作功', bx + 6, gy - 250, '#ffd34d', 13);
     const Wk = c === 'carry' ? 0 : S.F * S.s;
     $('ws').textContent = S.s.toFixed(1) + ' m'; $('wW').textContent = c === 'carry' ? '0 J（力和位移垂直）' : `${S.F} × ${S.s.toFixed(1)} = ${Wk.toFixed(0)} J`;
     $('info').innerHTML = c === 'carry'
@@ -89,14 +113,32 @@
   }
 
   function drawEnergy(ctx, w, h, dt) {
-    const x0 = 40, x1 = w - 40, top = 40, base = h * 0.62;
+    const x0 = 96, x1 = w - 40, top = 40, base = Math.min(h * 0.6, h - 190);
     const X = u => x0 + u * (x1 - x0), Y = y => base - y / 12 * (base - top);
-    // 軌道
-    ctx.strokeStyle = '#9fc4ff'; ctx.lineWidth = 5; ctx.beginPath();
+    // 天空與地面
+    ctx.fillStyle = Lab.lg(0, 0, 0, base, ['#132449', '#2c5d92', '#79b0d8']); ctx.fillRect(0, 0, w, base + 4);
+    Lab.cloud(w * 0.3, 70, 0.6, 0.4); Lab.cloud(w * 0.7, 50, 0.5, 0.35);
+    // 軌道下方的支撐土丘
+    ctx.beginPath(); ctx.moveTo(X(0), base + 4);
+    for (let i = 0; i <= 200; i++) { const u = i / 200; ctx.lineTo(X(u), Y(track(u)) + 6); }
+    ctx.lineTo(X(1), base + 4); ctx.closePath();
+    ctx.fillStyle = Lab.lg(0, top, 0, base, ['#4caf6e', '#2f7a4a', '#1f5634']); ctx.fill();
+    ctx.fillStyle = Lab.lg(0, base, 0, h, ['#1f5634', '#0f2a1c']); ctx.fillRect(0, base + 4, w, h);
+    // 枕木與鐵軌
+    for (let i = 0; i <= 80; i++) {
+      const u = i / 80, du = 1e-3, xx = X(u), yy = Y(track(u));
+      const dx = X(u + du) - X(u - du), dy = Y(track(u + du)) - Y(track(u - du)), L = Math.hypot(dx, dy);
+      Lab.line(xx, yy, xx - dy / L * 10, yy + dx / L * 10, '#6b4a2b', 4);
+    }
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = 4;
+    ctx.strokeStyle = '#d8dee8'; ctx.lineWidth = 4; ctx.beginPath();
     for (let i = 0; i <= 200; i++) { const u = i / 200; i ? ctx.lineTo(X(u), Y(track(u))) : ctx.moveTo(X(u), Y(track(u))); }
-    ctx.stroke();
-    Lab.line(x0, Y(S.h0), x1, Y(S.h0), 'rgba(255,211,77,.35)', 1, [6, 6]);
-    Lab.text('起始高度', x1, Y(S.h0) - 10, '#ffd34d', 12, 'right');
+    ctx.stroke(); ctx.restore();
+    // 高度尺
+    Lab.line(x0 - 36, Y(0), x0 - 36, Y(12), 'rgba(255,255,255,.5)', 2);
+    for (let m = 0; m <= 12; m += 2) { Lab.line(x0 - 42, Y(m), x0 - 30, Y(m), 'rgba(255,255,255,.6)', 1.5); Lab.text(m + ' m', x0 - 46, Y(m), 'rgba(238,241,250,.75)', 11, 'right'); }
+    Lab.line(x0 - 30, Y(S.h0), x1, Y(S.h0), 'rgba(255,211,77,.55)', 1.5, [6, 6]);
+    Lab.pill('起始高度', x1 - 40, Y(S.h0) - 14, '#ffd34d', 12);
     // 小球運動：沿軌道，用能量求速率
     if (S.eRun) {
       const E = M * g * S.h0 - S.heat;
@@ -115,16 +157,20 @@
       S.v = sp;
     }
     const by = track(S.u);
-    Lab.circle(X(S.u), Y(by) - 14, 14, '#ff6b5e', '#fff', 2);
+    Lab.ball(X(S.u), Y(by) - 15, 15, '#ff6b5e');
+    if (S.fric && S.heat > 0.5) for (let i = 0; i < 4; i++) Lab.circle(X(S.u) - S.dir * (8 + i * 7), Y(by) - 2 - i * 3, 2.5 - i * 0.4, `rgba(255,${180 - i * 30},80,${0.7 - i * 0.15})`);
     // 能量長條
     const PE = M * g * by, KE = Math.max(0, M * g * S.h0 - S.heat - PE), H = S.heat, tot = M * g * S.h0;
-    const bx = x0, bw = Math.min(380, w - 80), byy = base + 40;
-    [['位能 U', PE, '#5fa2ff'], ['動能 K', KE, '#ff8a5c'], ['熱能（摩擦）', H, '#ffd34d'], ['總能量', tot, '#4fd18b']].forEach(([n, v, c], i) => {
-      const y = byy + i * 34;
-      Lab.text(n, bx, y + 10, '#eef1fa', 13, 'left');
-      Lab.card(bx + 110, y, bw, 20, 'rgba(255,255,255,.06)', null, 4);
-      Lab.card(bx + 110, y, Math.max(0, v / (g * 10) * bw), 20, c, null, 4);
-      Lab.text(v.toFixed(1) + ' J', bx + 120 + bw, y + 10, c, 13, 'left');
+    const gx = 20, gw = Math.min(520, w - 40), gyy = base + 22, rows = [['位能 U', PE, '#5fa2ff'], ['動能 K', KE, '#ff8a5c'], ['熱能（摩擦）', H, '#ffd34d'], ['力學能 U + K', PE + KE, '#c58bff'], ['總能量', tot, '#4fd18b']];
+    Lab.glass(gx, gyy, gw, rows.length * 30 + 20, 12);
+    const bw = gw - 200;
+    rows.forEach(([n, v, c], i) => {
+      const y = gyy + 14 + i * 30;
+      Lab.text(n, gx + 14, y + 9, '#eef1fa', 13, 'left', 'bold');
+      Lab.card(gx + 120, y, bw, 18, 'rgba(255,255,255,.06)', null, 9);
+      const L = Math.max(0, v / (g * 10) * bw);
+      if (L > 1) { Lab.rr(gx + 120, y, Math.min(bw, L), 18, 9); ctx.fillStyle = Lab.lg(gx + 120, 0, gx + 120 + bw, 0, [Lab.shade(c, -0.25), c, Lab.shade(c, 0.3)]); ctx.fill(); }
+      Lab.text(v.toFixed(1) + ' J', gx + 130 + bw, y + 9, c, 13, 'left', 'bold');
     });
     $('info').innerHTML = S.fric
       ? '有摩擦時，一部分力學能變成<b>熱能</b>，小球回不到原來的高度，最後停下來；但<b>總能量仍然守恆</b>。'

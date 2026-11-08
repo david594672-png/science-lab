@@ -52,20 +52,43 @@
   function reset() { S.run = false; S.t = 0; S.x = 0; S.v = S.v0; S.dots = [0]; S.hist = [[0, 0, S.v0]]; $('go').textContent = '▶ 出發'; }
 
   function graph(ctx, x, y, w, h, title, ymin, ymax, idx, color, areaOn) {
-    Lab.card(x, y, w, h, 'rgba(255,255,255,.03)', 'rgba(255,255,255,.12)', 6);
-    const px = x + 38, py = y + 22, pw = w - 50, ph = h - 44;
+    Lab.glass(x, y, w, h, 12);
+    const px = x + 40, py = y + 30, pw = w - 54, ph = h - 54;
     const X = t => px + t / TMAX * pw, Y = v => py + ph - (v - ymin) / (ymax - ymin) * ph;
-    Lab.line(px, Y(0), px + pw, Y(0), 'rgba(255,255,255,.35)', 1.2); Lab.line(px, py, px, py + ph, 'rgba(255,255,255,.35)', 1.2);
-    Lab.text(title, x + 10, y + 12, color, 13, 'left', 'bold');
-    Lab.text('t（s）', px + pw, y + h - 10, 'rgba(238,241,250,.5)', 11, 'right');
-    for (let t = 2; t <= TMAX; t += 2) Lab.text(String(t), X(t), Y(0) + 12, 'rgba(238,241,250,.4)', 10);
-    if (areaOn && S.hist.length > 1) {
-      ctx.fillStyle = 'rgba(95,162,255,.22)'; ctx.beginPath(); ctx.moveTo(X(0), Y(0));
+    for (let i = 1; i <= 4; i++) Lab.line(px, py + ph * (i - 1) / 4, px + pw, py + ph * (i - 1) / 4, 'rgba(238,241,250,.07)', 1);
+    for (let t = 2; t <= TMAX; t += 2) Lab.line(X(t), py, X(t), py + ph, 'rgba(238,241,250,.05)', 1);
+    Lab.line(px, Y(0), px + pw, Y(0), 'rgba(238,241,250,.4)', 1.2); Lab.line(px, py, px, py + ph, 'rgba(238,241,250,.4)', 1.2);
+    Lab.circle(x + 16, y + 15, 4, color);
+    Lab.text(title, x + 26, y + 15, '#eef1fa', 13, 'left', 'bold');
+    Lab.text('t（s）', px + pw + 8, py + ph + 26, 'rgba(238,241,250,.5)', 11, 'right');
+    Lab.text(String(ymax), px - 6, py, 'rgba(238,241,250,.4)', 10, 'right');
+    for (let t = 2; t <= TMAX; t += 2) Lab.text(String(t), X(t), Y(0) + 11, 'rgba(238,241,250,.4)', 10);
+    if (S.hist.length < 2) return;
+    if (areaOn) {
+      ctx.fillStyle = Lab.lg(0, py, 0, py + ph, [Lab.alpha(color, .45), Lab.alpha(color, .12)]); ctx.beginPath(); ctx.moveTo(X(0), Y(0));
       S.hist.forEach(p => ctx.lineTo(X(p[0]), Y(p[idx]))); ctx.lineTo(X(S.t), Y(0)); ctx.closePath(); ctx.fill();
+      Lab.text(`面積 = ${S.x.toFixed(1)} m`, X(S.t / 2), Y(0) - 14, '#fff', 12, 'center', 'bold');
     }
-    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 10;
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
     S.hist.forEach((p, i) => (i ? ctx.lineTo(X(p[0]), Y(p[idx])) : ctx.moveTo(X(p[0]), Y(p[idx]))));
-    ctx.stroke();
+    ctx.stroke(); ctx.restore();
+    const lp = S.hist[S.hist.length - 1];
+    Lab.circle(X(lp[0]), Y(lp[idx]), 5, '#fff', color, 2.5);
+  }
+
+  function scene(ctx, w, top, bot) {
+    // 天空與遠山
+    ctx.fillStyle = Lab.lg(0, top, 0, bot, ['#16325e', '#2f6aa3', '#7fb3d9']); ctx.fillRect(0, top, w, bot - top);
+    Lab.circle(w * 0.82, top + 34, 18, Lab.rg(w * 0.82, top + 34, 4, 40, ['rgba(255,244,200,1)', 'rgba(255,230,150,.35)', 'rgba(255,230,150,0)']));
+    Lab.circle(w * 0.82, top + 34, 13, '#fff6d0');
+    Lab.cloud(w * 0.2, top + 52, 0.7, 0.55); Lab.cloud(w * 0.55, top + 40, 0.5, 0.45);
+    ctx.fillStyle = '#3b6b7a'; ctx.beginPath(); ctx.moveTo(0, bot - 30);
+    for (let x = 0; x <= w; x += 20) ctx.lineTo(x, bot - 40 - 24 * Math.sin(x / 140) - 12 * Math.sin(x / 47 + 1));
+    ctx.lineTo(w, bot); ctx.lineTo(0, bot); ctx.fill();
+    ctx.fillStyle = '#3f8a5a'; ctx.beginPath(); ctx.moveTo(0, bot - 18);
+    for (let x = 0; x <= w; x += 20) ctx.lineTo(x, bot - 22 - 8 * Math.sin(x / 90 + 2));
+    ctx.lineTo(w, bot); ctx.lineTo(0, bot); ctx.fill();
   }
 
   function draw(ctx, w, h, dt) {
@@ -79,32 +102,51 @@
       if (Math.floor(S.t / 0.5) >= S.dots.length) S.dots.push(S.x);
       if (S.t >= TMAX || S.x > XMAX) { S.run = false; $('go').textContent = '▶ 出發'; }
     }
-    // 跑道與小車
-    const tx0 = 40, tx1 = w - 30, ty = 70, X = x => tx0 + Math.min(x, XMAX) / XMAX * (tx1 - tx0);
-    Lab.line(tx0, ty + 24, tx1, ty + 24, 'rgba(255,255,255,.4)', 2);
-    for (let m = 0; m <= XMAX; m += 10) { Lab.line(X(m), ty + 24, X(m), ty + 32, 'rgba(255,255,255,.4)', 1.5); Lab.text(m + ' m', X(m), ty + 44, 'rgba(238,241,250,.5)', 11); }
+    // 場景：天空、道路、里程樁
+    const roadY = 150, tx0 = 70, tx1 = w - 50, X = x => tx0 + Math.min(x, XMAX) / XMAX * (tx1 - tx0);
+    scene(ctx, w, 0, roadY);
+    ctx.fillStyle = Lab.lg(0, roadY, 0, roadY + 34, ['#4a4f5c', '#2c303a']); ctx.fillRect(0, roadY, w, 34);
+    Lab.line(0, roadY + 1, w, roadY + 1, '#c9ced8', 2);
+    Lab.line(0, roadY + 17, w, roadY + 17, 'rgba(255,214,90,.8)', 2, [18, 14]);
+    for (let m = 0; m <= XMAX; m += 10) {
+      const mx = X(m);
+      Lab.line(mx, roadY - 2, mx, roadY - 26, '#e8ecf3', 3);
+      Lab.card(mx - 17, roadY - 44, 34, 18, '#1f8a4c', '#eaf7ee', 4);
+      Lab.text(m + ' m', mx, roadY - 35, '#fff', 11, 'center', 'bold');
+    }
+    // 起跑線（棋盤格）
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 6; j++) { ctx.fillStyle = (i + j) % 2 ? '#111' : '#f4f4f4'; ctx.fillRect(tx0 - 6 + i * 6, roadY + 2 + j * 5.3, 6, 5.3); }
     const cx = X(S.x);
-    Lab.card(cx - 34, ty - 14, 54, 30, '#5fa2ff', '#fff', 6);
-    Lab.circle(cx - 22, ty + 18, 7, '#13233f', '#9fb4d6', 2); Lab.circle(cx + 8, ty + 18, 7, '#13233f', '#9fb4d6', 2);
-    if (Math.abs(S.v) > 0.05) Lab.arrow(cx + 20, ty - 26, cx + 20 + S.v * 8, ty - 26, '#ffd34d', 3, 10);
-    // 紙帶
-    const py = ty + 74;
-    Lab.card(tx0 - 10, py - 12, tx1 - tx0 + 20, 24, '#f2ead6', null, 3);
-    S.dots.forEach(x => Lab.circle(X(x), py, 4, '#13233f'));
-    Lab.text('紙帶（每 0.5 秒一點）', tx0, py + 26, 'rgba(238,241,250,.55)', 12, 'left');
+    Lab.car(cx - 36, roadY + 14, 0.62, '#4f8cff', S.x / 0.35);   // 以車頭對準位置
+    if (Math.abs(S.v) > 0.05) Lab.force(cx + 10, roadY - 62, cx + 10 + S.v * 9, roadY - 62, '#ffd34d', `v = ${S.v.toFixed(1)} m/s`, 4);
+    if (Math.abs(S.a) > 0.01 && S.v > 0.01) Lab.force(cx - 10, roadY - 106, cx - 10 + S.a * 22, roadY - 106, '#ffa64d', `a = ${S.a.toFixed(2)}`, 3);
+    // 打點計時器與紙帶
+    const py = roadY + 66;
+    Lab.card(8, py - 22, 52, 44, Lab.lg(0, py - 22, 0, py + 22, ['#6d7487', '#3c4252']), '#9aa3b8', 6);
+    Lab.circle(34, py, 6, S.run && (S.t * 4 % 1) < 0.3 ? '#ff6b5e' : '#552', '#222', 1.5);
+    Lab.text('打點器', 34, py + 30, 'rgba(238,241,250,.55)', 10);
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.4)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    Lab.card(60, py - 13, Math.max(10, cx - 60), 26, Lab.lg(0, py - 13, 0, py + 13, ['#fbf5e4', '#e9dfc4']), null, 2);
+    ctx.restore();
+    S.dots.forEach((x, i) => { if (X(x) <= cx) { Lab.circle(X(x), py, 3.6, '#1a2238'); if (i && i % 2 === 0) Lab.text((i / 2) + 's', X(x), py + 22, 'rgba(238,241,250,.45)', 9); } });
+    Lab.text('紙帶（每 0.5 秒打一點）', w - 20, py - 26, 'rgba(238,241,250,.6)', 12, 'right');
     // 三張圖
-    const gy = py + 46, gh = Math.max(110, (h - gy - 20) / 2 - 6), gw = (w - 50) / 2;
+    const gy = py + 44, gh = Math.max(120, (h - gy - 30) * 0.6), gw = (w - 50) / 2;
     graph(ctx, 20, gy, gw, gh, '位置 x－t', 0, XMAX, 1, '#4fd18b');
     graph(ctx, 30 + gw, gy, gw, gh, '速度 v－t', 0, 12, 2, '#5fa2ff', $('area').checked);
     const ga = gy + gh + 12;
-    if (ga + 90 < h) {
-      Lab.card(20, ga, w - 40, h - ga - 10, 'rgba(255,255,255,.03)', 'rgba(255,255,255,.12)', 6);
-      const ah = h - ga - 10, mid = ga + ah / 2, aa = S.run || S.t > 0 ? S.a : S.a;
-      Lab.text('加速度 a－t', 30, ga + 12, '#ffa64d', 13, 'left', 'bold');
-      Lab.line(58, mid, w - 30, mid, 'rgba(255,255,255,.35)', 1.2);
-      const yA = mid - aa / 2 * (ah / 2 - 14);
-      Lab.line(58, yA, 58 + (w - 90) * Math.min(1, S.t / TMAX || 0.001), yA, '#ffa64d', 3);
-      Lab.text(`a = ${S.a.toFixed(2)} m/s²${S.a === 0 ? '（等速度或靜止）' : ''}`, w - 40, ga + 12, '#ffa64d', 13, 'right');
+    if (ga + 80 < h) {
+      const ah = h - ga - 10;
+      Lab.glass(20, ga, w - 40, ah, 12);
+      const mid = ga + ah / 2 + 8;
+      Lab.circle(36, ga + 15, 4, '#ffa64d');
+      Lab.text('加速度 a－t', 46, ga + 15, '#eef1fa', 13, 'left', 'bold');
+      Lab.line(58, mid, w - 30, mid, 'rgba(238,241,250,.4)', 1.2);
+      Lab.text('0', 50, mid, 'rgba(238,241,250,.4)', 10, 'right');
+      const yA = mid - S.a / 2 * (ah / 2 - 18), xe = 58 + (w - 90) * Math.min(1, S.t / TMAX || 0.001);
+      ctx.fillStyle = 'rgba(255,166,77,.18)'; ctx.fillRect(58, Math.min(mid, yA), xe - 58, Math.abs(yA - mid));
+      ctx.save(); ctx.shadowColor = '#ffa64d'; ctx.shadowBlur = 10; Lab.line(58, yA, xe, yA, '#ffa64d', 3); ctx.restore();
+      Lab.text(`a = ${S.a.toFixed(2)} m/s²${S.a === 0 ? '（等速度或靜止）' : ''}`, w - 40, ga + 15, '#ffa64d', 13, 'right', 'bold');
     }
   }
 

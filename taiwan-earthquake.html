@@ -81,22 +81,64 @@ for (let i = 1; i < 4; i++) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(16.02, 0.03, 22.02), L.glow(0x5a4030));
   m.position.y = TOP - i * THICK / 4; scene.add(m);
 }
-// 台灣島
+/// 台灣島：用高度函數做出有起伏的地形（中央山脈、雪山、海岸山脈），高度誇大以便觀察
 const OUT = [[121.5, 25.3], [121.9, 25.1], [122.0, 24.9], [121.8, 24.6], [121.6, 24.0], [121.4, 23.3], [121.2, 22.8], [120.9, 22.3], [120.85, 21.9], [120.7, 22.1], [120.6, 22.4], [120.3, 22.6], [120.15, 23.0], [120.1, 23.5], [120.2, 24.0], [120.5, 24.5], [120.8, 24.8], [121.0, 25.05], [121.3, 25.2]];
-const shape = new THREE.Shape(OUT.map(([lo, la]) => { const [x, z] = geo2(lo, la); return new THREE.Vector2(x, -z); }));
-const isl = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.25, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08 }), L.mat(0x4f8a4a, { roughness: 0.9 }));
-isl.rotation.x = -Math.PI / 2; isl.position.y = TOP; scene.add(isl);
-// 中央山脈
-const mtn = new THREE.Mesh(new THREE.ConeGeometry(0.9, 0.9, 6), L.mat(0x6f8f55, { flatShading: true }));
-mtn.scale.set(1, 1, 5); mtn.rotation.y = 0.25;
-{ const [x, z] = geo2(121.0, 23.6); mtn.position.set(x, TOP + 0.6, z); }
-scene.add(mtn);
+const segDist = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy))); return Math.hypot(px - ax - u * dx, py - ay - u * dy); };
+const lineDist = (lo, la, P) => { let d = 1e9; for (let i = 0; i < P.length - 1; i++) d = Math.min(d, segDist(lo, la, ...P[i], ...P[i + 1])); return d; };
+function coastDist(lo, la) {                       // 到海岸的距離（度），島內為正
+  let inside = false, d = 1e9;
+  for (let i = 0, j = OUT.length - 1; i < OUT.length; j = i++) {
+    const [xi, yi] = OUT[i], [xj, yj] = OUT[j];
+    if ((yi > la) !== (yj > la) && lo < (xj - xi) * (la - yi) / (yj - yi) + xi) inside = !inside;
+    d = Math.min(d, segDist(lo, la, xi, yi, xj, yj));
+  }
+  return inside ? d : -d;
+}
+const RIDGE = [[121.55, 24.75], [121.2, 24.1], [121.0, 23.5], [120.85, 22.6], [120.8, 22.1]];
+const SNOW = [[121.1, 24.75], [121.25, 24.35]];
+const COASTAL = [[121.5, 23.95], [121.3, 23.3], [121.15, 22.85]];
+function elev(lo, la) {
+  const c = coastDist(lo, la);
+  if (c < 0) return -0.12;
+  const g = (d, s) => Math.exp(-((d / s) ** 2));
+  const m = 1.05 * g(lineDist(lo, la, RIDGE), 0.2) + 0.55 * g(lineDist(lo, la, SNOW), 0.14) + 0.3 * g(lineDist(lo, la, COASTAL), 0.06);
+  const inland = Math.min(1, c / 0.12);
+  return 0.04 + 0.85 * m * inland * inland * (3 - 2 * inland) + 0.012 * Math.sin(lo * 37) * Math.sin(la * 41) * inland;
+}
+const NX = 110, NZ = 180, LO0 = 119.95, LO1 = 122.15, LA0 = 21.75, LA1 = 25.45;
+const tg = new THREE.PlaneGeometry((LO1 - LO0) * K, (LA1 - LA0) * K, NX, NZ);
+tg.rotateX(-Math.PI / 2);
+{
+  const pos = tg.attributes.position, col = new Float32Array(pos.count * 3), c = new THREE.Color();
+  const cx = ((LO0 + LO1) / 2 - LON0) * K, cz = -((LA0 + LA1) / 2 - LAT0) * K;
+  const stops = [[0, 0x7cb866], [0.2, 0x4f9a4a], [0.45, 0x3f7a3c], [0.7, 0x7d7448], [0.95, 0xa89a82]];
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) + cx, z = pos.getZ(i) + cz, lo = x / K + LON0, la = -z / K + LAT0, hgt = elev(lo, la);
+    pos.setXYZ(i, x, TOP + hgt, z);
+    let k = 0; while (k < stops.length - 2 && hgt > stops[k + 1][0]) k++;
+    const f = Math.max(0, Math.min(1, (hgt - stops[k][0]) / (stops[k + 1][0] - stops[k][0])));
+    c.set(stops[k][1]).lerp(new THREE.Color(stops[k + 1][1]), f);
+    const cd = coastDist(lo, la); if (cd >= 0 && cd < 0.02) c.set(0xd9c99a);   // 沙灘
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  tg.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  tg.computeVertexNormals();
+}
+const isl = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: false }));
+scene.add(isl);
+// 淺海：沿岸一圈較亮的海水
+{
+  const shape = new THREE.Shape(OUT.map(([lo, la]) => { const [x, z] = geo2(lo, la); return new THREE.Vector2(x, -z); }));
+  const halo = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: 0x5fb6d9, transparent: true, opacity: 0.35, depthWrite: false }));
+  halo.rotation.x = -Math.PI / 2; halo.position.y = TOP + 0.005; halo.scale.set(1.04, 1.02, 1);
+  scene.add(halo);
+}
 
 // 城市
 const CITY = [['台北', 121.56, 25.04], ['台中', 120.68, 24.15], ['花蓮', 121.6, 23.98], ['台東', 121.15, 22.76], ['高雄', 120.3, 22.63]];
 CITY.forEach(c => {
   const [x, z] = geo2(c[1], c[2]);
-  c.pos = V(x, TOP + 0.35, z);
+  c.pos = V(x, TOP + Math.max(0, elev(c[1], c[2])) + 0.14, z);
   const dot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.25, 12), L.glow(0xffffff));
   dot.position.copy(c.pos); scene.add(dot); c.dot = dot;
   c.lbl = L.label(c[0], c.pos.clone().add(V(0, 0.55, 0)));
@@ -126,7 +168,7 @@ const plateLbls = [L.label('歐亞板塊', V(-6.5, TOP + 1, 3)), L.label('菲律
 
 function place() {
   const [x, z] = geo2(...S.epi);
-  epi.position.set(x, TOP + 0.3, z);
+  epi.position.set(x, TOP + Math.max(0, elev(...S.epi)) + 0.15, z);
   hypo.position.set(x, TOP - S.depth / KM, z);
   drop.geometry.setFromPoints([epi.position, hypo.position]); drop.computeLineDistances();
   pW.position.copy(hypo.position); sW.position.copy(hypo.position);

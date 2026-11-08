@@ -63,9 +63,9 @@
   const $ = Lab.$;
   // 溶解度（g／100 g 水），0～100°C 每 20°C 一筆
   const SOL = {
-    salt:  { name: '食鹽', color: '#eef1fa', data: [35.7, 36.0, 36.6, 37.3, 38.4, 39.8] },
-    kno3:  { name: '硝酸鉀', color: '#9fd8ff', data: [13.3, 31.6, 63.9, 110, 169, 246] },
-    sugar: { name: '蔗糖', color: '#ffe6a8', data: [179, 204, 238, 287, 362, 487] }
+    salt:  { name: '食鹽', color: '#f4f6fb', tint: '150,200,255', line: '#eef1fa', data: [35.7, 36.0, 36.6, 37.3, 38.4, 39.8] },
+    kno3:  { name: '硝酸鉀', color: '#9fd8ff', tint: '130,190,255', line: '#5cc8ff', data: [13.3, 31.6, 63.9, 110, 169, 246] },
+    sugar: { name: '蔗糖', color: '#ffe6a8', tint: '190,200,210', line: '#ffd166', data: [179, 204, 238, 287, 362, 487] }
   };
   const S = { k: 'salt', water: 100, added: 0, T: 20, crystals: [], parts: [] };
   const solub = (k, T) => { const d = SOL[k].data, i = Math.min(4, Math.floor(T / 20)), f = (T - i * 20) / 20; return d[i] + (d[i + 1] - d[i]) * f; };
@@ -76,47 +76,91 @@
   for (let i = 0; i < 260; i++) S.parts.push({ x: Math.random(), y: Math.random(), vx: 0, vy: 0, ph: Math.random() * 6 });
 
   function draw(ctx, w, h, dt, t) {
-    const bw = Math.min(260, w * 0.36), bx = w * 0.06 + 10, by = 50, bh = Math.min(h - 120, 340);
-    const levelFrac = Math.min(0.92, 0.35 + S.water / 400);
-    const wy = by + bh * (1 - levelFrac);
-    // 燒杯
-    ctx.fillStyle = 'rgba(120,190,255,.16)'; ctx.fillRect(bx, wy, bw, by + bh - wy);
-    ctx.strokeStyle = 'rgba(220,235,255,.7)'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(bx - 8, by); ctx.lineTo(bx, by + 6); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + 6); ctx.lineTo(bx + bw + 8, by); ctx.stroke();
-    for (let k = 1; k < 5; k++) Lab.line(bx + bw - 26, by + bh - k * bh / 5, bx + bw - 6, by + bh - k * bh / 5, 'rgba(220,235,255,.4)', 1.5);
+    const bw = Math.min(230, w * 0.3), bx = 46, by = 110, bh = Math.max(200, Math.min(h - 260, 400)), bot = by + bh;
+    const levelFrac = Math.min(0.9, 0.35 + S.water / 400);
+    const wy = by + bh * (1 - levelFrac), ey = 9;           // ey：橢圓（立體感）半高
+    const hot = (S.T - 20) / 80;
+    // 實驗室背景與桌面
+    ctx.fillStyle = Lab.lg(0, 0, 0, h, ['#1d1230', '#2a1a40']); ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 0; x < w; x += 46) ctx.fillRect(x, 0, 1, bot + 40);
+    const deskY = bot + 40;
+    ctx.fillStyle = Lab.lg(0, deskY, 0, h, ['#3c3550', '#221d30']); ctx.fillRect(0, deskY, w, h - deskY);
+    Lab.line(0, deskY, w, deskY, 'rgba(255,255,255,.18)', 2);
+    // 加熱板
+    const hx = bx - 16, hw = bw + 32;
+    Lab.card(hx, bot + 6, hw, 34, Lab.lg(0, bot + 6, 0, bot + 40, ['#5a5f6e', '#30333d']), '#777d8f', 6);
+    Lab.rr(hx + 10, bot + 6, hw - 20, 6, 3); ctx.fillStyle = hot > 0 ? `rgba(255,${120 - hot * 60},60,${0.3 + hot * 0.7})` : '#454a57'; ctx.fill();
+    if (hot > 0) { ctx.save(); ctx.globalAlpha = hot * 0.6; ctx.fillStyle = Lab.rg(bx + bw / 2, bot + 6, 0, bw * 0.6, ['rgba(255,110,60,.6)', 'rgba(255,110,60,0)']); ctx.fillRect(hx, bot - 40, hw, 50); ctx.restore(); }
+    Lab.circle(hx + hw - 20, bot + 26, 6, hot > 0 ? '#ff7a4d' : '#2a2d36', '#999', 1.5);
+    Lab.text(`${S.T}°C`, hx + 30, bot + 26, '#eef1fa', 12, 'center', 'bold');
+    // 燒杯：液體（含頂部液面橢圓）
+    const tint = SOL[S.k].tint;
+    const conc0 = dissolved() / (dissolved() + S.water);
+    ctx.fillStyle = Lab.lg(bx, 0, bx + bw, 0, [`rgba(${tint},${0.32 + conc0 * 0.4})`, `rgba(${tint},${0.18 + conc0 * 0.3})`, `rgba(${tint},${0.36 + conc0 * 0.4})`]);
+    ctx.beginPath(); ctx.moveTo(bx, wy); ctx.lineTo(bx, bot); ctx.ellipse(bx + bw / 2, bot, bw / 2, ey, 0, Math.PI, 0, true); ctx.lineTo(bx + bw, wy); ctx.ellipse(bx + bw / 2, wy, bw / 2, ey, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = `rgba(${tint},.45)`; ctx.beginPath(); ctx.ellipse(bx + bw / 2, wy, bw / 2, ey, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 1.2; ctx.stroke();
     // 溶解的粒子（數量依濃度）
     const d = dissolved(), conc = d / (d + S.water);
     const n = Math.round(Math.min(1, conc / 0.75) * S.parts.length);
-    ctx.fillStyle = SOL[S.k].color;
+    const pc = SOL[S.k].color;
     for (let i = 0; i < n; i++) {
       const p = S.parts[i];
       p.x = (p.x + Math.sin(t * 0.8 + p.ph) * 0.0015 + 1) % 1; p.y = (p.y + Math.cos(t * 0.7 + p.ph) * 0.0015 + 1) % 1;
-      ctx.beginPath(); ctx.arc(bx + 8 + p.x * (bw - 16), wy + 8 + p.y * (by + bh - wy - 26), 2.6, 0, Math.PI * 2); ctx.fill();
+      const px = bx + 10 + p.x * (bw - 20), py = wy + 12 + p.y * (bot - wy - 26);
+      ctx.fillStyle = Lab.alpha(pc, 0.85); ctx.beginPath(); ctx.arc(px, py, 2.2, 0, Math.PI * 2); ctx.fill();
     }
-    // 沒溶解的晶體
-    const und = S.added - d, rows = Math.min(40, Math.ceil(und / 1.5));
-    for (let i = 0; i < rows; i++) {
-      const cx = bx + bw / 2 + ((i * 37) % 11 - 5) * bw * 0.06, cy = by + bh - 6 - Math.floor(i / 11) * 7;
-      ctx.fillStyle = SOL[S.k].color; ctx.fillRect(cx - 4, cy - 4, 8, 8);
+    // 沒溶解的晶體：一顆顆有亮面的小方塊
+    const und = S.added - d, cnt = Math.min(60, Math.ceil(und / 1.2));
+    for (let i = 0; i < cnt; i++) {
+      const row = Math.floor(i / 12), col = i % 12, spread = (bw - 40) * (1 - row * 0.12);
+      const cx = bx + bw / 2 + (col / 11 - 0.5) * spread + ((i * 7) % 5 - 2), cy = bot - 4 - row * 6 + ((i * 13) % 3);
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(((i * 37) % 10 - 5) * 0.08);
+      ctx.fillStyle = Lab.shade(pc, -0.25); ctx.fillRect(-4, -4, 8, 8);
+      ctx.fillStyle = Lab.shade(pc, 0.3); ctx.fillRect(-4, -4, 8, 3);
+      ctx.restore();
     }
-    Lab.text(`${S.water} g 水、${S.T}°C`, bx + bw / 2, by + bh + 22, 'rgba(238,241,250,.7)', 14);
-    // 溫度計
-    const tx = bx + bw + 30;
-    Lab.card(tx - 6, by + 20, 12, bh - 20, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.3)', 6);
-    const th = (bh - 30) * S.T / 100;
-    Lab.card(tx - 3, by + bh - 6 - th, 6, th + 2, '#ff6b5e', null, 3);
-    Lab.circle(tx, by + bh, 10, '#ff6b5e');
+    // 玻璃：杯壁、杯口、底部、反光
+    ctx.strokeStyle = 'rgba(220,235,255,.75)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, bot); ctx.ellipse(bx + bw / 2, bot, bw / 2, ey, 0, Math.PI, 0, true); ctx.lineTo(bx + bw, by); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(bx + bw / 2, by, bw / 2, ey, 0, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(220,235,255,.55)'; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - 2, by); ctx.quadraticCurveTo(bx - 14, by - 6, bx - 10, by - 12); ctx.stroke();   // 杯嘴
+    ctx.fillStyle = Lab.lg(bx, 0, bx + bw, 0, [[0, 'rgba(255,255,255,.18)'], [0.08, 'rgba(255,255,255,.04)'], [0.85, 'rgba(255,255,255,0)'], [0.93, 'rgba(255,255,255,.14)'], [1, 'rgba(255,255,255,0)']]);
+    ctx.fillRect(bx, by, bw, bh);
+    for (let k = 1; k <= 9; k++) { const yy = bot - k * bh / 10; Lab.line(bx + 10, yy, bx + (k % 2 ? 22 : 32), yy, 'rgba(230,240,255,.5)', 1.5); }
+    // 溫度計（插在杯中）
+    const tx = bx + bw - 34, ttop = by - 70, tb = bot - 26;
+    Lab.card(tx - 6, ttop, 12, tb - ttop, 'rgba(255,255,255,.18)', 'rgba(255,255,255,.55)', 6);
+    const th = (tb - ttop - 20) * S.T / 100;
+    Lab.card(tx - 2.5, tb - 4 - th, 5, th + 4, '#ff4d4d', null, 2.5);
+    Lab.circle(tx, tb, 9, Lab.rg(tx, tb, 1, 9, ['#ff9a8a', '#e02c2c'], tx - 3, tb - 3), 'rgba(255,255,255,.6)', 1.5);
+    for (let k = 0; k <= 4; k++) Lab.line(tx + 6, tb - 10 - (tb - ttop - 20) * k / 4, tx + 12, tb - 10 - (tb - ttop - 20) * k / 4, 'rgba(255,255,255,.6)', 1);
+    Lab.text(`${S.water} g 水`, bx + bw / 2, deskY + 22, '#eef1fa', 14, 'center', 'bold');
+    // 放大鏡：微觀下溶質粒子分散在水分子之間
+    const mx = bx + bw + 64, my = by + 40, mr = 44;
+    if (mx + mr < w * 0.5 + 60) {
+      Lab.line(bx + bw * 0.62, wy + (bot - wy) * 0.4, mx - mr * 0.7, my + mr * 0.7, 'rgba(255,255,255,.3)', 1.5, [4, 4]);
+      ctx.save(); ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = 'rgba(40,80,140,.9)'; ctx.fillRect(mx - mr, my - mr, mr * 2, mr * 2);
+      const nSol = Math.round(conc * 40);
+      for (let i = 0; i < 26; i++) { const a = i * 2.4 + t * 0.3, r = (i * 17 % 40); const qx = mx + Math.cos(a) * r, qy = my + Math.sin(a * 1.3) * r * 0.9;
+        if (i < nSol) Lab.circle(qx, qy, 4.5, pc, '#fff', 1); else { Lab.circle(qx, qy, 3.2, '#e8f2ff'); Lab.circle(qx - 3, qy + 2.5, 1.8, '#ffffff'); Lab.circle(qx + 3, qy + 2.5, 1.8, '#ffffff'); } }
+      ctx.restore();
+      Lab.circle(mx, my, mr, null, '#d7dde9', 5);
+      Lab.text('微觀', mx, my + mr + 14, 'rgba(238,241,250,.6)', 11);
+    }
     // 溶解度曲線
-    const cx0 = tx + 50, cw = w - cx0 - 20, ch = Math.min(h - 80, 340);
+    const cx0 = Math.max(bx + bw + 130, w * 0.5), cw = w - cx0 - 20, ch = bot + 10;
     if (cw > 160) {
-      const series = Object.entries(SOL).map(([k, s]) => ({ data: Array.from({ length: 101 }, (_, T) => solub(k, T)), color: k === 'salt' ? '#eef1fa' : k === 'kno3' ? '#5cc8ff' : '#ffd166' }));
-      const g = Lab.chart(cx0, by, cw, ch, series, { min: 0, max: 260, xLabel: '溫度 0～100°C', yLabel: '溶解度（g／100 g 水）' });
+      const series = Object.entries(SOL).map(([k, s]) => ({ data: Array.from({ length: 101 }, (_, T) => solub(k, T)), color: k === S.k ? s.line : Lab.alpha(s.line, 0.3), fill: k === S.k }));
+      const g = Lab.chart(cx0, 30, cw, ch, series, { min: 0, max: 260, xLabel: '溫度 0～100°C', yLabel: '溶解度（g／100 g 水）' });
       // 目前狀態點：每 100 g 水溶了多少
-      const per100 = d / S.water * 100;
-      Lab.circle(g.px + S.T / 100 * g.pw, g.Y(Math.min(260, per100)), 7, '#ff5d9e', '#fff', 2);
-      let ly = by + 30;
-      Object.entries(SOL).forEach(([k, s]) => { Lab.pill(s.name, g.px + 50, ly, k === 'salt' ? '#eef1fa' : k === 'kno3' ? '#5cc8ff' : '#ffd166', 12); ly += 28; });
-      Lab.text('● 現在的溶液', g.px + g.pw - 4, by + 30, '#ff5d9e', 13, 'right', 'bold');
+      const per100 = d / S.water * 100, ptx = g.px + S.T / 100 * g.pw, pty = g.Y(Math.min(260, per100));
+      Lab.line(ptx, pty, ptx, g.py + g.ph, 'rgba(255,93,158,.5)', 1, [4, 4]); Lab.line(g.px, pty, ptx, pty, 'rgba(255,93,158,.5)', 1, [4, 4]);
+      ctx.save(); ctx.shadowColor = '#ff5d9e'; ctx.shadowBlur = 14; Lab.circle(ptx, pty, 7, '#ff5d9e', '#fff', 2); ctx.restore();
+      let ly = 62;
+      Object.entries(SOL).forEach(([k, s]) => { const on = k === S.k; Lab.circle(g.px + 14, ly, 5, on ? s.line : Lab.alpha(s.line, 0.4)); Lab.text(s.name, g.px + 24, ly, on ? s.line : 'rgba(238,241,250,.4)', 12, 'left', on ? 'bold' : ''); ly += 20; });
+      Lab.text('● 現在的溶液', g.px + g.pw - 4, 62, '#ff5d9e', 13, 'right', 'bold');
     }
   }
 
