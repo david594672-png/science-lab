@@ -1,902 +1,149 @@
 <!DOCTYPE html>
 <html lang="zh-Hant" data-subject="phy">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>功與能綜合實驗室</title>
-<style>
-  :root {
-    --bg: #ece7e1;
-    --ink: #1d1d1f;
-    --ink-soft: #6e6e73;
-    --card: rgba(255,255,255,.62);
-    --accent: #c46a4c;
-    --ek: #e5484d; --ug: #3f7be8; --ue: #22a35a; --heat: #8e8e93;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: 100%; height: 100%; overflow: hidden; }
-  body {
-    background: var(--bg); color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  #scene { position: absolute; inset: 0; }
-  #scene canvas { display: block; touch-action: none; }
-  .glass {
-    background: var(--card); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
-    border: 1px solid rgba(255,255,255,.8); box-shadow: 0 20px 50px rgba(80,60,40,.12), 0 2px 6px rgba(80,60,40,.05);
-  }
-  .panel { position: absolute; top: 18px; left: 18px; width: 310px; max-height: calc(100vh - 36px); overflow-y: auto; z-index: 10; border-radius: 26px; padding: 18px; }
-  .panel.collapsed { width: auto; min-width: 240px; }
-  .panel.collapsed .body { display: none; }
-  .collapse {
-    position: absolute; top: 18px; right: 16px; z-index: 2; cursor: pointer; border: none;
-    font: inherit; font-size: .76rem; font-weight: 600; color: var(--accent); background: rgba(196,106,76,.12); border-radius: 999px; padding: 4px 12px;
-  }
-  .back { font-size: .78rem; color: var(--accent); text-decoration: none; }
-  .title { font-size: 1.15rem; font-weight: 700; margin-top: 6px; padding-right: 62px; }
-
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 14px 0 12px; }
-  .tab { font: inherit; font-size: .76rem; font-weight: 700; padding: 9px 4px; cursor: pointer; line-height: 1.3; border: none; border-radius: 12px; background: rgba(118,118,128,.12); color: var(--ink); }
-  .tab.on { background: #fff; color: var(--accent); box-shadow: 0 3px 10px rgba(0,0,0,.1); }
-  .section[hidden] { display: none; }
-  .desc { font-size: .8rem; color: var(--ink-soft); line-height: 1.65; margin-bottom: 8px; }
-  .desc b { color: var(--ink); }
-  .btn {
-    width: 100%; border: none; border-radius: 14px; padding: 11px; cursor: pointer; margin-top: 6px;
-    font: inherit; font-size: .88rem; font-weight: 700; color: var(--accent); background: rgba(196,106,76,.12);
-    transition: background .2s, transform .1s;
-  }
-  .btn:hover { background: rgba(196,106,76,.2); }
-  .btn:active { transform: scale(.98); }
-  .btn.primary { color: #fff; background: var(--accent); box-shadow: 0 6px 16px rgba(196,106,76,.3); }
-  .btn.on { color: #fff; background: var(--accent); }
-  .switch-row { display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,.78); border-radius: 14px; padding: 10px 12px; margin-top: 8px; font-size: .86rem; }
-  .switch { position: relative; width: 51px; height: 31px; flex: none; }
-  .switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
-  .switch .s { position: absolute; inset: 0; border-radius: 999px; background: #e5e5ea; transition: background .25s; }
-  .switch .s::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.15); transition: transform .28s cubic-bezier(.3,1.4,.6,1); }
-  .switch input:checked + .s { background: #8e8e93; }
-  .switch input:checked + .s::after { transform: translateX(20px); }
-
-  /* iOS 風格滑桿 */
-  .ios { background: rgba(255,255,255,.8); border-radius: 16px; padding: 10px 14px 12px; margin-top: 8px; transition: opacity .2s; }
-  .ios .top { display: flex; justify-content: space-between; align-items: baseline; font-size: .84rem; margin-bottom: 8px; }
-  .ios .top b { font-size: 1.05rem; font-weight: 800; color: var(--c); font-variant-numeric: tabular-nums; }
-  .ios .top small { font-size: .7rem; color: var(--ink-soft); font-weight: 500; }
-  .ios input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; cursor: pointer; outline: none;
-    background: linear-gradient(90deg, var(--c) 0%, var(--c) var(--fill, 0%), #e5e5ea var(--fill, 0%)); }
-  .ios input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 28px; height: 28px; border-radius: 50%; background: #fff; box-shadow: 0 3px 8px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.06); }
-  .ios input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: #fff; border: none; box-shadow: 0 3px 8px rgba(0,0,0,.18); }
-  .ios input[type=range]:focus-visible { box-shadow: 0 0 0 3px rgba(196,106,76,.3); }
-  .ios.locked { opacity: .45; }
-  .ios.locked input { cursor: not-allowed; }
-  .v0ek { font-size: .74rem; color: var(--ink-soft); margin-top: 6px; line-height: 1.5; }
-  .v0ek b { color: var(--ek); }
-  .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 6px; margin-top: 2px; }
-  .gaugebox { background: rgba(255,255,255,.82); border-radius: 18px; padding: 8px 12px 10px; margin-top: 8px; }
-  #gauge { width: 100%; height: auto; display: block; }
-  .gread { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: .78rem; }
-  .gread b { text-align: right; font-variant-numeric: tabular-nums; }
-  .energy { background: rgba(255,255,255,.82); border-radius: 18px; padding: 12px 14px; margin-top: 12px; }
-  .energy .h { font-size: .72rem; font-weight: 700; color: var(--ink-soft); margin-bottom: 8px; display: flex; justify-content: space-between; }
-  .erow { display: grid; grid-template-columns: 74px 1fr 62px; align-items: center; gap: 8px; font-size: .78rem; padding: 3px 0; }
-  .erow .bar { height: 9px; border-radius: 5px; background: #eee9e3; overflow: hidden; }
-  .erow .bar i { display: block; height: 100%; border-radius: 5px; transition: width .08s linear; }
-  .erow b { text-align: right; font-variant-numeric: tabular-nums; }
-  .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid rgba(0,0,0,.06); margin-top: 8px; padding-top: 8px; font-size: .82rem; }
-  .total b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .sub { font-size: .74rem; color: var(--ink-soft); margin-top: 4px; line-height: 1.6; }
-  .sub b { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-  .tip {
-    position: absolute; right: 18px; bottom: 18px; z-index: 9; width: 320px; border-radius: 22px; padding: 14px 16px;
-    font-size: .84rem; line-height: 1.6;
-  }
-  .tip .t { font-size: .95rem; font-weight: 800; margin-bottom: 4px; }
-  .tip .eq { margin-top: 8px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.85); font-weight: 700; text-align: center; font-size: .82rem; }
-  .tag {
-    position: absolute; z-index: 5; pointer-events: none; transform: translate(-50%, -50%);
-    font-size: .74rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; white-space: nowrap;
-    background: rgba(255,255,255,.9); color: var(--ink); box-shadow: 0 4px 12px rgba(0,0,0,.08);
-  }
-  .hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 5; font-size: .74rem; color: rgba(29,29,31,.5); }
-  .fallback { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ink-soft); line-height: 1.8; }
-  @media (max-width: 760px), (max-width: 1100px) and (orientation: portrait) {
-    .tip { top: 8px; left: 8px; right: 8px; bottom: auto; width: auto; padding: 8px 12px; font-size: .74rem; }
-    .tip .t { font-size: .82rem; margin-bottom: 2px; }
-    .tip .eq { margin-top: 4px; padding: 4px 8px; font-size: .72rem; }
-    .hint { display: none; }
-  }
-</style>
-<script src="mobile.js"></script>
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-<link rel="stylesheet" href="subject-theme.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>功與能</title>
+<link rel="stylesheet" href="lab-kit.css">
 </head>
 <body>
+<canvas id="cv" aria-label="作功與力學能守恆的模擬"></canvas>
 
-<div id="scene"></div>
-
-<aside class="panel glass" id="panel">
+<aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
-  <a class="back" href="index.html#g9">‹ 課程總覽</a>
-  <div class="title">功與能綜合實驗室</div>
+  <a class="back" href="index.html#g9">← 回課程總覽</a>
+  <h1>功與能</h1>
+  <p class="sub">國三理化 · 功與能</p>
 
   <div class="body">
-    <div class="tabs" role="tablist">
-      <button class="tab on" data-mode="m1">① 作功</button>
-      <button class="tab" data-mode="m2">② 力學能守恆</button>
-      <button class="tab" data-mode="m3">③ 彈力位能</button>
+    <div class="modes" style="--n:2">
+      <button class="mode" data-k="work" aria-pressed="true">作功</button>
+      <button class="mode" data-k="energy" aria-pressed="false">力學能守恆</button>
     </div>
 
-    <section class="section" data-mode="m1">
-      <p class="desc">方塊質量 <b>10 kg</b>。<b>推力作正功</b>給方塊能量；<b>摩擦力</b>把能量變成熱能「偷走」。</p>
-      <div class="ios" style="--c:#ff7a00">
-        <div class="top"><span>推力大小 F</span><b id="fVal">40 N</b></div>
-        <input type="range" id="sF" min="0" max="100" step="1" value="40" aria-label="推力大小">
+    <div data-mode="work">
+      <div class="group">
+        <div class="seg" style="--n:3" id="case">
+          <button data-k="push" aria-pressed="true">水平推</button>
+          <button data-k="lift" aria-pressed="false">往上提</button>
+          <button data-k="carry" aria-pressed="false">提著走</button>
+        </div>
+        <div class="ctrl" style="margin-top:8px"><label for="wF">施力 F <output id="wFVal"></output></label><input type="range" id="wF" min="5" max="50" step="5" value="20"></div>
+        <div class="row"><button class="btn primary grow" id="wGo">▶ 移動 4 公尺</button><button class="btn" id="wReset">重來</button></div>
+        <dl class="live" style="margin-top:8px"><dt>移動距離</dt><dd id="ws">—</dd><dt>功 W</dt><dd id="wW">—</dd></dl>
       </div>
-      <div class="ios" style="--c:#7a6656">
-        <div class="top"><span>阻力／摩擦力 f</span><b id="frVal">20 N</b></div>
-        <input type="range" id="sFr" min="0" max="100" step="1" value="20" aria-label="摩擦力大小">
-      </div>
-      <div class="ios" id="v0Row" style="--c:#e5484d">
-        <div class="top"><span>初速度 V₀ <small id="v0Lock"></small></span><b id="v0Val">0 m/s</b></div>
-        <input type="range" id="sV0" min="0" max="10" step="0.5" value="0" aria-label="初速度">
-        <div class="v0ek" id="v0Ek"></div>
-      </div>
-      <div class="row2">
-        <button class="btn primary" id="play1">▶ 開始</button>
-        <button class="btn" id="reset1">↺ 重來</button>
-      </div>
-      <div class="gaugebox">
-        <canvas id="gauge" width="260" height="140" aria-label="即時速度儀表板"></canvas>
-        <div class="gread"><span>淨力 F − f</span><b id="gNet">—</b><span>加速度 a</span><b id="gAcc">—</b></div>
-      </div>
-    </section>
-
-    <section class="section" data-mode="m2" hidden>
-      <p class="desc">用滑鼠把小球<b>拖到軌道高處</b>再放開。小球質量 1 kg（視為質點，忽略滾動）。</p>
-      <div class="switch-row"><span>開啟摩擦力</span><label class="switch"><input type="checkbox" id="fric2" role="switch"><span class="s"></span></label></div>
-      <button class="btn" id="reset2">↺ 放回左邊高處</button>
-    </section>
-
-    <section class="section" data-mode="m3" hidden>
-      <p class="desc">用滑鼠把小球<b>向左拖曳壓縮彈簧</b>，再放開。彈力係數 k = 20 N/m，小球質量 1 kg。</p>
-      <button class="btn" id="reset3">↺ 重來</button>
-    </section>
-
-    <div class="energy" aria-live="polite">
-      <div class="h"><span>能量（焦耳 J）</span><span id="eMode"></span></div>
-      <div class="erow"><span>🔴 動能 Ek</span><div class="bar"><i id="bEk" style="background:var(--ek)"></i></div><b id="vEk">0</b></div>
-      <div class="erow"><span>🔵 重力位能</span><div class="bar"><i id="bUg" style="background:var(--ug)"></i></div><b id="vUg">0</b></div>
-      <div class="erow"><span>🟢 彈力位能</span><div class="bar"><i id="bUe" style="background:var(--ue)"></i></div><b id="vUe">0</b></div>
-      <div class="erow"><span>⚪ 熱能</span><div class="bar"><i id="bQ" style="background:var(--heat)"></i></div><b id="vQ">0</b></div>
-      <div class="total"><span>總能量</span><b id="vTotal">0 J</b></div>
-      <div class="sub" id="eSub"></div>
     </div>
 
-    <button class="btn" id="viewBtn" style="margin-top:12px">重設視角</button>
+    <div data-mode="energy" hidden>
+      <div class="group">
+        <div class="ctrl"><label for="h0">起始高度 <output id="h0Val"></output></label><input type="range" id="h0" min="2" max="10" step="0.5" value="8"></div>
+        <label class="sw"><input type="checkbox" id="fric"><span class="track"></span>軌道有摩擦</label>
+        <div class="row"><button class="btn primary grow" id="eGo">▶ 放開小球</button><button class="btn" id="eReset">重來</button></div>
+      </div>
+    </div>
+
+    <div class="group"><div class="result" id="info"></div></div>
   </div>
 </aside>
 
-<aside class="tip glass" id="tip"><div class="t" id="tipT"></div><div id="tipP"></div><div class="eq" id="tipEq"></div></aside>
-
-<div class="hint" id="hint">拖曳旋轉 · 滾輪縮放</div>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-
-window.__weReady = true;
-const $ = id => document.getElementById(id);
-const V3 = (x, y, z = 0) => new THREE.Vector3(x, y, z);
-const G = 9.8;
-const clamp = THREE.MathUtils.clamp;
-
-/* =========================================================
-   場景
-   ========================================================= */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-$('scene').appendChild(renderer.domElement);
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe6edf6);
-scene.add(new THREE.HemisphereLight(0xffffff, 0xd9cfc4, 1.25));
-const sun = new THREE.DirectionalLight(0xffffff, 2.0);
-sun.position.set(-6, 14, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 12, bottom: -10, near: 1, far: 50 });
-sun.shadow.radius = 4;
-scene.add(sun);
-const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 150);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 5;
-controls.maxDistance = 45;
-
-const clay = (color, extra = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.5, metalness: 0.05, clearcoat: 0.25, ...extra });
-const shadowed = m => { m.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return m; };
-const floor = new THREE.Mesh(new RoundedBoxGeometry(32, 0.5, 14, 6, 0.24), clay(0xe0d6cb));
-floor.position.y = -0.25; floor.receiveShadow = true; scene.add(floor);
-
-/* ----- 標籤 ----- */
-const labels = [];
-function addLabel(mode, html = '', style = '') {
-  const el = document.createElement('div');
-  el.className = 'tag'; el.innerHTML = html;
-  if (style) el.style.cssText += style;
-  document.body.appendChild(el);
-  const L = { el, mode, pos: V3(0, 0, 0), visible: true };
-  labels.push(L);
-  return L;
-}
-const tmpV = V3(0, 0, 0);
-function placeLabels() {
-  for (const L of labels) {
-    if (L.mode !== mode || !L.visible) { L.el.style.display = 'none'; continue; }
-    tmpV.copy(L.pos).project(camera);
-    if (tmpV.z > 1) { L.el.style.display = 'none'; continue; }
-    L.el.style.display = '';
-    L.el.style.left = ((tmpV.x + 1) / 2 * window.innerWidth) + 'px';
-    L.el.style.top = ((1 - tmpV.y) / 2 * window.innerHeight) + 'px';
-  }
-}
-
-/* =========================================================
-   3D 懸浮能量條（堆疊長條圖）
-   由下而上：熱能（灰）→ 彈力位能（綠）→ 重力位能（藍）→ 動能（紅）
-   每一段的 scaleY = 能量 × 比例尺
-   ========================================================= */
-const E_COLORS = { Q: 0x9a9aa0, Ue: 0x22a35a, Ug: 0x3f7be8, Ek: 0xe5484d };
-function makeEnergyBar(mode) {
-  const g = new THREE.Group();
-  const segs = {};
-  ['Q', 'Ue', 'Ug', 'Ek'].forEach(k => {
-    const geo = new THREE.BoxGeometry(0.42, 1, 0.42);
-    geo.translate(0, 0.5, 0);                                  // 以底部為原點，scaleY 往上長
-    const m = new THREE.Mesh(geo, clay(E_COLORS[k], { emissive: E_COLORS[k], emissiveIntensity: 0.12 }));
-    m.castShadow = true;
-    g.add(m);
-    segs[k] = m;
-  });
-  // 底座圓盤
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.06, 32), clay(0xffffff));
-  base.position.y = -0.03;
-  g.add(base);
-  const label = addLabel(mode, '', 'font-size:.7rem');
-  g.userData.barOf = mode;          // 切換模組時只顯示對應的能量條
-  scene.add(g);
-  return { g, segs, label, scale: 0.06 };
-}
-function setEnergyBar(bar, E, scale) {
-  bar.scale = scale;
-  let y = 0;
-  ['Q', 'Ue', 'Ug', 'Ek'].forEach(k => {
-    const h = Math.max(0, E[k]) * scale;
-    const m = bar.segs[k];
-    m.visible = h > 0.004;
-    m.scale.y = Math.max(h, 0.0001);
-    m.position.y = y;
-    y += h;
-  });
-  const total = E.Q + E.Ue + E.Ug + E.Ek;
-  bar.label.pos.copy(bar.g.position).add(V3(0, y + 0.35, 0));
-  bar.label.el.textContent = `${total.toFixed(1)} J`;
-}
-
-/* ----- 粒子：金幣（獲得能量）、煙霧（熱能）、火花 ----- */
-const particles = [];
-const coinGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.04, 20), coinMat = clay(0xf5c518, { emissive: 0xf5a800, emissiveIntensity: 0.4, metalness: 0.4 });
-const smokeGeo = new THREE.SphereGeometry(0.16, 14, 10), smokeMat = clay(0xb8b8bd, { transparent: true, opacity: 0.6 });
-function emit(kind, pos, vel, life = 1) {
-  const m = new THREE.Mesh(kind === 'coin' ? coinGeo : smokeGeo, kind === 'coin' ? coinMat : smokeMat.clone());
-  m.position.copy(pos);
-  if (kind === 'coin') m.rotation.x = Math.PI / 2;
-  scene.add(m);
-  particles.push({ m, vel, life, age: 0, kind, owner: mode });
-}
-function stepParticles(dt) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.age += dt;
-    if (p.age > p.life || p.owner !== mode) { scene.remove(p.m); particles.splice(i, 1); continue; }
-    p.m.position.addScaledVector(p.vel, dt);
-    const k = p.age / p.life;
-    if (p.kind === 'coin') { p.vel.y -= 2 * dt; p.m.rotation.z += dt * 8; p.m.scale.setScalar(1 - k * 0.5); }
-    else { p.m.scale.setScalar(0.6 + k * 1.6); p.m.material.opacity = 0.55 * (1 - k); }
-  }
-}
-
-/* =========================================================
-   模組一：作功與功能定理（10 kg 方塊在平地上）— 變因控制版
-   ---------------------------------------------------------
-   淨力 = F − f（運動中摩擦力向後；靜止時若 F ≤ f，靜摩擦力讓方塊不動）
-   a = 淨力 / m；v = v + a·Δt
-   動能 Ek = ½mv²；熱能 = f × 累積移動距離
-   地面向後捲動，方塊永遠在畫面中央
-   ========================================================= */
-const M1 = (() => {
-  const group = new THREE.Group();
-  const m = 10, E_REF = 500;                     // 沒有速度上限；E_REF：V₀ = 10 m/s 時的動能，能量條的最小比例尺
-  const box = shadowed(new THREE.Mesh(new RoundedBoxGeometry(1.4, 1.2, 1.2, 5, 0.22), clay(0xf0a35e)));
-  box.position.set(0, 0.6, 0);
-  group.add(box);
-
-  // 地面：條紋 + 底板，顏色與粗糙度隨摩擦力改變
-  const stripeMat = clay(0xf7f2ec), padMat = clay(0xe8dfd4);
-  const SMOOTH = new THREE.Color(0xf7f2ec), ROUGH = new THREE.Color(0x5e4a3a);
-  const PAD_SMOOTH = new THREE.Color(0xe8dfd4), PAD_ROUGH = new THREE.Color(0x7a6352);
-  const stripes = [];
-  for (let i = 0; i < 22; i++) {
-    const s = new THREE.Mesh(new RoundedBoxGeometry(0.7, 0.05, 2.6, 2, 0.02), stripeMat);
-    s.position.set(-11 + i * 1.05, 0.03, 0);
-    s.receiveShadow = true;
-    group.add(s); stripes.push(s);
-  }
-  const pad = new THREE.Mesh(new RoundedBoxGeometry(23, 0.03, 2.8, 2, 0.01), padMat);
-  pad.receiveShadow = true; group.add(pad);
-  // 粗糙顆粒（摩擦力越大越多）
-  const grit = [];
-  const gritMat = clay(0x4a3a2e);
-  for (let i = 0; i < 80; i++) {
-    const g = new THREE.Mesh(new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 8, 6), gritMat);
-    g.userData = { x0: -11.5 + Math.random() * 23, z: (Math.random() - 0.5) * 2.5, th: Math.random() };
-    g.position.y = 0.06;
-    group.add(g); grit.push(g);
-  }
-
-  // 速度風痕：越快越長、越多（高速時地面條紋會「看起來停住」，改用風痕表現越來越快）
-  const streakMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false });
-  const streaks = [];
-  for (let i = 0; i < 40; i++) {
-    const s = new THREE.Mesh(new THREE.CapsuleGeometry(0.025, 1, 4, 8), streakMat);
-    s.rotation.z = Math.PI / 2;
-    s.userData = { x: -11.5 + Math.random() * 23, y: 0.2 + Math.random() * 1.9, z: (Math.random() - 0.5) * 3, k: 0.6 + Math.random() * 0.8, th: Math.random() };
-    s.visible = false; group.add(s); streaks.push(s);
-  }
-
-  // 推力箭頭（越大越長、越粗、越亮橘）
-  const pushMat = clay(0xffd2a0, { emissive: 0xff7a00, emissiveIntensity: 0.1 });
-  const pushArrow = new THREE.Group();
-  const pShaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 24), pushMat);
-  pShaft.rotation.z = Math.PI / 2;
-  const pHead = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 32), pushMat);
-  pHead.rotation.z = -Math.PI / 2;
-  pushArrow.add(pShaft, pHead);
-  group.add(shadowed(pushArrow));
-  // 摩擦力箭頭（灰，向後）
-  const fricMat = clay(0x8e8e93, { emissive: 0x555555, emissiveIntensity: 0.1 });
-  const fricArrow = new THREE.Group();
-  const fShaft = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 20), fricMat);
-  fShaft.rotation.z = Math.PI / 2;
-  const fHead = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 24), fricMat);
-  fHead.rotation.z = Math.PI / 2;
-  fricArrow.add(fShaft, fHead);
-  group.add(shadowed(fricArrow));
-  const lPush = addLabel('m1', '', 'color:#e46a00');
-  const lFric = addLabel('m1', '', 'color:#6b6b70');
-  const lStop = addLabel('m1', '', 'color:#6b6b70');
-  const bar = makeEnergyBar('m1');
-  const PALE = new THREE.Color(0xffd2a0), BRIGHT = new THREE.Color(0xff7a00);
-
-  /** 箭頭：沿 x 軸，tipX 為箭尖位置，dir = +1 向右 / −1 向左 */
-  function setXArrow(group, shaft, head, tipX, dir, len, r, y, z = 0) {
-    const hl = Math.min(len * 0.45, r * 3.4);
-    const sl = Math.max(0.01, len - hl);
-    head.scale.set(r * 2.4, hl, r * 2.4);
-    head.position.set(tipX - dir * hl / 2, y, z);
-    shaft.scale.set(r, sl, r);
-    shaft.position.set(tipX - dir * (hl + sl / 2), y, z);
-  }
-
-  // 狀態：'ready' 準備（可調 V₀）｜'run' 播放｜'pause' 暫停（可調 V₀）
-  let status = 'ready', F = 40, fr = 20, V0 = 0;
-  let v = 0, x = 0, dist = 0, Q = 0, WF = 0, coinAcc = 0, smokeAcc = 0;
-  const $F = $('sF'), $Fr = $('sFr'), $V0 = $('sV0');
-  const paint = el => el.style.setProperty('--fill', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
-  [$F, $Fr, $V0].forEach(paint);
-
-  function applyV0() {                       // 以目前 V₀ 重新出發（帳目歸零）
-    v = V0; x = 0; dist = 0; Q = 0; WF = 0;
-  }
-  function setStatus(s) {
-    status = s;
-    const locked = s === 'run';
-    $V0.disabled = locked;
-    $('v0Row').classList.toggle('locked', locked);
-    $('v0Lock').textContent = locked ? '（播放中無法調整）' : '';
-    $('play1').textContent = s === 'run' ? '⏸ 暫停' : (s === 'pause' ? '▶ 繼續' : '▶ 開始');
-    $('play1').classList.toggle('on', s === 'run');
-  }
-  function reset() { applyV0(); setStatus('ready'); }
-
-  $F.addEventListener('input', e => { F = Number(e.target.value); $('fVal').textContent = `${F} N`; paint(e.target); });
-  $Fr.addEventListener('input', e => { fr = Number(e.target.value); $('frVal').textContent = `${fr} N`; paint(e.target); });
-  $V0.addEventListener('input', e => {
-    if (status === 'run') return;
-    V0 = Number(e.target.value);
-    $('v0Val').textContent = `${V0} m/s`;
-    paint(e.target);
-    applyV0();
-    setStatus('ready');
-  });
-  $('play1').addEventListener('click', () => setStatus(status === 'run' ? 'pause' : 'run'));
-  $('reset1').addEventListener('click', reset);
-
-  /** 物理：每幀細分成 10 小步，等加速度內用平均速度算距離（帳目精確） */
-  function physics(dt) {
-    const SUB = 10, h = dt / SUB;
-    for (let i = 0; i < SUB; i++) {
-      const Fp = F;                                        // 推力一直作用：合力 > 0 就持續加速，沒有上限
-      if (v <= 1e-9 && Fp <= fr) { v = 0; continue; }     // 靜止且推不動（靜摩擦）
-      const a = (Fp - fr) / m;                             // a = 淨力 / m
-      const vNew = v + a * h;                              // v = v + a·Δt
-      if (vNew <= 0) {                                     // 這一小步內就停下：算出剛好停住的距離
-        const d = v * v / (2 * -a);
-        dist += d; x += d; Q += fr * d; WF += Fp * d; v = 0;
-        continue;
-      }
-      const d = (v + vNew) / 2 * h;
-      dist += d; x += d; Q += fr * d; WF += Fp * d;        // 熱能 = f × 移動距離；推力作功 = F × 移動距離
-      v = vNew;
-    }
-  }
-
-  function update(dt) {
-    if (status === 'run') physics(dt);
-    const Ek = 0.5 * m * v * v;
-    const Ek0 = 0.5 * m * V0 * V0;
-    const t = F / 100, k = fr / 100;
-
-    // 地面捲動 + 粗糙程度
-    stripes.forEach((s, i) => { s.position.x = ((-11 + i * 1.05 - x) % 23.1 + 23.1) % 23.1 - 11.5; });
-    // 高速：條紋淡出、風痕變長變多
-    const fast = clamp((v - 12) / 25, 0, 1);
-    stripeMat.transparent = true; stripeMat.opacity = 1 - 0.85 * fast;
-    streaks.forEach(s => {
-      const u = s.userData;
-      s.visible = v > 4 && u.th < 0.25 + 0.75 * clamp(v / 40, 0, 1);
-      if (status === 'run') u.x -= v * dt * u.k * 0.5;
-      if (u.x < -12) { u.x += 24; u.y = 0.2 + Math.random() * 1.9; u.z = (Math.random() - 0.5) * 3; }
-      s.position.set(u.x, u.y, u.z);
-      s.scale.y = 0.3 + Math.min(v, 120) * 0.06;
-    });
-    stripeMat.color.copy(SMOOTH).lerp(ROUGH, k);
-    stripeMat.roughness = 0.4 + 0.6 * k;
-    padMat.color.copy(PAD_SMOOTH).lerp(PAD_ROUGH, k);
-    padMat.roughness = 0.5 + 0.5 * k;
-    grit.forEach(g => {
-      const on = g.userData.th < k;
-      g.visible = on;
-      if (on) g.position.set(((g.userData.x0 - x) % 23 + 23) % 23 - 11.5, 0.06, g.userData.z);
-    });
-
-    // 推力箭頭：長度、粗細、亮度都隨 F 變大
-    pushArrow.visible = F > 0;
-    if (F > 0) {
-      setXArrow(pushArrow, pShaft, pHead, -0.75, 1, 0.7 + 2.4 * t, 0.07 + 0.17 * t, 0.62 + Math.sin(performance.now() / 140) * 0.02);
-      pushMat.color.copy(PALE).lerp(BRIGHT, t);
-      pushMat.emissiveIntensity = 0.1 + 0.55 * t;
-    }
-    lPush.visible = F > 0;
-    lPush.pos.set(-1.6 - 1.2 * t, 1.35, 0);
-    lPush.el.textContent = `推力 F = ${F} N`;
-    // 摩擦力箭頭：有摩擦且「在動或被推」時才出現
-    const fricOn = fr > 0 && (v > 0 || F > 0);
-    fricArrow.visible = fricOn;
-    if (fricOn) {
-      const shown = v > 0 ? fr : Math.min(fr, F);          // 靜止時是靜摩擦力，大小 = 推力（不超過最大值）
-      setXArrow(fricArrow, fShaft, fHead, -0.85 - 0.5 - 1.6 * shown / 100, -1, 0.5 + 1.6 * shown / 100, 0.05 + 0.08 * shown / 100, 0.12, 0.75);
-      lFric.visible = true;
-      lFric.pos.set(-1.4, -0.15, 1.1);
-      lFric.el.textContent = v > 0 ? `摩擦力 f = ${fr} N` : `靜摩擦力 = ${shown} N`;
-    } else lFric.visible = false;
-    lStop.visible = status === 'run' && v === 0;
-    lStop.pos.set(0, 2.0, 0.8);
-    lStop.el.textContent = F <= fr ? '推力 ≤ 摩擦力：方塊推不動／停下來了' : '';
-    if (!lStop.el.textContent) lStop.visible = false;
-    box.rotation.z = -Math.min(v, 8) * 0.004;
-
-    // 粒子：功率越大金幣越多；摩擦力 × 速度越大煙霧越濃
-    if (status === 'run' && F > 0 && (v > 0 || F > fr)) {
-      coinAcc += dt * (0.4 + F / 25);
-      while (coinAcc > 0.1) { coinAcc -= 0.1; emit('coin', V3((Math.random() - 0.5) * 0.6, 1.4, (Math.random() - 0.5) * 0.4), V3((Math.random() - 0.5) * 0.6, 2.2 + Math.random(), 0), 0.9); }
-    }
-    if (status === 'run' && fr > 0 && v > 0.05) {
-      smokeAcc += dt * (fr / 100) * (1 + v / 3) * 2.2;
-      while (smokeAcc > 0.05) { smokeAcc -= 0.05; emit('smoke', V3(-0.6 + Math.random() * 0.4, 0.1, (Math.random() - 0.5) * 1.1), V3(-v * 0.25 - 0.4, 0.4 + Math.random() * 0.4, (Math.random() - 0.5) * 0.4), 1.1); }
-    }
-
-    // 能量條：固定比例尺（V₀ 加倍 → 紅條變 4 倍）；能量再大時用同一個 scaleFactor 把所有能量條等比例縮小（速度本身不設上限）
-    const E = { Ek, Ug: 0, Ue: 0, Q };
-    bar.g.position.set(0, 1.45, 0);
-    const total = Ek + Q;
-    const target = 3.2 / Math.max(E_REF, total * 1.05);
-    bar.scale += (target - bar.scale) * Math.min(1, dt * 4);
-    setEnergyBar(bar, E, bar.scale);
-
-    // 面板
-    const net = (v > 0 || F > fr) ? F - fr : 0;
-    $('gNet').textContent = `${net.toFixed(0)} N`;
-    $('gAcc').textContent = `${(net / m).toFixed(2)} m/s²`;
-    $('v0Ek').innerHTML = `Ek = ½mV₀² = ½ × 10 × ${V0}² = <b>${Ek0.toFixed(0)} J</b>`
-      + (V0 > 0 && V0 <= 5 ? `<br>試試看：V₀ 拉到 ${V0 * 2} m/s，動能會變 <b>4 倍</b>（${(Ek0 * 4).toFixed(0)} J）` : '');
-    drawGauge(v);
-    showEnergy(E, `初動能 <b>${Ek0.toFixed(1)} J</b> ＋ 推力作功 <b>${WF.toFixed(1)} J</b> − 摩擦生熱 <b>${Q.toFixed(1)} J</b> ＝ 動能 <b>${Ek.toFixed(1)} J</b><br>移動距離 ${dist.toFixed(1)} m（熱能 = f × 距離）`
-      + (total * 1.05 > E_REF ? `<br><span style="color:#e5484d">能量條比例尺已縮小為 1 / ${((3.2 / E_REF) / bar.scale).toFixed(1)}（能量太大，所有長條等比例縮小）</span>` : ''));
-  }
-
-  /** 即時速度儀表板（半圓指針）：速度沒有上限，量程自動放大 20 → 40 → 80 → … m/s */
-  function drawGauge(speed) {
-    const c = $('gauge'), g = c.getContext('2d');
-    const W = c.width, H = c.height, cx = W / 2, cy = H - 18, R = 100;
-    let GMAX = 20;
-    while (speed > GMAX) GMAX *= 2;
-    g.clearRect(0, 0, W, H);
-    g.lineCap = 'round';
-    g.lineWidth = 14; g.strokeStyle = '#ece6df';
-    g.beginPath(); g.arc(cx, cy, R, Math.PI, 2 * Math.PI); g.stroke();
-    const k = Math.min(1, speed / GMAX);
-    const grad = g.createLinearGradient(cx - R, 0, cx + R, 0);
-    grad.addColorStop(0, '#ffb38a'); grad.addColorStop(1, '#e5484d');
-    g.strokeStyle = grad;
-    g.beginPath(); g.arc(cx, cy, R, Math.PI, Math.PI + Math.PI * k); g.stroke();
-    g.fillStyle = '#9a948d'; g.font = '11px -apple-system, "PingFang TC", sans-serif'; g.textAlign = 'center';
-    for (let i = 0; i <= 4; i++) {
-      const s = GMAX * i / 4, a = Math.PI + Math.PI * i / 4;
-      g.fillText(s, cx + Math.cos(a) * (R - 24), cy + Math.sin(a) * (R - 24) + 4);
-    }
-    if (GMAX > 20) { g.fillStyle = '#e5484d'; g.font = '700 10px -apple-system, "PingFang TC", sans-serif'; g.fillText(`量程自動放大到 ${GMAX} m/s`, cx, 12); }
-    const a = Math.PI + Math.PI * k;
-    // 指針只畫在弧線附近，不擋住中間的數字
-    g.strokeStyle = '#1d1d1f'; g.lineWidth = 5;
-    g.beginPath(); g.moveTo(cx + Math.cos(a) * (R - 40), cy + Math.sin(a) * (R - 40)); g.lineTo(cx + Math.cos(a) * (R + 6), cy + Math.sin(a) * (R + 6)); g.stroke();
-    g.font = '800 26px -apple-system, "PingFang TC", sans-serif';
-    g.fillText(speed.toFixed(2), cx, cy - 34);
-    g.font = '11px -apple-system, "PingFang TC", sans-serif'; g.fillStyle = '#6e6e73';
-    g.fillText('即時速度 V（m/s）', cx, cy - 16);
-  }
-
-  return { group, update, enter: reset, camera: { pos: [0.5, 4.2, 12], target: [0.5, 1.6, 0] },
-    get state() { return { v, dist, WF, Q, Ek: 0.5 * m * v * v, Ek0: 0.5 * m * V0 * V0, status }; },
-    set: (f, r, v0) => { if (f != null) { $F.value = f; $F.dispatchEvent(new Event('input')); } if (r != null) { $Fr.value = r; $Fr.dispatchEvent(new Event('input')); } if (v0 != null) { $V0.value = v0; $V0.dispatchEvent(new Event('input')); } },
-    play: () => setStatus('run'), pause: () => setStatus('pause'), reset };
-})();
-
-/* =========================================================
-   模組二：力學能守恆（U 型軌道）
-   軌道：y = 0.16 x²（x ∈ [−5.5, 5.5]），小球 1 kg 視為質點
-   沿軌道的加速度 a = −g sinθ（摩擦時再減 μ g cosθ）
-   ========================================================= */
-const M2 = (() => {
-  const group = new THREE.Group();
-  const m = 1, K = 0.16, XMAX = 5.5, R = 0.38, MU = 0.06, DEPTH = 2.6;
-  const yOf = x => K * x * x, slope = x => 2 * K * x;
-  // 弧長查表：s ↔ x
-  const N = 2000, xs = [], ss = [0];
-  for (let i = 0; i <= N; i++) xs.push(-XMAX + 2 * XMAX * i / N);
-  for (let i = 1; i <= N; i++) ss.push(ss[i - 1] + Math.hypot(xs[i] - xs[i - 1], yOf(xs[i]) - yOf(xs[i - 1])));
-  const S_MAX = ss[N];
-  const xOfS = s => {
-    s = clamp(s, 0, S_MAX);
-    let lo = 0, hi = N;
-    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (ss[mid] < s) lo = mid; else hi = mid; }
-    const t = (s - ss[lo]) / Math.max(1e-9, ss[hi] - ss[lo]);
-    return xs[lo] + (xs[hi] - xs[lo]) * t;
-  };
-  const sOfX = x => { const i = clamp(Math.round((x + XMAX) / (2 * XMAX) * N), 0, N); return ss[i]; };
-
-  // 實心 U 型軌道（剖面擠出）
-  const shape = new THREE.Shape();
-  shape.moveTo(-XMAX - 0.6, -0.4);
-  shape.lineTo(-XMAX - 0.6, yOf(XMAX));
-  for (let i = 0; i <= 120; i++) { const x = -XMAX + 2 * XMAX * i / 120; shape.lineTo(x, yOf(x)); }
-  shape.lineTo(XMAX + 0.6, yOf(XMAX));
-  shape.lineTo(XMAX + 0.6, -0.4);
-  shape.closePath();
-  const pipe = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: DEPTH, bevelEnabled: true, bevelSize: 0.08, bevelThickness: 0.08, bevelSegments: 4, curveSegments: 1 }),
-    clay(0x9ec3d6));
-  pipe.position.z = -DEPTH / 2;
-  group.add(shadowed(pipe));
-  // 高度刻度（每 1 m）
-  for (let h = 1; h <= 4; h++) {
-    const x = Math.sqrt(h / K);
-    const L = addLabel('m2', `${h} m`, 'font-size:.64rem;padding:1px 6px;color:#3f7be8'); L.pos.set(-x - 0.9, h, DEPTH / 2);
-    const line = new THREE.Mesh(new RoundedBoxGeometry(0.5, 0.03, 0.04, 2, 0.01), clay(0x3f7be8));
-    line.position.set(-x - 0.3, h, DEPTH / 2 + 0.06); group.add(line);
-  }
-  const ball = shadowed(new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), clay(0xff8a5b, { emissive: 0xff6a2a, emissiveIntensity: 0.2 })));
-  group.add(ball);
-  const pick = new THREE.Mesh(new THREE.SphereGeometry(R * 2.2, 12, 8), new THREE.MeshBasicMaterial({ visible: false }));
-  ball.add(pick);
-  const bar = makeEnergyBar('m2');
-  const lHint = addLabel('m2', '✋ 拖曳小球到高處', 'color:#c46a4c');
-
-  let s = sOfX(-4.6), v = 0, Q = 0, friction = false, held = false, smokeAcc = 0;
-  const E0 = () => m * G * yOf(xOfS(s)) + 0.5 * m * v * v + Q;
-  function place() {
-    const x = xOfS(s), y = yOf(x);
-    const n = V3(-slope(x), 1, 0).normalize();               // 軌道法線
-    ball.position.set(x, y, 0).addScaledVector(n, R);
-    ball.rotation.z = -s / R;                                  // 視覺上的滾動
-  }
-  function reset() { s = sOfX(-4.6); v = 0; Q = 0; held = false; }
-  $('fric2').addEventListener('change', e => { friction = e.target.checked; });
-  $('reset2').addEventListener('click', reset);
-
-  function update(dt) {
-    if (!held) {
-      const SUB = 20, h = dt / SUB;
-      for (let i = 0; i < SUB; i++) {
-        const x = xOfS(s), d = slope(x), sin = d / Math.hypot(1, d), cos = 1 / Math.hypot(1, d);
-        let a = -G * sin;                                      // 重力沿軌道的分量
-        if (friction && Math.abs(v) > 1e-4) {
-          const fa = MU * G * cos;                             // 摩擦減速（簡化：正向力 ≈ mg cosθ）
-          a -= Math.sign(v) * fa;
-          Q += m * fa * Math.abs(v) * h;                      // 摩擦力作功 → 熱能
-        }
-        v += a * h;
-        s += v * h;
-        if (s <= 0 || s >= S_MAX) { s = clamp(s, 0, S_MAX); v = 0; }
-        // 開摩擦時，在谷底速度極小 → 停住
-        if (friction && Math.abs(v) < 0.02 && Math.abs(xOfS(s)) < 0.12) { v = 0; }
-      }
-      if (friction && Math.abs(v) > 0.3) {
-        smokeAcc += dt;
-        while (smokeAcc > 0.08) { smokeAcc -= 0.08; emit('smoke', ball.position.clone().add(V3(0, -R * 0.8, (Math.random() - 0.5) * 0.6)), V3(-v * 0.15, 0.4, 0), 0.9); }
-      }
-    }
-    place();
-    const x = xOfS(s);
-    const E = { Ek: 0.5 * m * v * v, Ug: m * G * yOf(x), Ue: 0, Q };
-    bar.g.position.copy(ball.position).add(V3(0, R + 0.35, 0));
-    setEnergyBar(bar, E, 3.2 / 50);
-    lHint.visible = held || (Math.abs(v) < 0.01 && Q === 0 && Math.abs(x + 4.6) < 0.05);
-    lHint.pos.copy(ball.position).add(V3(-1.6, 0.2, 0));
-    const mech = E.Ek + E.Ug;
-    showEnergy(E, `高度 <b>${yOf(x).toFixed(2)} m</b>　速度 <b>${Math.abs(v).toFixed(2)} m/s</b><br>力學能 Ek + Ug = <b>${mech.toFixed(1)} J</b>${friction ? '（逐漸減少，變成熱能）' : '（守恆，固定不變）'}`);
-  }
-
-  // 拖曳：把小球沿軌道拉到任何位置
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(V3(0, 0, 1), 0), hit = V3(0, 0, 0);
-  const setRay = e => { const r = renderer.domElement.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); };
-  renderer.domElement.addEventListener('pointerdown', e => {
-    if (mode !== 'm2') return;
-    setRay(e);
-    if (!ray.intersectObject(pick).length) return;
-    e.stopImmediatePropagation();
-    held = true; v = 0; Q = 0; controls.enabled = false;
-    renderer.domElement.setPointerCapture(e.pointerId);
-  }, { capture: true });
-  renderer.domElement.addEventListener('pointermove', e => {
-    if (mode !== 'm2') return;
-    setRay(e);
-    if (held) { if (ray.ray.intersectPlane(plane, hit)) { s = sOfX(clamp(hit.x, -XMAX + 0.05, XMAX - 0.05)); } }
-    else renderer.domElement.style.cursor = ray.intersectObject(pick).length ? 'grab' : '';
-  });
-  const end = () => { if (mode === 'm2' && held) { held = false; controls.enabled = true; } };
-  renderer.domElement.addEventListener('pointerup', end);
-  renderer.domElement.addEventListener('pointercancel', end);
-
-  return { group, update, enter: reset, camera: { pos: [0, 4.4, 15], target: [0, 2.2, 0] },
-    get state() { const x = xOfS(s); return { x, h: yOf(x), v, Q, Ek: 0.5 * m * v * v, Ug: m * G * yOf(x), total: E0() }; },
-    drop: x => { s = sOfX(x); v = 0; Q = 0; held = false; }, setFriction: on => { friction = on; $('fric2').checked = on; } };
-})();
-
-/* =========================================================
-   模組三：彈力位能（彈簧發射器）
-   k = 20 N/m、m = 1 kg；彈力位能 Ue = ½kx²
-   放開後：a = kx/m，回到原長時分離，v = x√(k/m)
-   ========================================================= */
-const M3 = (() => {
-  const group = new THREE.Group();
-  const k = 20, m = 1, WALL_X = -7, L0 = 3.2, R = 0.42, XMAXC = 2.0, Y = R;
-  const REST = WALL_X + L0;                                   // 彈簧自然長度時的末端位置
-  const wall = shadowed(new THREE.Mesh(new RoundedBoxGeometry(0.6, 2.6, 2.4, 4, 0.18), clay(0x9a8f86)));
-  wall.position.set(WALL_X - 0.3, 1.3, 0); group.add(wall);
-  const rail = new THREE.Mesh(new RoundedBoxGeometry(18, 0.08, 1.2, 3, 0.03), clay(0xf7f2ec));
-  rail.position.set(1.5, 0.04, 0); rail.receiveShadow = true; group.add(rail);
-  // 自然長度刻度與壓縮量標示
-  const restMark = new THREE.Mesh(new RoundedBoxGeometry(0.05, 0.02, 1.4, 2, 0.01), clay(0x22a35a));
-  restMark.position.set(REST, 0.1, 0); group.add(restMark);
-  const lRest = addLabel('m3', '自然長度', 'font-size:.64rem;color:#22a35a'); lRest.pos.set(REST, 0.15, 1.0);
-  const spring = new THREE.Mesh(new THREE.BufferGeometry(), clay(0x7fa7a0, { metalness: 0.3 }));
-  spring.castShadow = true; group.add(spring);
-  const plate = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.14, 32), clay(0x5f8c84)));
-  plate.rotation.z = Math.PI / 2; group.add(plate);
-  const ball = shadowed(new THREE.Mesh(new THREE.SphereGeometry(R, 40, 28), clay(0xff8a5b, { emissive: 0xff6a2a, emissiveIntensity: 0.2 })));
-  group.add(ball);
-  const pick = new THREE.Mesh(new THREE.SphereGeometry(R * 2.3, 12, 8), new THREE.MeshBasicMaterial({ visible: false }));
-  ball.add(pick);
-  const bar = makeEnergyBar('m3');
-  const lHint = addLabel('m3', '✋ 向左拖曳壓縮彈簧', 'color:#c46a4c');
-  const lX = addLabel('m3', '', 'color:#22a35a');
-
-  function buildSpring(endX) {
-    const len = endX - WALL_X, coils = 9, pts = [];
-    for (let i = 0; i <= 260; i++) {
-      const t = i / 260, a = t * coils * Math.PI * 2;
-      pts.push(V3(WALL_X + len * t, Y + 0.32 * Math.sin(a), 0.32 * Math.cos(a)));
-    }
-    spring.geometry.dispose();
-    spring.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 400, 0.055, 8, false);
-  }
-
-  // 狀態：comp = 壓縮量（≥0）；ballX = 球心 x；phase: 'rest' | 'drag' | 'push' | 'fly'
-  let phase = 'rest', comp = 0, v = 0, ballX = REST + R, flyTimer = 0, compMax = 0;
-  let lastSpring = null;
-  function reset() { phase = 'rest'; comp = 0; v = 0; ballX = REST + R; flyTimer = 0; compMax = 0; }
-  $('reset3').addEventListener('click', reset);
-
-  function update(dt) {
-    if (phase === 'push') {
-      const SUB = 20, h = dt / SUB;
-      for (let i = 0; i < SUB; i++) {
-        v += (k * comp / m) * h;                               // 彈力 F = kx → a = kx/m
-        comp -= v * h;
-        if (comp <= 0) { comp = 0; phase = 'fly'; break; }    // 回到原長：球離開彈簧
-      }
-      ballX = REST + R - comp;
-    } else if (phase === 'fly') {
-      ballX += v * dt;
-      flyTimer += dt;
-      if (ballX > 11) reset();                                 // 飛出畫面後重新擺好
-    } else if (phase !== 'drag') {
-      ballX = REST + R; comp = 0;
-    }
-    const endX = phase === 'fly' ? REST : REST - comp;
-    if (endX !== lastSpring) { buildSpring(endX); lastSpring = endX; }
-    plate.position.set(endX, Y, 0);
-    ball.position.set(ballX, Y, 0);
-    ball.rotation.z -= (phase === 'fly' ? v : 0) * dt / R;
-    const E = { Ek: 0.5 * m * v * v, Ug: 0, Ue: 0.5 * k * comp * comp, Q: 0 };
-    bar.g.position.copy(ball.position).add(V3(0, R + 0.4, 0));
-    setEnergyBar(bar, E, 3.2 / 42);
-    lHint.visible = phase === 'rest';
-    lHint.pos.set(ballX + 0.2, 2.2, 0);
-    lX.visible = comp > 0.01;
-    lX.pos.set(REST - comp / 2, -0.25, 0.9);
-    lX.el.textContent = `壓縮量 x = ${comp.toFixed(2)} m`;
-    showEnergy(E, phase === 'fly'
-      ? `射出速度 v = x√(k/m) = <b>${v.toFixed(2)} m/s</b>（壓縮 ${compMax.toFixed(2)} m）`
-      : `壓縮量 x = <b>${comp.toFixed(2)} m</b>　彈力 F = kx = <b>${(k * comp).toFixed(1)} N</b><br>Ue = ½kx²：壓縮量變 2 倍，彈力位能變 4 倍`);
-  }
-
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(V3(0, 0, 1), 0), hit = V3(0, 0, 0);
-  const setRay = e => { const r = renderer.domElement.getBoundingClientRect(); ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera); };
-  renderer.domElement.addEventListener('pointerdown', e => {
-    if (mode !== 'm3' || phase === 'push' || phase === 'fly') return;
-    setRay(e);
-    if (!ray.intersectObject(pick).length) return;
-    e.stopImmediatePropagation();
-    phase = 'drag'; v = 0; controls.enabled = false;
-    renderer.domElement.setPointerCapture(e.pointerId);
-  }, { capture: true });
-  renderer.domElement.addEventListener('pointermove', e => {
-    if (mode !== 'm3') return;
-    setRay(e);
-    if (phase === 'drag') { if (ray.ray.intersectPlane(plane, hit)) { comp = clamp(REST + R - hit.x, 0, XMAXC); ballX = REST + R - comp; } }
-    else renderer.domElement.style.cursor = ray.intersectObject(pick).length ? 'grab' : '';
-  });
-  const end = () => {
-    if (mode !== 'm3' || phase !== 'drag') return;
-    controls.enabled = true;
-    compMax = comp;
-    phase = comp > 0.02 ? 'push' : 'rest';
-  };
-  renderer.domElement.addEventListener('pointerup', end);
-  renderer.domElement.addEventListener('pointercancel', end);
-
-  return { group, update, enter: reset, camera: { pos: [0, 4, 14], target: [0, 1, 0] },
-    get state() { return { phase, comp, v, Ue: 0.5 * k * comp * comp, Ek: 0.5 * m * v * v }; },
-    compress: x => { comp = x; ballX = REST + R - x; phase = 'drag'; }, release: () => { compMax = comp; phase = 'push'; } };
-})();
-
-/* =========================================================
-   面板：能量讀數與觀念字卡
-   ========================================================= */
-function showEnergy(E, sub) {
-  const total = E.Ek + E.Ug + E.Ue + E.Q;
-  const ref = Math.max(total, 1e-6);
-  [['Ek', 'bEk', 'vEk'], ['Ug', 'bUg', 'vUg'], ['Ue', 'bUe', 'vUe'], ['Q', 'bQ', 'vQ']].forEach(([k, b, val]) => {
-    $(b).style.width = `${(E[k] / ref) * 100}%`;
-    $(val).textContent = E[k].toFixed(1);
-  });
-  $('vTotal').textContent = `${total.toFixed(1)} J`;
-  $('eSub').innerHTML = sub;
-}
-const TIPS = {
-  m1: { t: '💡 作功與能量', p: '推力對方塊<b>作正功</b>，把能量「給」方塊，方塊動能增加；摩擦力作負功，把動能「偷走」變成熱能。', eq: '作功 = 能量的轉移；摩擦力 = 能量的耗散' },
-  m2: { t: '💡 力學能守恆', p: '沒有摩擦時，高處的重力位能（藍）滑到谷底全部變成動能（紅），<b>總長度不變</b>。有摩擦時，紅藍越來越短、灰色熱能越來越長。', eq: '力學能 = 動能 + 位能；有摩擦時力學能不守恆，但總能量守恆' },
-  m3: { t: '💡 彈力位能', p: '壓縮彈簧（改變形狀）就把能量存成彈力位能（綠），壓縮量變 2 倍、位能變 4 倍。放開後，彈力位能全部轉換成小球的動能（紅）。', eq: '位置（形變）改變 ➔ 彈力位能 ➔ 釋放轉換為動能' }
-};
-function showTip(m) { $('tipT').textContent = TIPS[m].t; $('tipP').innerHTML = TIPS[m].p; $('tipEq').textContent = TIPS[m].eq; }
-
-/* =========================================================
-   模式切換與主迴圈
-   ========================================================= */
-const MODES = { m1: M1, m2: M2, m3: M3 };
-Object.values(MODES).forEach(m => { m.group.visible = false; scene.add(m.group); });
-let mode = 'm1';
-function resetView() {
-  const c = MODES[mode].camera;
-  const pos = V3(...c.pos), tgt = V3(...c.target);
-  const panel = $('panel');
-  if (!window.MobileView?.isMobile() && !panel.classList.contains('collapsed')) {
-    const visW = 2 * pos.distanceTo(tgt) * Math.tan(camera.fov * Math.PI / 360) * camera.aspect;
-    const shift = -(panel.getBoundingClientRect().right / 2) / window.innerWidth * visW;
-    pos.x += shift; tgt.x += shift;
-  }
-  camera.position.copy(pos); controls.target.copy(tgt); controls.update();
-  window.MobileView?.frame(camera, controls, mode === 'm2' ? 1.3 : 1.5);
-}
-function setMode(m) {
-  mode = m;
-  Object.entries(MODES).forEach(([k, v]) => { v.group.visible = k === m; });
-  // 能量條屬於場景根節點：只顯示目前模組的
-  energyBarsVisible();
-  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
-  document.querySelectorAll('.section').forEach(s => { s.hidden = s.dataset.mode !== m; });
-  $('eMode').textContent = { m1: '方塊', m2: '小球', m3: '小球' }[m];
-  $('hint').textContent = m === 'm1' ? '拖曳旋轉 · 滾輪縮放' : '拖曳小球互動 · 拖曳空白處旋轉';
-  MODES[m].enter();
-  showTip(m);
-  resetView();
-}
-function energyBarsVisible() {
-  scene.children.forEach(o => { if (o.userData.barOf) o.visible = o.userData.barOf === mode; });
-}
-document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
-$('viewBtn').addEventListener('click', resetView);
-$('collapse').addEventListener('click', () => { const c = $('panel').classList.toggle('collapsed'); $('collapse').textContent = c ? '展開' : '收合'; });
-
-function resize() {
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.fov = 40;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', resize);
-
-const clock = new THREE.Clock();
-function frame(dt) {
-  MODES[mode].update(dt);
-  stepParticles(dt);
-  controls.update();
-  placeLabels();
-  window.MobileView?.offset(camera);
-  renderer.render(scene, camera);
-}
-function animate() { frame(Math.min(clock.getDelta(), 0.05)); requestAnimationFrame(animate); }
-
-window.we = { M1, M2, M3, setMode, frame, camera };   // 除錯 / 驗證用
-
-resize();
-setMode('m1');
-animate();
-</script>
-
+<script src="lab-kit.js"></script>
 <script>
-setTimeout(() => {
-  if (!window.__weReady) {
-    document.getElementById('scene').innerHTML = '<div class="fallback">無法載入 Three.js。<br>請確認電腦已連上網路後重新整理。</div>';
+(() => {
+  const $ = Lab.$;
+  const g = 9.8, M = 1;
+  const S = { mode: 'work', case: 'push', F: 20, s: 0, run: false, h0: 8, fric: false, u: 0, v: 0, eRun: false, heat: 0 };
+  // 軌道：x 從 0 到 1，高度 y(x)（公尺）
+  const track = x => S.h0 * Math.pow(Math.cos(Math.PI * x), 2) * (x < 0.5 ? 1 : 1.2);   // 右邊比起點高一點
+  const LEN = 24;                                       // 軌道水平長度（公尺）
+
+  function drawWork(ctx, w, h, dt) {
+    if (S.run) { S.s = Math.min(4, S.s + dt * 1.5); if (S.s >= 4) S.run = false; }
+    const gy = h * 0.6, px = 70, sc = Math.min(110, (w - 200) / 5);
+    Lab.line(20, gy, w - 20, gy, 'rgba(255,255,255,.4)', 2);
+    for (let m = 0; m <= 4; m++) { Lab.line(px + m * sc, gy, px + m * sc, gy + 10, 'rgba(255,255,255,.4)', 1.5); Lab.text(m + ' m', px + m * sc, gy + 22, 'rgba(238,241,250,.5)', 12); }
+    const c = S.case;
+    let bx = px, by = gy;
+    if (c === 'push' || c === 'carry') bx = px + S.s * sc;
+    if (c === 'lift') by = gy - S.s * sc * 0.6;
+    if (c === 'carry') by = gy - 70;
+    // 人
+    if (c !== 'lift') {
+      const hx = bx - 50; Lab.circle(hx, gy - 130, 14, '#ffd9a8'); Lab.line(hx, gy - 116, hx, gy - 60, '#ffd9a8', 8); Lab.line(hx, gy - 60, hx - 10, gy, '#ffd9a8', 6); Lab.line(hx, gy - 60, hx + 10, gy, '#ffd9a8', 6);
+      Lab.line(hx, gy - 100, c === 'carry' ? bx : bx - 10, c === 'carry' ? by - 30 : gy - 40, '#ffd9a8', 5);
+    }
+    Lab.card(bx - 10, by - 60, 70, 60, '#c98a4a', '#ffd9a8', 4);
+    Lab.text('10 kg', bx + 25, by - 30, '#fff', 13, 'center', 'bold');
+    // 力與位移箭頭
+    const fx = c === 'push' ? [bx - 10, by - 30, bx - 10 - S.F * 2.4, by - 30] : [bx + 25, by - 60, bx + 25, by - 60 - S.F * 2.4];
+    if (c === 'push') Lab.arrow(fx[2], fx[1], fx[0], fx[1], '#ff8a5c', 5, 14); else Lab.arrow(fx[0], fx[1], fx[2], fx[3], '#ff8a5c', 5, 14);
+    Lab.text(`力 F = ${S.F} N`, c === 'push' ? fx[2] : bx + 70, c === 'push' ? by - 70 : by - 60 - S.F * 1.2, '#ff8a5c', 14, 'center', 'bold');
+    if (S.s > 0.05) {
+      if (c === 'lift') Lab.arrow(bx + 90, gy, bx + 90, by, '#4fd18b', 4, 12); else Lab.arrow(px + 25, gy + 44, bx + 25, gy + 44, '#4fd18b', 4, 12);
+      Lab.text('位移', c === 'lift' ? bx + 116 : (px + bx) / 2 + 25, c === 'lift' ? (gy + by) / 2 : gy + 64, '#4fd18b', 13);
+    }
+    const Wk = c === 'carry' ? 0 : S.F * S.s;
+    $('ws').textContent = S.s.toFixed(1) + ' m'; $('wW').textContent = c === 'carry' ? '0 J（力和位移垂直）' : `${S.F} × ${S.s.toFixed(1)} = ${Wk.toFixed(0)} J`;
+    $('info').innerHTML = c === 'carry'
+      ? '提著箱子<b>水平走</b>：手的力向上，位移水平，<b>力和位移互相垂直</b>，所以手對箱子<b>沒有作功</b>（雖然會累）。'
+      : '<b>功 W = 力 F × 沿力方向的位移 S</b>，單位是<b>焦耳（J）</b>，1 J = 1 N × 1 m。物體要在<b>力的方向上</b>移動，力才有作功。';
   }
-}, 6000);
+
+  function drawEnergy(ctx, w, h, dt) {
+    const x0 = 40, x1 = w - 40, top = 40, base = h * 0.62;
+    const X = u => x0 + u * (x1 - x0), Y = y => base - y / 12 * (base - top);
+    // 軌道
+    ctx.strokeStyle = '#9fc4ff'; ctx.lineWidth = 5; ctx.beginPath();
+    for (let i = 0; i <= 200; i++) { const u = i / 200; i ? ctx.lineTo(X(u), Y(track(u))) : ctx.moveTo(X(u), Y(track(u))); }
+    ctx.stroke();
+    Lab.line(x0, Y(S.h0), x1, Y(S.h0), 'rgba(255,211,77,.35)', 1, [6, 6]);
+    Lab.text('起始高度', x1, Y(S.h0) - 10, '#ffd34d', 12, 'right');
+    // 小球運動：沿軌道，用能量求速率
+    if (S.eRun) {
+      const E = M * g * S.h0 - S.heat;
+      const y = track(S.u), ke = Math.max(0, E - M * g * y);
+      let sp = Math.sqrt(2 * ke / M);
+      const du = 1e-3, slope = (track(S.u + du) - track(S.u - du)) / (2 * du) / LEN;
+      const ds = sp * dt / Math.sqrt(1 + slope * slope);
+      S.dir = S.dir || 1;
+      S.u += S.dir * ds / LEN;
+      if (S.fric) S.heat += 0.25 * M * g * ds * 0.12;
+      if (S.u >= 1) { S.u = 1; S.dir = -1; }
+      if (S.u <= 0) { S.u = 0; S.dir = 1; }
+      if (ke < 0.02 && Math.abs(slope) < 1e-3 && S.fric) S.eRun = false;
+      // 到達不了更高處時反向
+      if (M * g * track(S.u + S.dir * 0.003) > E) S.dir *= -1;
+      S.v = sp;
+    }
+    const by = track(S.u);
+    Lab.circle(X(S.u), Y(by) - 14, 14, '#ff6b5e', '#fff', 2);
+    // 能量長條
+    const PE = M * g * by, KE = Math.max(0, M * g * S.h0 - S.heat - PE), H = S.heat, tot = M * g * S.h0;
+    const bx = x0, bw = Math.min(380, w - 80), byy = base + 40;
+    [['位能 U', PE, '#5fa2ff'], ['動能 K', KE, '#ff8a5c'], ['熱能（摩擦）', H, '#ffd34d'], ['總能量', tot, '#4fd18b']].forEach(([n, v, c], i) => {
+      const y = byy + i * 34;
+      Lab.text(n, bx, y + 10, '#eef1fa', 13, 'left');
+      Lab.card(bx + 110, y, bw, 20, 'rgba(255,255,255,.06)', null, 4);
+      Lab.card(bx + 110, y, Math.max(0, v / (g * 10) * bw), 20, c, null, 4);
+      Lab.text(v.toFixed(1) + ' J', bx + 120 + bw, y + 10, c, 13, 'left');
+    });
+    $('info').innerHTML = S.fric
+      ? '有摩擦時，一部分力學能變成<b>熱能</b>，小球回不到原來的高度，最後停下來；但<b>總能量仍然守恆</b>。'
+      : '<b>力學能 = 動能 + 位能</b>。沒有摩擦時，往下滑位能變動能、往上爬動能變位能，<b>力學能保持不變</b>，小球能回到<b>原來的高度</b>。';
+  }
+
+  Lab.init({ draw(ctx, w, h, dt) { S.mode === 'work' ? drawWork(ctx, w, h, dt) : drawEnergy(ctx, w, h, dt); } });
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.bindGroup('#case button', k => { S.case = k; S.s = 0; S.run = false; });
+  Lab.bindSlider('wF', v => (S.F = v), v => v + ' N');
+  $('wGo').addEventListener('click', () => { S.s = 0; S.run = true; });
+  $('wReset').addEventListener('click', () => { S.s = 0; S.run = false; });
+  const eReset = () => { S.u = 0; S.v = 0; S.heat = 0; S.dir = 1; S.eRun = false; };
+  Lab.bindSlider('h0', v => { S.h0 = v; eReset(); }, v => v + ' m');
+  $('fric').addEventListener('change', e => { S.fric = e.target.checked; eReset(); });
+  $('eGo').addEventListener('click', () => { eReset(); S.u = 0.02; S.eRun = true; });
+  $('eReset').addEventListener('click', eReset);
+  window.weSim = S;
+})();
 </script>
 <script src="lesson.js" defer></script>
 </body>
