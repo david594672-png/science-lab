@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-subject="chem">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ppm 濃度</title>
+<link rel="stylesheet" href="lab-kit.css">
+<style>
+  .calc { font-size: .95rem; line-height: 2; }
+  .calc b { color: #ffd166; }
+  .pink { color: #ff8fb8; } .purple { color: #c58bff; }
+</style>
+</head>
+<body>
+<canvas id="cv" aria-label="用一百萬個粒子認識 ppm 濃度的模擬"></canvas>
+
+<aside class="panel" id="panel" aria-label="控制面板">
+  <button class="collapse" id="collapse">收合</button>
+  <a class="back" href="index.html#g8">← 回課程總覽</a>
+  <h1>ppm 濃度</h1>
+  <p class="sub">國二理化 · 物質的世界（溶液的濃度）</p>
+
+  <div class="body">
+    <div class="modes" style="--n:3">
+      <button class="mode" data-k="count" aria-pressed="true">百萬分之一<br>有多少</button>
+      <button class="mode" data-k="calc" aria-pressed="false">每公斤<br>幾毫克</button>
+      <button class="mode" data-k="scale" aria-pressed="false">% 和 ppm<br>換算</button>
+    </div>
+
+    <div data-mode="count">
+      <div class="group">
+        <div class="group-title">一杯水裡有幾個粒子？其中只有 1 個是溶質（紅色）</div>
+        <div class="chips" style="--n:3" id="nSeg">
+          <button class="btn" data-k="100" aria-pressed="true">100 個</button>
+          <button class="btn" data-k="10000" aria-pressed="false">1 萬個</button>
+          <button class="btn" data-k="1000000" aria-pressed="false">100 萬個</button>
+        </div>
+        <label class="sw" style="margin-top:8px"><input type="checkbox" id="mag"><span class="track"></span>用放大鏡找出紅色溶質</label>
+        <p class="note" style="margin-top:6px">先猜猜看：100 萬個裡面只有 1 個紅色，你找得到嗎？</p>
+      </div>
+    </div>
+
+    <div data-mode="calc" hidden>
+      <div class="group">
+        <div class="ctrl"><label for="kg">溶液（水）質量 <output id="kgVal"></output></label><input type="range" id="kg" min="1" max="8" step="1" value="4"></div>
+        <div class="ctrl"><label for="mg">溶質質量 <output id="mgVal"></output></label><input type="range" id="mg" min="1" max="48" step="1" value="12"></div>
+        <div class="calc" id="calcBox"></div>
+      </div>
+    </div>
+
+    <div data-mode="scale" hidden>
+      <div class="group">
+        <div class="ctrl"><label for="lg">濃度 <output id="lgVal"></output></label><input type="range" id="lg" min="0" max="5" step="0.05" value="2"></div>
+        <div class="chips" style="--n:2" id="ex">
+          <button class="btn" data-v="4.544">海水的鹽</button>
+          <button class="btn" data-v="2.602">空氣中的二氧化碳</button>
+        </div>
+        <div class="calc" id="scaleBox"></div>
+      </div>
+    </div>
+
+    <div class="group"><div class="result" id="info"></div></div>
+  </div>
+</aside>
+
+<script src="lab-kit.js"></script>
+<script>
+(() => {
+  const $ = Lab.$;
+  const S = { mode: 'count', n: 100, mag: false, kg: 4, mg: 12, lg: 2, show: 0 };
+  const frac = (a, b, ca = 'pink', cb = 'purple') => `<span class="frac"><span class="${ca}">${a}</span><span class="${cb}">${b}</span></span>`;
+  const fmt = n => n.toLocaleString('en-US');
+
+  // ---------- 百萬分之一：預先畫好 100×100、1000×1000 的粒子圖（每個像素一個粒子） ----------
+  function makeField(side, seed) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = side;
+    const g = cv.getContext('2d'), img = g.createImageData(side, side), d = img.data;
+    let r = seed; const rnd = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < side * side; i++) { const k = rnd() * 40; d[i * 4] = 70 + k; d[i * 4 + 1] = 140 + k; d[i * 4 + 2] = 230; d[i * 4 + 3] = 255; }
+    const red = [Math.floor(side * (0.25 + rnd() * 0.5)), Math.floor(side * (0.25 + rnd() * 0.5))];
+    const j = (red[1] * side + red[0]) * 4; d[j] = 255; d[j + 1] = 40; d[j + 2] = 70;
+    g.putImageData(img, 0, 0);
+    return { cv, side, red };
+  }
+  const FIELD = { 10000: makeField(100, 7), 1000000: makeField(1000, 11) };
+  const RED100 = 57;                                    // 100 個時紅色的位置
+
+  function drawCount(ctx, w, h, t) {
+    const B = Math.min(h - 120, w * 0.56, 560), bx = 30, by = (h - B) / 2 + 10;
+    Lab.text(`${fmt(S.n)} 個粒子，只有 1 個是溶質`, bx, by - 22, '#eef1fa', 16, 'left', 'bold');
+    Lab.shadow(bx + B / 2, by + B + 8, B * 0.5, 10, 0.4);
+    let red;
+    if (S.n === 100) {
+      Lab.card(bx, by, B, B, '#173a6b', 'rgba(255,255,255,.25)', 10);
+      const c = B / 10;
+      for (let i = 0; i < 100; i++) {
+        const x = bx + (i % 10 + 0.5) * c, y = by + (Math.floor(i / 10) + 0.5) * c;
+        if (i === RED100) { Lab.ball(x, y, c * 0.36, '#ff3b5c'); red = [x, y]; } else Lab.ball(x, y, c * 0.32, '#4f9dff');
+      }
+    } else {
+      const F = FIELD[S.n];
+      ctx.save(); ctx.imageSmoothingEnabled = S.n === 1000000; ctx.drawImage(F.cv, bx, by, B, B); ctx.restore();
+      Lab.rr(bx, by, B, B, 4); ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.stroke();
+      red = [bx + (F.red[0] + 0.5) / F.side * B, by + (F.red[1] + 0.5) / F.side * B];
+    }
+    // 放大鏡：把紅色溶質附近放大
+    if (S.mag && S.n > 100) {
+      const F = FIELD[S.n], R = Math.min(130, (w - bx - B - 40) / 2, h * 0.24), mx = Math.min(w - R - 16, bx + B + R + 20), my = by + R + 10, cells = 13;
+      const pulse = 1 + 0.25 * Math.sin(t * 5);
+      Lab.circle(red[0], red[1], 10 * pulse, null, '#ffd166', 2.5);
+      Lab.line(red[0], red[1], mx - R * 0.7, my + R * 0.7, 'rgba(255,209,102,.7)', 2, [6, 4]);
+      ctx.save(); ctx.beginPath(); ctx.arc(mx, my, R, 0, Math.PI * 2); ctx.clip();
+      ctx.fillStyle = '#173a6b'; ctx.fillRect(mx - R, my - R, 2 * R, 2 * R);
+      const c = 2 * R / cells;
+      for (let i = 0; i < cells; i++) for (let j = 0; j < cells; j++) {
+        const gx = F.red[0] - 6 + i, gy = F.red[1] - 6 + j, isRed = i === 6 && j === 6;
+        Lab.ball(mx - R + (i + 0.5) * c, my - R + (j + 0.5) * c, c * (isRed ? 0.42 : 0.34), isRed ? '#ff3b5c' : '#4f9dff');
+      }
+      ctx.restore();
+      Lab.circle(mx, my, R, null, '#d7dde9', 6);
+      Lab.text('放大後：找到了！', mx, my + R + 22, '#ffd166', 14, 'center', 'bold');
+    }
+    // 右邊：這個濃度是多少
+    const ix = bx + B + 30, iw = w - ix - 20;
+    if (iw > 200 && !(S.mag && S.n > 100)) {
+      const pct = 100 / S.n, ppm = 1e6 / S.n, cy = h / 2 - 60;
+      Lab.glass(ix, cy - 50, iw, 230, 16);
+      Lab.text('濃度 ＝', ix + 20, cy, '#eef1fa', 18, 'left', 'bold');
+      Lab.text('1', ix + 140, cy - 18, '#ff8fb8', 22, 'center', 'bold');
+      Lab.line(ix + 100, cy, ix + 180, cy, '#eef1fa', 2);
+      Lab.text(fmt(S.n), ix + 140, cy + 20, '#c58bff', 18, 'center', 'bold');
+      Lab.text(`＝ ${pct >= 0.01 ? pct : pct.toFixed(4)} %`, ix + 20, cy + 70, '#eef1fa', 18, 'left', 'bold');
+      Lab.text(`＝ ${fmt(ppm)} ppm`, ix + 20, cy + 110, '#ffd166', 22, 'left', 'bold');
+      Lab.text(S.n === 1000000 ? '百萬分之一，就是 1 ppm！' : '再多 100 倍的粒子試試看 →', ix + 20, cy + 150, 'rgba(238,241,250,.7)', 14, 'left');
+    }
+    $('info').innerHTML = S.n === 1000000
+      ? '100 萬個裡只有 1 個，叫做<b>百萬分之一</b>，也就是 <b>1 ppm</b>（ppm：parts per million）。<br>這麼少，用 % 要寫成 0.0001%，一堆 0 很難讀，所以濃度<b>非常低</b>的時候改用 ppm。'
+      : `100 個裡有 1 個是 1%；粒子越來越多、溶質還是只有 1 個時，濃度就越來越低。<br>用 % 表示會變成很小的小數，看看換成 ppm 會不會比較好讀。`;
+  }
+
+  // ---------- 每公斤幾毫克：把溶液分成一塊一塊 1 公斤 ----------
+  function drawCalc(ctx, w, h, t) {
+    const n = S.kg, cols = Math.min(4, n), rows = Math.ceil(n / cols);
+    const cell = Math.min((w - 80) / cols - 14, (h - 180) / rows - 30, 190), gx = (w - cols * (cell + 14)) / 2, gy = Math.max(80, (h - rows * (cell + 40)) / 2);
+    Lab.text(`${n} 公斤的溶液，切成 ${n} 塊「1 公斤」，溶質平均分散在裡面`, w / 2, 40, '#eef1fa', 16, 'center', 'bold');
+    const per = S.mg / n;
+    let r = 3; const rnd = () => ((r = (r * 16807) % 2147483647) / 2147483647);
+    let left = S.mg;
+    for (let i = 0; i < n; i++) {
+      const x = gx + (i % cols) * (cell + 14), y = gy + Math.floor(i / cols) * (cell + 40);
+      Lab.rr(x, y, cell, cell, 12); ctx.fillStyle = Lab.lg(0, y, 0, y + cell, ['rgba(110,180,255,.45)', 'rgba(60,120,220,.55)']); ctx.fill();
+      ctx.strokeStyle = 'rgba(200,225,255,.6)'; ctx.lineWidth = 2; ctx.stroke();
+      // 這一塊分到的溶質顆數（盡量平均）
+      const k = Math.round(left / (n - i)); left -= k;
+      for (let j = 0; j < k; j++) {
+        const px = x + 14 + rnd() * (cell - 28), py = y + 14 + rnd() * (cell - 28) + Math.sin(t * 2 + j) * 2;
+        Lab.ball(px, py, Math.max(4, cell * 0.035), '#ff3b5c');
+      }
+      Lab.text('1 公斤', x + cell / 2, y + cell + 16, '#9fc4ff', 13, 'center', 'bold');
+    }
+    Lab.text('● 1 顆 ＝ 1 毫克（mg）溶質', w / 2, h - 30, '#ff8fb8', 14, 'center', 'bold');
+    $('calcBox').innerHTML = `
+      1 公斤 ＝ 1000 克 ＝ <b>1000000 毫克</b><br>
+      ppm ＝ ${frac('溶質質量', '溶液質量')} × 1000000<br>
+      ＝ ${frac(`${S.mg} mg`, `${n} × 1000000 mg`)} × 1000000<br>
+      ＝ ${frac(S.mg, n)} ＝ <b>${+per.toFixed(2)} ppm</b>`;
+    $('info').innerHTML = `算到最後，1000000 會約掉，所以 <b>ppm 就是「每 1 公斤溶液裡有幾毫克溶質」</b>。<br>畫面上每一塊 1 公斤平均分到 <b>${+per.toFixed(2)}</b> 顆，就是 ${+per.toFixed(2)} ppm。`;
+  }
+
+  // ---------- % 和 ppm 換算：每往下一格就小 10 倍 ----------
+  const EX = [[35000, '海水裡的鹽 約 3.5%'], [400, '空氣中的二氧化碳 約 0.04%']];
+  function drawScale(ctx, w, h) {
+    const top = 70, bot = h - 100, x0 = Math.max(40, w * 0.12), Y = lg => top + (5 - lg) / 5 * (bot - top);
+    Lab.text('％', x0 + 60, top - 34, '#eef1fa', 15, 'center', 'bold');
+    Lab.text('ppm', x0 + 250, top - 34, '#ffd166', 15, 'center', 'bold');
+    for (let k = 0; k <= 5; k++) {
+      const y = Y(k), ppm = 10 ** k, pct = ppm / 10000;
+      Lab.card(x0, y - 18, 120, 36, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.15)', 10);
+      Lab.text(`${+pct.toFixed(4)} %`, x0 + 60, y, '#eef1fa', 15, 'center', 'bold');
+      Lab.text('＝', x0 + 150, y, 'rgba(238,241,250,.6)', 15);
+      Lab.card(x0 + 180, y - 18, 140, 36, 'rgba(255,209,102,.1)', 'rgba(255,209,102,.4)', 10);
+      Lab.text(`${fmt(ppm)} ppm`, x0 + 250, y, '#ffd166', 15, 'center', 'bold');
+      if (k < 5) Lab.text('× 10', x0 + 345, (Y(k) + Y(k + 1)) / 2, 'rgba(238,241,250,.45)', 12, 'left');
+    }
+    // 目前的濃度
+    const y = Y(S.lg), ppm = 10 ** S.lg;
+    Lab.force(x0 - 30, y, x0 - 6, y, '#ff8fb8', null, 4);
+    Lab.line(x0 - 6, y, x0 + 330, y, 'rgba(255,143,184,.7)', 2, [6, 5]);
+    Lab.pill(`${+(ppm / 10000).toPrecision(3)} % ＝ ${fmt(+ppm.toPrecision(3))} ppm`, x0 + 500, y - 24, '#ff8fb8', 15);
+    EX.forEach(([p, n]) => { const yy = Y(Math.log10(p)); Lab.text('◀ ' + n, x0 + 400, yy, 'rgba(159,196,255,.8)', 13, 'left'); });
+    $('lgVal').textContent = fmt(+ppm.toPrecision(3)) + ' ppm';
+    $('scaleBox').innerHTML = `換算規則：<b>1% ＝ 10000 ppm</b><br>
+      因為 ${frac('1', '100')} ＝ ${frac('10000', '1000000')}<br>
+      所以：% 換 ppm 就 <b>× 10000</b>；ppm 換 % 就 <b>÷ 10000</b>`;
+    $('info').innerHTML = '濃度越低，% 的小數點後面 0 越多，越難讀；這時候改用 ppm，數字就變成好讀的整數。';
+  }
+
+  Lab.init({ draw(ctx, w, h, dt, t) { S.mode === 'count' ? drawCount(ctx, w, h, t) : S.mode === 'calc' ? drawCalc(ctx, w, h, t) : drawScale(ctx, w, h); } });
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.bindGroup('#nSeg .btn', k => { S.n = +k; });
+  $('mag').addEventListener('change', e => { S.mag = e.target.checked; });
+  Lab.bindSlider('kg', v => { S.kg = v; }, v => v + ' 公斤');
+  Lab.bindSlider('mg', v => { S.mg = v; }, v => v + ' 毫克');
+  const lgEl = Lab.bindSlider('lg', v => { S.lg = v; });
+  $('ex').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { lgEl.value = b.dataset.v; lgEl.dispatchEvent(new Event('input')); } });
+  window.ppmSim = S;
+})();
+</script>
+<script src="lesson.js" defer></script>
+</body>
+</html>
