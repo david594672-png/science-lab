@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="bio">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -94,6 +94,78 @@
   };
   const push = (arr, v, n = 240) => { arr.push(v); if (arr.length > n) arr.shift(); };
 
+  /* ===== 美術小工具 ===== */
+  const GOLD = '#ffd166';
+  const hex = (r, g, b) => '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+  const mix = (a, b, k) => { const A = Lab.rgb(a), B = Lab.rgb(b); return hex(...A.map((v, i) => v + (B[i] - v) * k)); };
+  const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };  // 固定的亂數
+  /** 背景的柔和綠色光暈 */
+  function backdrop(ctx, W, H, x, y, r) {
+    ctx.fillStyle = Lab.rg(x, y, 0, r, ['rgba(79,209,139,.13)', 'rgba(79,209,139,.04)', 'rgba(79,209,139,0)']);
+    ctx.fillRect(0, 0, W, H);
+  }
+  /** 有立體感的管子：暗邊 → 本體 → 中間一條亮光 */
+  function tube(ctx, path, w, col) {
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    [[w + 4, Lab.shade(col, -0.5)], [w, col], [w * 0.25, 'rgba(255,255,255,.35)']].forEach(([lw, sc]) => {
+      ctx.beginPath(); path(); ctx.lineWidth = lw; ctx.strokeStyle = sc; ctx.stroke();
+    });
+    ctx.restore();
+  }
+  /** 水滴（汗珠、尿滴）：x,y 為圓的中心 */
+  function drop(ctx, x, y, r, col) {
+    ctx.beginPath(); ctx.moveTo(x, y - r * 2);
+    ctx.bezierCurveTo(x + r * 0.2, y - r * 1.2, x + r, y - r * 0.6, x + r, y);
+    ctx.arc(x, y, r, 0, Math.PI);
+    ctx.bezierCurveTo(x - r, y - r * 0.6, x - r * 0.2, y - r * 1.2, x, y - r * 2);
+    ctx.fillStyle = Lab.lg(0, y - r * 2, 0, y + r, ['#e6f8ff', col]); ctx.fill();
+  }
+  /** 玻璃容器：半透明、左右有反光 */
+  function glassBox(ctx, x, y, w, h, r) {
+    Lab.rr(x, y, w, h, r);
+    ctx.fillStyle = Lab.lg(x, 0, x + w, 0, ['rgba(255,255,255,.14)', 'rgba(255,255,255,.03)', 'rgba(255,255,255,.10)']); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.32)'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  /** 有波浪水面的液體（放在 glassBox 裡） */
+  function liquid(ctx, x, y, w, h, r, top, col, t) {
+    ctx.save(); Lab.rr(x, y, w, h, r); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(x, y + h);
+    for (let i = 0; i <= 20; i++) { const xx = x + w * i / 20; ctx.lineTo(xx, top + Math.sin(i * 0.9 + t * 3) * Math.min(3, w * 0.03)); }
+    ctx.lineTo(x + w, y + h); ctx.closePath();
+    ctx.fillStyle = Lab.lg(0, top, 0, y + h, [Lab.shade(col, 0.3), col, Lab.shade(col, -0.25)]); ctx.fill();
+    ctx.restore();
+  }
+  /** 移動的小粒子流（激素、葡萄糖）：從 (x0,y0) 流到 (x1,y1) */
+  function stream(ctx, x0, y0, x1, y1, col, n, t, a = 1) {
+    ctx.save(); ctx.globalAlpha *= a;
+    Lab.line(x0, y0, x1, y1, Lab.alpha(col, 0.25), 6);
+    Lab.arrow(x0, y0, x1, y1, Lab.alpha(col, 0.7), 2, 10);
+    for (let i = 0; i < n; i++) {
+      const u = (t * 0.6 + i / n) % 1, x = x0 + (x1 - x0) * u, y = y0 + (y1 - y0) * u;
+      ctx.shadowColor = col; ctx.shadowBlur = 8; Lab.circle(x, y, 4, col);
+    }
+    ctx.restore();
+  }
+  /** 人：cx 為身體中心，cy 為腰部上方，s 為大小；skin 為膚色（#rrggbb） */
+  function drawBody(ctx, cx, cy, s, skin) {
+    const g = Lab.lg(cx - s * 0.7, 0, cx + s * 0.7, 0, [Lab.shade(skin, 0.18), skin, Lab.shade(skin, -0.22)]);
+    ctx.save(); ctx.lineCap = 'round';
+    const limb = (x0, y0, x1, y1, w) => { ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.lineWidth = w; ctx.strokeStyle = g; ctx.stroke(); };
+    limb(cx - s * 0.2, cy + s * 0.35, cx - s * 0.25, cy + s * 1.15, s * 0.26);    // 腿
+    limb(cx + s * 0.2, cy + s * 0.35, cx + s * 0.25, cy + s * 1.15, s * 0.26);
+    limb(cx - s * 0.44, cy - s * 0.5, cx - s * 0.64, cy + s * 0.25, s * 0.19);    // 手臂
+    limb(cx + s * 0.44, cy - s * 0.5, cx + s * 0.64, cy + s * 0.25, s * 0.19);
+    Lab.rr(cx - s * 0.42, cy - s * 0.66, s * 0.84, s * 1.06, s * 0.24); ctx.fillStyle = g; ctx.fill();   // 軀幹
+    Lab.rr(cx - s * 0.42, cy + s * 0.2, s * 0.84, s * 0.42, s * 0.12);                                    // 短褲
+    ctx.fillStyle = Lab.lg(0, cy + s * 0.2, 0, cy + s * 0.62, ['#3a4f86', '#24325a']); ctx.fill();
+    limb(cx, cy - s * 0.7, cx, cy - s * 0.8, s * 0.16);                                                   // 脖子
+    const hy = cy - s * 0.98;
+    Lab.circle(cx, hy, s * 0.26, Lab.rg(cx, hy, s * 0.02, s * 0.28, [Lab.shade(skin, 0.25), skin, Lab.shade(skin, -0.25)], cx - s * 0.08, hy - s * 0.08));
+    ctx.fillStyle = '#2b2118'; ctx.beginPath(); ctx.arc(cx, hy - s * 0.02, s * 0.27, Math.PI * 1.05, Math.PI * 1.95); ctx.closePath(); ctx.fill();
+    Lab.circle(cx - s * 0.09, hy + s * 0.03, s * 0.025, '#2a2a2a'); Lab.circle(cx + s * 0.09, hy + s * 0.03, s * 0.025, '#2a2a2a');
+    ctx.restore();
+  }
+
   /* ===== 體溫 ===== */
   Lab.bindSlider('env', v => { S.env = v; }, v => v + ' °C');
   Lab.bindGroup('#actSeg button', k => { S.run = k === 'run'; });
@@ -109,35 +181,88 @@
     S.T = Math.max(34, Math.min(41, S.T));
   }
   function drawTemp(ctx, W, H, t) {
-    const cx = W * 0.3, cy = H * 0.45, s = Math.min(W * 0.18, H * 0.3);
-    const shake = S.shiver > 0.1 ? Math.sin(t * 60) * 3 * S.shiver : 0;
-    const skin = `rgb(${Math.round(230 + 25 * S.dil)},${Math.round(190 - 40 * S.dil)},${Math.round(170 - 40 * S.dil)})`;
-    ctx.save(); ctx.translate(shake, 0);
-    Lab.circle(cx, cy - s * 0.95, s * 0.28, skin);
-    Lab.card(cx - s * 0.38, cy - s * 0.65, s * 0.76, s * 1.05, skin, null, s * 0.2);
-    Lab.card(cx - s * 0.34, cy + s * 0.38, s * 0.28, s * 0.85, skin, null, 10);
-    Lab.card(cx + s * 0.06, cy + s * 0.38, s * 0.28, s * 0.85, skin, null, 10);
-    Lab.card(cx - s * 0.62, cy - s * 0.55, s * 0.22, s * 0.85, skin, null, 10);
-    Lab.card(cx + s * 0.4, cy - s * 0.55, s * 0.22, s * 0.85, skin, null, 10);
-    ctx.restore();
-    // 汗珠
-    if (S.sweat > 0.05) for (let i = 0; i < Math.round(S.sweat * 14); i++) {
-      const x = cx + Math.sin(i * 2.3) * s * 0.5, y = cy - s * 0.7 + ((t * 40 + i * 37) % (s * 1.6));
-      Lab.circle(x, y, 4, 'rgba(76,201,240,.8)');
+    const col = S.T > 37.5 ? '#ff5d8f' : S.T < 36.5 ? '#4cc9f0' : '#4fd18b';
+    // ---- 左邊：環境場景（顏色隨環境溫度從冷藍變成熱橘） ----
+    // 窄螢幕時場景矮一點，讓下方指示燈不被左下角的「學習任務」按鈕擋住
+    const x0 = W * 0.04, y0 = H * 0.05, w = W * 0.56, h = H * (W < 500 ? 0.55 : 0.6), gy = y0 + h * 0.86;
+    const k = S.env / 45;
+    const sky = k < 0.5 ? mix('#16345c', '#1c4a3a', k * 2) : mix('#1c4a3a', '#6a3a14', (k - 0.5) * 2);
+    ctx.save(); Lab.rr(x0, y0, w, h, 18); ctx.clip();
+    ctx.fillStyle = Lab.lg(0, y0, 0, y0 + h, [Lab.shade(sky, 0.15), Lab.shade(sky, -0.45)]); ctx.fillRect(x0, y0, w, h);
+    ctx.fillStyle = Lab.lg(0, gy, 0, y0 + h, [S.env <= 5 ? '#dfe9f5' : Lab.shade(sky, -0.3), Lab.shade(sky, -0.65)]);
+    ctx.fillRect(x0, gy, w, y0 + h - gy);
+    if (S.env >= 28) {                                      // 太陽：越熱越亮
+      const sx = x0 + w * 0.84, sy = y0 + h * 0.16, a = Math.min(1, (S.env - 26) / 16), r = Math.min(30, w * 0.07);
+      ctx.fillStyle = Lab.rg(sx, sy, r, r * 4, [`rgba(255,200,90,${0.45 * a})`, 'rgba(255,200,90,0)']); ctx.fillRect(x0, y0, w, h);
+      for (let i = 0; i < 10; i++) { const an = i * Math.PI / 5 + t * 0.3; Lab.line(sx + Math.cos(an) * r * 1.3, sy + Math.sin(an) * r * 1.3, sx + Math.cos(an) * r * 1.8, sy + Math.sin(an) * r * 1.8, `rgba(255,220,120,${0.8 * a})`, 3); }
+      Lab.ball(sx, sy, r, '#ffc84a');
     }
-    if (S.run) Lab.text('🏃', cx + s * 0.9, cy - s, '#fff', 34);
-    Lab.text(S.env >= 30 ? '☀' : S.env <= 10 ? '❄' : '', cx - s * 0.9, cy - s, '#fff', 34);
-    // 溫度計
-    const tx = W * 0.62, ty = H * 0.12, th = H * 0.5;
-    Lab.card(tx - 12, ty, 24, th, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.2)', 12);
-    const f = (S.T - 34) / 7, col = S.T > 37.5 ? '#ff5d8f' : S.T < 36.5 ? '#4cc9f0' : '#4fd18b';
-    Lab.card(tx - 8, ty + th * (1 - f), 16, th * f, col, null, 8);
-    Lab.circle(tx, ty + th + 14, 20, col);
-    Lab.text(S.T.toFixed(1) + ' °C', tx + 34, ty + th * (1 - f), col, 20, 'left', 'bold');
-    Lab.line(tx - 22, ty + th * (1 - 3 / 7), tx + 22, ty + th * (1 - 3 / 7), 'rgba(255,255,255,.5)', 1.5, [4, 4]);
-    Lab.text('37 °C', tx - 28, ty + th * (1 - 3 / 7), 'rgba(238,241,250,.6)', 12, 'right');
-    // 曲線
-    Lab.chart(W * 0.08, H * 0.74, W * 0.84, H * 0.22, [{ data: S.Th, color: col, n: 240 }],
+    if (S.env <= 12) {                                      // 雪花：越冷越多
+      const n = Math.round((13 - S.env) * 3);
+      for (let i = 0; i < n; i++) {
+        const x = x0 + rnd(i) * w + Math.sin(t + i) * 6, y = y0 + (rnd(i + 50) * h + t * 30 * (0.6 + rnd(i + 9))) % h;
+        Lab.circle(x, y, 1.5 + rnd(i + 3) * 2, 'rgba(255,255,255,.85)');
+      }
+    }
+    ctx.restore();
+    Lab.rr(x0, y0, w, h, 18); ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.5; ctx.stroke();
+    Lab.pill(`環境 ${S.env} °C`, x0 + 68, y0 + 26, S.env >= 30 ? '#ff9f43' : S.env <= 10 ? '#7cc8ff' : '#4fd18b', 14);
+
+    // ---- 人：膚色、紅光／藍光代表皮膚血管擴張或收縮 ----
+    const cx = x0 + w * 0.5, s = Math.min(w * 0.2, h * 0.3), cy = gy - s * 1.25;
+    Lab.shadow(cx, gy + 2, s * 0.6, s * 0.1, 0.45);
+    if (S.dil > 0.6) { ctx.fillStyle = Lab.rg(cx, cy - s * 0.2, s * 0.3, s * 1.5, [`rgba(255,90,90,${(S.dil - 0.6) * 1.1})`, 'rgba(255,90,90,0)']); ctx.fillRect(x0, y0, w, h); }
+    if (S.dil < 0.4) { ctx.fillStyle = Lab.rg(cx, cy - s * 0.2, s * 0.3, s * 1.5, [`rgba(90,170,255,${(0.4 - S.dil) * 1.1})`, 'rgba(90,170,255,0)']); ctx.fillRect(x0, y0, w, h); }
+    const shake = S.shiver > 0.1 ? Math.sin(t * 60) * 3 * S.shiver : 0;
+    const skin = hex(230 + 25 * S.dil, 190 - 40 * S.dil, 170 - 40 * S.dil);
+    ctx.save(); ctx.translate(shake, 0); drawBody(ctx, cx, cy, s, skin); ctx.restore();
+    if (S.dil > 0.65) {                                     // 熱氣從身體往上散出
+      ctx.save(); ctx.globalAlpha = Math.min(1, (S.dil - 0.65) * 3); ctx.strokeStyle = '#ff9f7a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const bx = cx + (i - 1) * s * 0.5; ctx.beginPath();
+        for (let j = 0; j <= 12; j++) { const yy = cy - s * 1.3 - j * s * 0.04, xx = bx + Math.sin(j * 0.9 - t * 5 + i) * s * 0.05; j ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (S.shiver > 0.1) {                                   // 發抖的抖動線
+      ctx.save(); ctx.globalAlpha = Math.min(1, S.shiver * 2); ctx.strokeStyle = '#a9dcff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      [-1, 1].forEach(d => { for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(cx + d * s * 0.62, cy - s * 0.2, s * (0.22 + i * 0.1), d > 0 ? -0.5 : Math.PI - 0.5, d > 0 ? 0.5 : Math.PI + 0.5); ctx.stroke(); } });
+      ctx.restore();
+    }
+    if (S.sweat > 0.05) for (let i = 0; i < Math.round(S.sweat * 14); i++) {   // 汗珠
+      const x = cx + Math.sin(i * 2.3) * s * 0.5, y = cy - s * 0.6 + ((t * 40 + i * 37) % (s * 1.5));
+      drop(ctx, x, y, s * 0.03 + 1.5, '#4cc9f0');
+    }
+    if (S.run) {                                            // 運動：速度線
+      for (let i = 0; i < 3; i++) Lab.line(cx - s * 1.05 - i * 6, cy - s * 0.45 + i * s * 0.32, cx - s * 0.78 - i * 6, cy - s * 0.45 + i * s * 0.32, 'rgba(255,255,255,.45)', 3);
+      Lab.pill('🏃 運動中：產熱增加', cx, gy + (y0 + h - gy) / 2, GOLD, 13);
+    }
+
+    // ---- 場景下方：三種調節反應的指示燈 ----
+    const fs = w < 320 ? 12 : 14, cyc = y0 + h + 26;
+    const vessel = S.dil > 0.65 ? ['血管擴張', '#ff8f6b'] : S.dil < 0.35 ? ['血管收縮', '#7cc8ff'] : ['血管正常', 'rgba(238,241,250,.4)'];
+    [[vessel[0], vessel[1]], ['流汗', S.sweat > 0.1 ? '#4cc9f0' : 'rgba(238,241,250,.3)'], ['顫抖', S.shiver > 0.1 ? GOLD : 'rgba(238,241,250,.3)']]
+      .forEach(([txt, c], i) => Lab.pill(txt, x0 + w * (1 + i * 2) / 6, cyc, c, fs));
+
+    // ---- 右邊：玻璃溫度計 ----
+    const trx = W * 0.79, ty = H * 0.08, th = H * 0.46, f = (S.T - 34) / 7;
+    glassBox(ctx, trx - 13, ty, 26, th + 10, 13);
+    Lab.rr(trx - 7, ty + th * (1 - f), 14, th * f + 14, 7);
+    ctx.fillStyle = Lab.lg(trx - 7, 0, trx + 7, 0, [Lab.shade(col, 0.35), col, Lab.shade(col, -0.3)]); ctx.fill();
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 16; Lab.ball(trx, ty + th + 20, 24, col); ctx.restore();
+    for (let v = 34; v <= 41; v++) {
+      const y = ty + th * (1 - (v - 34) / 7);
+      Lab.line(trx - 13, y, trx - 21, y, 'rgba(238,241,250,.45)', 1.5);
+      Lab.text(String(v), trx - 26, y, 'rgba(238,241,250,.55)', 11, 'right');
+    }
+    const y37 = ty + th * (1 - 3 / 7);
+    Lab.line(trx - 22, y37, trx + 26, y37, 'rgba(255,255,255,.55)', 1.5, [4, 4]);
+    Lab.text('正常 37', trx + 30, y37, 'rgba(238,241,250,.7)', 12, 'left', 'bold');
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 12; Lab.pill(S.T.toFixed(1) + ' °C', trx, ty + th + 66, col, 18); ctx.restore();
+
+    // ---- 下方：體溫曲線 ----
+    Lab.chart(W * 0.04, H * 0.76, W * 0.92, H * 0.21, [{ data: S.Th, color: col, n: 240 }],
       { min: 35, max: 39, yLabel: '體溫 (°C)', xLabel: '時間 →', ref: { v: 37, label: '37 °C' } });
   }
 
@@ -156,22 +281,77 @@
     S.G = Math.max(40, Math.min(300, S.G));
   }
   function drawSugar(ctx, W, H, t) {
-    const y0 = H * 0.08;
-    // 胰臟、肝臟、血管
-    const px = W * 0.25, lx = W * 0.65, vy = y0 + 150;
-    Lab.card(px - 90, y0 + 20, 180, 60, 'rgba(255,209,102,.18)', '#ffd166', 28); Lab.text('胰臟', px, y0 + 50, '#ffd166', 18, 'center', 'bold');
-    Lab.card(lx - 90, y0 + 20, 180, 60, 'rgba(255,93,143,.18)', '#ff5d8f', 28); Lab.text('肝臟（肝糖）', lx, y0 + 50, '#ff8fa8', 18, 'center', 'bold');
-    Lab.line(40, vy, W - 40, vy, 'rgba(255,93,143,.5)', 18);
-    Lab.text('血液', 50, vy - 22, 'rgba(255,143,168,.8)', 12, 'left');
+    const k = Math.min(1, W / 760, H / 700);                // 小螢幕時整體縮小
+    const y0 = H * 0.06, px = W * 0.25, lx = W * 0.68, oy = y0 + 62 * k, vy = y0 + 175 * k;
+    backdrop(ctx, W, H, W / 2, vy, W * 0.6);
+
+    // ---- 胰臟：黃色、長條、表面有小葉 ----
+    tube(ctx, () => { ctx.moveTo(px - 85 * k, oy + 4 * k); ctx.quadraticCurveTo(px, oy + 30 * k, px + 85 * k, oy - 10 * k); }, 38 * k, '#f2c66d');
+    for (let i = 0; i < 9; i++) {
+      const u = i / 8, x = px - 85 * k + 170 * k * u, y = oy + 4 * k + (1 - u) * u * 2 * 26 * k - u * 14 * k;
+      Lab.circle(x + Math.sin(i * 3) * 6 * k, y + Math.cos(i * 2) * 6 * k, 5 * k, 'rgba(255,255,255,.16)');
+    }
+    Lab.pill('胰臟', px, oy - 38 * k, GOLD, Math.round(15 * Math.max(0.85, k)));
+
+    // ---- 肝臟：紅褐色、分成兩葉 ----
+    ctx.save(); ctx.translate(lx, oy); ctx.scale(k, k);
+    ctx.beginPath(); ctx.moveTo(-95, -6);
+    ctx.bezierCurveTo(-82, -44, 62, -50, 98, -22); ctx.bezierCurveTo(104, 6, 44, 40, -8, 36); ctx.bezierCurveTo(-60, 34, -102, 16, -95, -6);
+    ctx.fillStyle = Lab.rg(0, 0, 6, 110, ['#e88a8f', '#b2434f', '#6e1f2a'], -30, -24); ctx.fill();
+    ctx.strokeStyle = '#4e1420'; ctx.lineWidth = 2; ctx.stroke();
+    Lab.line(10, -40, -4, 30, 'rgba(60,10,20,.45)', 2);       // 左右葉的分界
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.ellipse(-30, -24, 40, 8, -0.15, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 10; i++) Lab.circle(-60 + rnd(i) * 130, -18 + rnd(i + 20) * 40, 3, 'rgba(255,230,180,.55)');   // 肝糖顆粒
+    ctx.restore();
+    Lab.pill('肝臟（儲存肝糖）', lx, oy - 50 * k, '#ff8fa8', Math.round(15 * Math.max(0.85, k)));
+
+    // ---- 血管：葡萄糖顆粒在血液裡流動 ----
+    const vh = 32 * Math.max(0.7, k);
+    Lab.rr(20, vy - vh / 2, W - 40, vh, vh / 2);
+    ctx.fillStyle = Lab.lg(0, vy - vh / 2, 0, vy + vh / 2, ['#5e1824', '#c2414f', '#e8707f', '#c2414f', '#5e1824']); ctx.fill();
+    ctx.strokeStyle = '#3e0e18'; ctx.lineWidth = 1.5; ctx.stroke();
     const nG = Math.round((S.G - 40) / 8);
-    for (let i = 0; i < nG; i++) Lab.circle(60 + ((i * 53 + t * 60) % (W - 120)), vy + Math.sin(i * 7) * 4, 4.5, '#fff');
-    if (S.ins > 0.05) { Lab.arrow(px - 30, y0 + 82, px - 30, vy - 14, '#4cc9f0', 3); Lab.pill('胰島素', px - 30, y0 + 112, '#4cc9f0', 13); Lab.arrow(lx - 40, vy - 14, lx - 40, y0 + 84, '#4cc9f0', 3); Lab.text('葡萄糖 → 肝糖', lx - 46, y0 + 114, '#4cc9f0', 12, 'right'); }
-    if (S.glu > 0.05) { Lab.arrow(px + 30, y0 + 82, px + 30, vy - 14, '#ffd166', 3); Lab.pill('升糖素', px + 30, y0 + 112, '#ffd166', 13); Lab.arrow(lx + 40, y0 + 84, lx + 40, vy - 14, '#ffd166', 3); Lab.text('肝糖 → 葡萄糖', lx + 46, y0 + 114, '#ffd166', 12, 'left'); }
-    if (S.food > 0) Lab.pill('吸收葡萄糖中', W * 0.45, vy + 40, '#fff', 13);
-    if (S.exer > 0) Lab.pill('肌肉消耗葡萄糖', W * 0.45, vy + 40, '#4fd18b', 13);
-    const col = S.G > 140 ? '#ff5d8f' : S.G < 70 ? '#ffd166' : '#4fd18b';
-    Lab.text(`血糖 ${Math.round(S.G)} mg/dL`, W / 2, vy + 82, col, 24, 'center', 'bold');
-    Lab.chart(W * 0.06, H * 0.58, W * 0.88, H * 0.36, [{ data: S.Gh, color: col, n: 240 }],
+    ctx.save();
+    for (let i = 0; i < nG; i++) {
+      const x = 36 + ((i * 53 + t * 60) % (W - 72)), y = vy + Math.sin(i * 7) * vh * 0.22;
+      ctx.shadowColor = '#fff6c8'; ctx.shadowBlur = 8; Lab.circle(x, y, 4.5, '#fffbe6');
+    }
+    ctx.restore();
+    Lab.text('● 血液中的葡萄糖', W - 26, vy + vh / 2 + 14, 'rgba(255,230,200,.85)', 12, 'right', 'bold');
+
+    // ---- 激素：胰島素（藍）、升糖素（黃） ----
+    const top = oy + 26 * k, bot = vy - vh / 2 - 2, ltop = oy + 34 * k, fs = Math.round(13 * Math.max(0.85, k));
+    if (S.ins > 0.05) {
+      stream(ctx, px - 30 * k, top, px - 30 * k, bot, '#4cc9f0', 4, t, Math.min(1, S.ins * 3));
+      Lab.pill('胰島素', px - 30 * k - 46 * Math.max(0.8, k), (top + bot) / 2, '#4cc9f0', fs);
+      stream(ctx, lx - 40 * k, bot, lx - 40 * k, ltop, '#4cc9f0', 4, t, Math.min(1, S.ins * 3));
+      Lab.text('葡萄糖 → 肝糖', lx - 48 * k, (ltop + bot) / 2, '#4cc9f0', 12, 'right', 'bold');
+    }
+    if (S.glu > 0.05) {
+      stream(ctx, px + 30 * k, top, px + 30 * k, bot, GOLD, 4, t, Math.min(1, S.glu * 3));
+      Lab.pill('升糖素', px + 30 * k + 46 * Math.max(0.8, k), (top + bot) / 2, GOLD, fs);
+      stream(ctx, lx + 40 * k, ltop, lx + 40 * k, bot, GOLD, 4, t, Math.min(1, S.glu * 3));
+      Lab.text('肝糖 → 葡萄糖', lx + 48 * k, (ltop + bot) / 2, GOLD, 12, 'left', 'bold');
+    }
+    if (S.food > 0) Lab.pill('🍚 吸收葡萄糖中', W * 0.45, vy + vh / 2 + 22, '#fff', 13);
+    if (S.exer > 0) Lab.pill('🏃 肌肉消耗葡萄糖', W * 0.45, vy + vh / 2 + 22, '#4fd18b', 13);
+
+    // ---- 血糖量表：黃（太低）／綠（正常）／紅（太高） ----
+    const col = S.G > 140 ? '#ff5d8f' : S.G < 70 ? GOLD : '#4fd18b';
+    const gx0 = W * 0.12, gx1 = W * 0.88, gy = vy + vh / 2 + 56 * Math.max(0.75, k), X = v => gx0 + (Math.max(40, Math.min(260, v)) - 40) / 220 * (gx1 - gx0);
+    Lab.rr(gx0, gy - 6, gx1 - gx0, 12, 6);
+    ctx.fillStyle = Lab.lg(gx0, 0, gx1, 0, [[0, '#ffd166'], [(70 - 40) / 220, '#ffd166'], [(80 - 40) / 220, '#4fd18b'], [(130 - 40) / 220, '#4fd18b'], [(150 - 40) / 220, '#ff5d8f'], [1, '#ff5d8f']]);
+    ctx.fill();
+    [[55, '太低'], [100, '正常'], [200, '太高']].forEach(([v, s]) => Lab.text(s, X(v), gy + 18, 'rgba(238,241,250,.6)', 11, 'center', 'bold'));
+    const nx = X(S.G);
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 12;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(nx, gy - 4); ctx.lineTo(nx - 8, gy - 16); ctx.lineTo(nx + 8, gy - 16); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 14;
+    Lab.pill(`血糖 ${Math.round(S.G)} mg/dL`, W / 2, gy + 48 * Math.max(0.75, k), col, Math.round(20 * Math.max(0.8, k)));
+    ctx.restore();
+
+    Lab.chart(W * 0.04, H * 0.6, W * 0.92, H * 0.36, [{ data: S.Gh, color: col, n: 240 }],
       { min: 40, max: 260, yLabel: '血糖 (mg/dL)', xLabel: '時間 →', ref: { v: 90, label: '正常約 70～110' } });
   }
 
@@ -187,28 +367,69 @@
     S.water = Math.max(50, Math.min(70, S.water));
   }
   function drawWater(ctx, W, H, t) {
-    const cx = W * 0.3, cy = H * 0.4;
-    // 腎臟（兩顆豆形）
-    [-1, 1].forEach(d => { ctx.fillStyle = 'rgba(255,143,168,.4)'; ctx.strokeStyle = '#ff8fa8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cx + d * 70, cy, 40, 64, d * 0.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
-    Lab.text('腎臟', cx, cy - 90, '#ff8fa8', 18, 'center', 'bold');
-    Lab.line(cx - 60, cy + 60, cx - 10, cy + 150, '#ffd166', 5); Lab.line(cx + 60, cy + 60, cx + 10, cy + 150, '#ffd166', 5);
-    // 膀胱與尿滴（顏色：水多淡、水少深）
+    const k = Math.min(1, W / 760, H / 700);                // 小螢幕時整體縮小
+    const cx = W * 0.3, cy = H * 0.1 + 100 * k;
+    backdrop(ctx, W, H, cx, cy + 80 * k, 260 * k);
+    // 尿的顏色：水多 → 淡，水少 → 深
     const conc = Math.max(0, Math.min(1, (65 - S.water) / 12));
-    const uc = `rgb(${255},${Math.round(240 - 70 * conc)},${Math.round(160 - 140 * conc)})`;
-    Lab.card(cx - 50, cy + 150, 100, 70, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.3)', 30);
-    Lab.card(cx - 46, cy + 154 + 62 * (1 - Math.min(1, S.urine / 3)), 92, 62 * Math.min(1, S.urine / 3), uc, null, 26);
+    const uc = hex(255, 240 - 70 * conc, 160 - 140 * conc);
+
+    // ---- 輸尿管（先畫，放在腎臟和膀胱後面），裡面有尿液往下流 ----
+    const by = cy + 150 * k;
+    [-1, 1].forEach(d => {
+      const x0 = cx + d * 42 * k, y0 = cy + 10 * k, x1 = cx + d * 14 * k, y1 = by + 4 * k, qx = cx + d * 46 * k, qy = cy + 100 * k;
+      tube(ctx, () => { ctx.moveTo(x0, y0); ctx.quadraticCurveTo(qx, qy, x1, y1); }, 7 * k, '#e8c76a');
+      const n = Math.max(1, Math.round(S.urine * 2));
+      for (let i = 0; i < n; i++) {
+        const u = (t * 0.5 + i / n) % 1, x = (1 - u) ** 2 * x0 + 2 * (1 - u) * u * qx + u * u * x1, y = (1 - u) ** 2 * y0 + 2 * (1 - u) * u * qy + u * u * y1;
+        Lab.circle(x, y, 2.5 * k + 1, uc);
+      }
+    });
+
+    // ---- 腎臟：兩顆紅褐色的豆子，內側凹處是腎盂 ----
+    [-1, 1].forEach(d => {
+      ctx.save(); ctx.translate(cx + d * 70 * k, cy); ctx.rotate(d * 0.2); ctx.scale(k, k);
+      ctx.beginPath(); ctx.ellipse(0, 0, 40, 64, 0, 0, Math.PI * 2);
+      ctx.fillStyle = Lab.rg(0, 0, 6, 66, ['#e8959a', '#b5465a', '#6e2030'], d * 12, -22); ctx.fill();
+      ctx.strokeStyle = '#4e1420'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, 0, 30, 52, 0, 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,220,220,.18)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-d * 28, 0, 14, 22, 0, 0, Math.PI * 2);                   // 腎盂
+      ctx.fillStyle = Lab.rg(-d * 28, 0, 2, 22, ['#fff2cc', '#f0c98a']); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.beginPath(); ctx.ellipse(d * 8, -36, 12, 6, -0.4 * d, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+    Lab.pill('腎臟', cx, cy - 92 * k, '#ff8fa8', Math.round(16 * Math.max(0.85, k)));
+
+    // ---- 膀胱：玻璃般的袋子，尿液有波浪水面 ----
+    const bw = 110 * k, bh = 80 * k, bx = cx - bw / 2, fill = Math.min(1, S.urine / 3);
+    glassBox(ctx, bx, by, bw, bh, 34 * k);
+    liquid(ctx, bx + 3, by + 3, bw - 6, bh - 6, 31 * k, by + 3 + (bh - 6) * (1 - fill), uc, t);
+    Lab.pill('膀胱', cx + bw / 2 + 34 * Math.max(0.8, k), by + bh / 2, 'rgba(238,241,250,.8)', 13);
+    const urineTxt = `尿色：${S.water > 62 ? '很淡' : S.water < 57 ? '深黃' : '淡黃'}`;
+    if (W < 500) Lab.pill(urineTxt, cx, by + bh + 80 * k + 14, uc, 13);     // 窄螢幕：放在膀胱下方
+    else Lab.pill(urineTxt, cx - bw / 2 - 52 * Math.max(0.8, k), by + bh / 2, uc, 13);
     const drops = Math.round(S.urine * 3);
-    for (let i = 0; i < drops; i++) Lab.circle(cx, cy + 236 + ((t * 80 + i * 25) % 60), 4, uc);
-    // 水分量表
-    const gx = W * 0.65, gy = H * 0.12, gh = H * 0.55;
-    Lab.card(gx - 30, gy, 60, gh, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.2)', 14);
-    const f = (S.water - 50) / 20;
-    Lab.card(gx - 26, gy + gh * (1 - f), 52, gh * f, 'rgba(76,201,240,.6)', null, 12);
+    for (let i = 0; i < drops; i++) drop(ctx, cx, by + bh + 14 * k + ((t * 80 + i * 25) % (60 * k)), 3.5 * k + 1, uc);
+
+    // ---- 右邊：體內水分的水箱 ----
+    const gx = W * 0.7, gw = Math.max(46, 70 * k), gy = H * 0.1, gh = H * 0.5, f = (S.water - 50) / 20;
+    glassBox(ctx, gx - gw / 2, gy, gw, gh, 16);
+    liquid(ctx, gx - gw / 2 + 3, gy + 3, gw - 6, gh - 6, 13, gy + 3 + (gh - 6) * (1 - f), '#38b6e8', t);
+    [[57, '偏少'], [63, '偏多']].forEach(([v, s]) => {
+      const y = gy + 3 + (gh - 6) * (1 - (v - 50) / 20);
+      Lab.line(gx - gw / 2 - 6, y, gx + gw / 2 + 6, y, 'rgba(255,255,255,.5)', 1.5, [4, 4]);
+      Lab.text(s, gx + gw / 2 + 10, y + (v === 57 ? 10 : -10), 'rgba(238,241,250,.65)', 12, 'left', 'bold');
+    });
+    if (S.drink > 0) for (let i = 0; i < 4; i++) drop(ctx, gx + (i - 1.5) * gw * 0.18, gy + 10 + ((t * 120 + i * 17) % 40), 4, '#4cc9f0');
+    if (S.loss > 0) for (let i = 0; i < 4; i++) {          // 流汗：水往外蒸發
+      const u = (t * 0.8 + i / 4) % 1;
+      ctx.save(); ctx.globalAlpha = 1 - u; drop(ctx, gx + gw / 2 + 12 + i * 8, gy + gh * 0.5 - u * gh * 0.4, 3.5, GOLD); ctx.restore();
+    }
     Lab.text('體內水分', gx, gy - 16, '#4cc9f0', 15, 'center', 'bold');
     Lab.text(S.water > 63 ? '偏多' : S.water < 57 ? '偏少（口渴）' : '剛好', gx, gy + gh + 22, '#4cc9f0', 15, 'center', 'bold');
-    if (S.drink > 0) Lab.pill('💧 喝水中', gx, gy + gh + 56, '#4cc9f0', 14);
-    if (S.loss > 0) Lab.pill('☀ 流汗失水', gx, gy + gh + 56, '#ffd166', 14);
-    Lab.chart(W * 0.06, H * 0.78, W * 0.88, H * 0.18, [{ data: S.Wh, color: '#ffd166', n: 240 }], { min: 0, max: 3, yLabel: '尿量', xLabel: '時間 →' });
+    if (S.drink > 0) Lab.pill('💧 喝水中', gx, gy + gh + 54, '#4cc9f0', 14);
+    if (S.loss > 0) Lab.pill('☀ 流汗失水', gx, gy + gh + 54, GOLD, 14);
+    Lab.chart(W * 0.04, H * 0.78, W * 0.92, H * 0.19, [{ data: S.Wh, color: GOLD, n: 240 }], { min: 0, max: 3, yLabel: '尿量', xLabel: '時間 →' });
   }
 
   window.homeo = { S, stepTemp, stepSugar, stepWater };   // 除錯／驗證用

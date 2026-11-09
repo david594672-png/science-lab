@@ -1,14 +1,33 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-subject="bio">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0b1020">
+<meta name="theme-color" content="#03060b">
 <title>生物的協調作用</title>
 <link rel="stylesheet" href="lab-kit.css">
+<style>
+  /* 步驟列：目前進行到的步驟會亮起來 */
+  .steps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  .steps span { flex: 1 1 30%; text-align: center; font-size: .76rem; padding: 7px 2px; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); transition: background .2s; }
+  .steps span.on { background: rgba(var(--accent-rgb), .22); color: var(--white); font-weight: 700; }
+  .steps span.now { background: rgba(255,209,102,.3); color: #fff; font-weight: 700; box-shadow: 0 0 0 1px #ffd166 inset; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .82rem; margin-top: 8px; color: var(--muted); }
+  .legend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; box-shadow: 0 0 6px currentColor; }
+  /* 反應時間測驗：蓋在 3D 畫面上 */
+  #rt { position: absolute; left: 0; top: 0; z-index: 30; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: #fff; text-align: center; cursor: pointer; user-select: none; }
+  #rt[hidden] { display: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 </head>
 <body>
-<canvas id="cv" aria-label="協調作用互動畫面"></canvas>
+<canvas id="cv" aria-label="神經系統、神經元、突觸、激素與植物向性的 3D 模型"></canvas>
+<div id="rt" hidden></div>
 
 <aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
@@ -19,10 +38,13 @@
   <div class="body">
     <div class="modes" style="--n:3">
       <button class="mode" data-k="path" aria-pressed="true">反射與<br>意識</button>
+      <button class="mode" data-k="neuron">神經元</button>
+      <button class="mode" data-k="synapse">突觸</button>
       <button class="mode" data-k="hormone">神經與<br>激素</button>
       <button class="mode" data-k="plant">植物的<br>向性</button>
     </div>
 
+    <!-- 反射與意識（宏觀：整個身體） -->
     <div data-mode="path">
       <div class="group">
         <div class="seg" style="--n:2" id="pathSeg">
@@ -30,7 +52,9 @@
           <button data-k="conscious" aria-pressed="false">接球（有意識）</button>
         </div>
         <div class="row" style="margin-top:10px"><button class="btn primary grow" id="fireBtn">給刺激 ▶</button></div>
+        <div class="steps" id="steps"></div>
         <div class="result" id="pathInfo"></div>
+        <div class="legend"><span><i style="background:#4cc9f0;color:#4cc9f0"></i>感覺神經</span><span><i style="background:#ffa64d;color:#ffa64d"></i>運動神經</span><span><i style="background:#ffe6a8;color:#ffe6a8"></i>腦與脊髓</span></div>
       </div>
       <div class="group">
         <div class="group-title">測測你的反應時間</div>
@@ -39,19 +63,49 @@
       </div>
     </div>
 
-    <div data-mode="hormone" hidden>
+    <!-- 神經元（微觀） -->
+    <div data-mode="neuron" hidden>
       <div class="group">
-        <div class="row"><button class="btn primary grow" id="raceBtn">同時開始 ▶</button></div>
-        <div class="result">
-          <b>神經</b>：訊號沿神經傳導，<b>很快</b>，只傳到特定的器官。<br>
-          <b>激素</b>：內分泌腺把激素分泌到<b>血液</b>，隨血液流到全身，<b>較慢</b>，但作用範圍廣、時間長。
-        </div>
+        <div class="row"><button class="btn primary grow" id="nuFire">刺激樹突 ▶</button></div>
+        <label class="sw"><input type="checkbox" id="myelin" checked><span class="track"></span>軸突外有髓鞘</label>
+        <label class="sw"><input type="checkbox" id="ions" checked><span class="track"></span>顯示離子進出</label>
+        <div class="result" id="nuInfo">按「刺激樹突」，看電訊號怎麼在一個神經元裡傳遞。</div>
+        <div class="legend"><span><i style="background:#ffd166;color:#ffd166"></i>鈉離子（Na⁺）流入</span><span><i style="background:#b388ff;color:#b388ff"></i>鉀離子（K⁺）流出</span></div>
       </div>
       <div class="group">
-        <p class="note">例如受到驚嚇時：神經讓你馬上跳開；腎上腺素隨血液流到全身，讓心跳加快一段時間。</p>
+        <div class="row"><button class="btn grow" id="toSyn">放大看突觸 →</button></div>
+        <p class="note" style="margin-top:8px">訊號方向固定：<b>樹突 → 細胞本體 → 軸突 → 軸突末梢</b>。神經的電訊號其實是<b>離子</b>進出細胞膜造成的；有髓鞘時，訊號在髓鞘之間的空隙一段一段<b>跳躍</b>，傳得更快。</p>
       </div>
     </div>
 
+    <!-- 突觸（微觀） -->
+    <div data-mode="synapse" hidden>
+      <div class="group">
+        <div class="row"><button class="btn primary grow" id="synFire">傳遞訊號 ▶</button></div>
+        <div class="steps" id="synSteps"></div>
+        <div class="result" id="synInfo">兩個神經元之間沒有直接相連，中間的小空隙叫<b>突觸間隙</b>。按「傳遞訊號」看訊號怎麼過去。</div>
+      </div>
+      <div class="group">
+        <p class="note">突觸的訊號傳遞：<b>電訊號 → 化學物質 → 電訊號</b>。軸突末梢釋放<b>神經傳遞物質</b>，擴散過突觸間隙，和下一個神經元上的<b>受體</b>結合，下一個神經元才產生新的電訊號。</p>
+      </div>
+    </div>
+
+    <!-- 神經與激素 -->
+    <div data-mode="hormone" hidden>
+      <div class="group">
+        <div class="row"><button class="btn primary grow" id="raceBtn">同時開始 ▶</button></div>
+        <div class="result" id="raceInfo">
+          <b>神經</b>：訊號沿神經傳導，<b>很快</b>，只傳到特定的器官。<br>
+          <b>激素</b>：內分泌腺把激素分泌到<b>血液</b>，隨血液流到全身，<b>較慢</b>，但作用範圍廣、時間長。
+        </div>
+        <div class="legend"><span><i style="background:#ffe6a8;color:#ffe6a8"></i>神經訊號</span><span><i style="background:#5fffd0;color:#5fffd0"></i>腎上腺素</span><span><i style="background:#ff5d6e;color:#ff5d6e"></i>血管</span></div>
+      </div>
+      <div class="group">
+        <p class="note">例如受到驚嚇時：神經讓你馬上跳開；<b>腎上腺</b>分泌的腎上腺素隨血液流到全身，讓心跳加快一段時間。</p>
+      </div>
+    </div>
+
+    <!-- 植物的向性 -->
     <div data-mode="plant" hidden>
       <div class="group">
         <div class="ctrl">
@@ -63,197 +117,869 @@
           <button class="btn" id="resetPlant">重種</button>
         </div>
         <label class="sw"><input type="checkbox" id="showAuxin" checked><span class="track"></span>顯示生長素分布</label>
+        <div class="result" id="plantInfo">莖彎曲 0°</div>
       </div>
       <div class="group">
         <p class="note">莖<b>向光</b>生長（向光性）；根<b>向下</b>生長（向地性）。光照使<b>生長素</b>移到背光的一側，背光側長得比較快，莖就彎向光源。</p>
       </div>
     </div>
+
+    <div class="group">
+      <div class="group-title">點一下構造</div>
+      <div class="result" id="info">點畫面上的構造，看它的名稱和功能。拖曳可以轉動視角。</div>
+    </div>
   </div>
 </aside>
 
 <script src="lab-kit.js"></script>
-<script>
-(() => {
-  const { $ } = Lab;
-  const S = { mode: 'path', kind: 'reflex', fire: -1, rt: null, race: -1, light: 45, bend: 0, target: 0, growing: 0 };
+<script type="module">
+import { start3D, THREE } from './lab3d.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
-  /* ===== 反射與意識：神經路徑 ===== */
-  const PATHS = {
-    reflex: { steps: ['受器（皮膚）', '感覺神經', '脊髓', '運動神經', '動器（肌肉）'], time: 0.05,
-      info: '縮手反射：<b>受器 → 感覺神經 → 脊髓 → 運動神經 → 動器</b>。不經過大腦，路徑短、反應快，屬於反射。手縮回來之後，訊息才傳到大腦，你才感覺到「好燙」。' },
-    conscious: { steps: ['受器（眼睛）', '感覺神經', '大腦', '脊髓', '運動神經', '動器（肌肉）'], time: 0.25,
-      info: '接球：<b>受器（眼）→ 感覺神經 → 大腦 → 脊髓 → 運動神經 → 動器</b>。大腦要判斷球的位置再下命令，路徑比較長，反應比較慢。' }
-  };
-  Lab.bindGroup('#pathSeg button', k => { S.kind = k; S.fire = -1; $('pathInfo').innerHTML = PATHS[k].info; });
-  $('fireBtn').addEventListener('click', () => { S.fire = 0; });
+const $ = id => document.getElementById(id);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const UP = V(0, 1, 0);
+const rnd = (() => { let s = 7; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();   // 固定的亂數，每次形狀都一樣
 
-  function pathPoints(W, H) {
-    const cx = W * 0.5, top = H * 0.12;
-    const brain = { x: cx, y: top + 50 }, spine = { x: cx, y: H * 0.55 };
-    const hand = { x: W * 0.16, y: H * 0.62 }, muscle = { x: W * 0.3, y: H * 0.42 }, eye = { x: cx + 70, y: top + 55 };
-    return S.kind === 'reflex'
-      ? { pts: [hand, { x: W * 0.32, y: H * 0.66 }, spine, { x: W * 0.36, y: H * 0.48 }, muscle], brain, spine, hand, muscle, eye }
-      : { pts: [eye, { x: cx + 40, y: top + 70 }, brain, spine, { x: W * 0.36, y: H * 0.48 }, muscle], brain, spine, hand, muscle, eye };
-  }
-  function drawPath(ctx, W, H, dt) {
-    const P = pathPoints(W, H), steps = PATHS[S.kind].steps;
-    // 身體示意：腦、脊髓、手臂
-    ctx.fillStyle = 'rgba(165,139,255,.25)'; ctx.strokeStyle = '#a58bff'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(P.brain.x, P.brain.y, 70, 46, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    Lab.text('大腦', P.brain.x, P.brain.y, '#cdbfff', 16, 'center', 'bold');
-    Lab.line(P.brain.x, P.brain.y + 46, P.spine.x, H * 0.82, 'rgba(165,139,255,.6)', 14);
-    Lab.text('脊髓', P.spine.x + 34, H * 0.7, '#cdbfff', 15, 'left', 'bold');
-    Lab.line(P.spine.x - 30, H * 0.4, P.hand.x + 20, P.hand.y - 10, 'rgba(255,214,176,.25)', 34);   // 手臂
-    Lab.circle(P.hand.x, P.hand.y, 22, 'rgba(255,214,176,.5)');
-    if (S.kind === 'reflex') { Lab.text('🔥', P.hand.x - 10, P.hand.y + 46, '#fff', 30); }
-    else { Lab.circle(P.eye.x, P.eye.y, 14, '#fff', '#4cc9f0', 3); Lab.circle(P.eye.x, P.eye.y, 6, '#0b1020'); Lab.text('⚾', P.eye.x + 120, P.eye.y + 10, '#fff', 30); }
-    Lab.card(P.muscle.x - 34, P.muscle.y - 16, 68, 32, 'rgba(255,93,143,.3)', '#ff5d8f', 16);
-    Lab.text('肌肉', P.muscle.x, P.muscle.y, '#fff', 13, 'center', 'bold');
-    // 路徑
-    const pts = P.pts;
-    for (let i = 0; i < pts.length - 1; i++) Lab.line(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, i === 0 || i === pts.length - 3 ? 'rgba(76,201,240,.55)' : 'rgba(255,209,102,.55)', 4, [8, 6]);
-    // 訊號
-    const total = PATHS[S.kind].time;
-    if (S.fire >= 0) {
-      S.fire += dt * (S.kind === 'reflex' ? 0.9 : 0.36);          // 動畫放慢，但比例保留：反射快、意識慢
-      const f = Math.min(1, S.fire), seg = f * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(seg)), t = seg - i;
-      const x = pts[i].x + (pts[i + 1].x - pts[i].x) * t, y = pts[i].y + (pts[i + 1].y - pts[i].y) * t;
-      Lab.circle(x, y, 16, 'rgba(255,209,102,.3)'); Lab.circle(x, y, 8, '#ffd166');
-      Lab.pill(steps[Math.min(steps.length - 1, Math.round(seg))], x, y - 34, '#ffd166', 14);
-      if (f >= 1) Lab.pill(`完成！約 ${total} 秒`, P.muscle.x, P.muscle.y + 44, '#4fd18b', 15);
-    }
-    // 步驟列
-    // 步驟列：避開左下角的「學習任務／全螢幕」按鈕
-    const left = 200, sw = Math.min(140, (W - left - 16) / steps.length);
-    steps.forEach((s, i) => {
-      const x = left + i * sw + sw / 2, y = H - 34;
-      const on = S.fire >= 0 && Math.min(1, S.fire) * (pts.length - 1) >= i - 0.01;
-      Lab.card(x - sw / 2 + 3, y - 18, sw - 6, 36, on ? 'rgba(255,209,102,.2)' : 'rgba(255,255,255,.04)', on ? '#ffd166' : 'rgba(255,255,255,.12)', 10);
-      Lab.text(s, x, y, on ? '#fff' : 'rgba(238,241,250,.55)', 12);
-    });
-  }
+const S = { mode: 'path', kind: 'reflex', time: 0, light: 45, bend: 0, growing: 0 };
+const L = start3D({ background: 0x03060b, camera: [-7.2, 2.3, 3.4], target: [-0.3, 1.4, 0.6], minDist: 2, maxDist: 30, ambient: 0.35, key: 0.8, frame, ui, tap });
+const { scene } = L;
+scene.fog = new THREE.FogExp2(0x03060b, 0.03);
+const rimLight = new THREE.DirectionalLight(0x4cc9f0, 0.9); rimLight.position.set(-6, 4, -8); scene.add(rimLight);
+const warm = new THREE.DirectionalLight(0xffd6a0, 0.5); warm.position.set(5, 3, 6); scene.add(warm);
 
-  /* 反應時間測驗：畫面變綠時點一下 */
-  $('rtBtn').addEventListener('click', () => {
-    S.rt = { phase: 'wait', at: performance.now() + 1200 + Math.random() * 2500 };
-    $('rtInfo').textContent = '準備……畫面變綠色時立刻點一下畫面！';
-  });
-  function rtTap() {
-    if (!S.rt) return false;
-    const now = performance.now();
-    if (S.rt.phase === 'wait') { S.rt = null; $('rtInfo').textContent = '太早點了！再試一次。'; return true; }
-    if (S.rt.phase === 'go') {
-      const ms = Math.round(now - S.rt.at);
-      S.rt = { phase: 'done', ms };
-      $('rtInfo').innerHTML = `你的反應時間：<b>${ms} 毫秒</b>（${(ms / 1000).toFixed(2)} 秒）。<br>看到 → 大腦判斷 → 下命令，是有意識的反應，所以比縮手反射（約 0.05 秒）慢。`;
-      return true;
-    }
-    return false;
-  }
-
-  /* ===== 神經與激素賽跑 ===== */
-  $('raceBtn').addEventListener('click', () => { S.race = 0; });
-  function drawHormone(ctx, W, H, dt) {
-    if (S.race >= 0) S.race += dt;
-    const t = Math.max(0, S.race);
-    const midX = W / 2;
-    Lab.line(midX, 30, midX, H - 30, 'rgba(255,255,255,.1)', 1);
-    // 左：神經
-    Lab.text('神經系統', W * 0.25, 34, '#ffd166', 18, 'center', 'bold');
-    const a = { x: W * 0.08, y: H * 0.5 }, b = { x: W * 0.42, y: H * 0.5 };
-    Lab.circle(a.x, a.y, 24, 'rgba(165,139,255,.35)', '#a58bff', 3); Lab.text('腦', a.x, a.y, '#fff', 14, 'center', 'bold');
-    Lab.line(a.x + 24, a.y, b.x - 30, b.y, 'rgba(255,209,102,.6)', 4);
-    Lab.card(b.x - 30, b.y - 18, 60, 36, 'rgba(255,93,143,.3)', '#ff5d8f', 14); Lab.text('肌肉', b.x, b.y, '#fff', 13, 'center', 'bold');
-    if (S.race >= 0) {
-      const f = Math.min(1, t / 0.6);
-      Lab.circle(a.x + 24 + (b.x - 30 - a.x - 24) * f, a.y, 9, '#ffd166');
-      if (f >= 1) Lab.pill('0.6 秒就到了', W * 0.25, H * 0.5 + 60, '#ffd166', 15);
-    }
-    Lab.text('快、只到特定器官', W * 0.25, H - 40, 'rgba(238,241,250,.7)', 14);
-    // 右：激素（血管環 + 多個器官）
-    Lab.text('內分泌系統（激素）', W * 0.75, 34, '#4cc9f0', 18, 'center', 'bold');
-    const cx = W * 0.75, cy = H * 0.5, rx = Math.min(W * 0.2, 200), ry = Math.min(H * 0.3, 180);
-    ctx.strokeStyle = 'rgba(255,93,143,.45)'; ctx.lineWidth = 14;
-    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
-    Lab.text('血液循環', cx, cy, 'rgba(255,143,168,.8)', 13);
-    const gland = { x: cx - rx, y: cy };
-    Lab.circle(gland.x, gland.y, 20, '#4cc9f0'); Lab.text('腺體', gland.x - 44, gland.y, '#4cc9f0', 13, 'center', 'bold');
-    const organs = [0.6, 1.4, 2.2, 3.0, 3.8, 4.6].map((ang, i) => ({ ang, name: ['心臟', '肝臟', '肌肉', '腎臟', '皮膚', '腸'][i] }));
-    organs.forEach(o => {
-      const x = cx + Math.cos(Math.PI + o.ang) * (rx + 34), y = cy + Math.sin(Math.PI + o.ang) * (ry + 30);
-      const reached = S.race >= 0 && t > 1.2 + o.ang * 1.1;
-      Lab.card(x - 26, y - 14, 52, 28, reached ? 'rgba(76,201,240,.3)' : 'rgba(255,255,255,.04)', reached ? '#4cc9f0' : 'rgba(255,255,255,.2)', 12);
-      Lab.text(o.name, x, y, reached ? '#fff' : 'rgba(238,241,250,.5)', 12);
-    });
-    if (S.race >= 0) {
-      for (let i = 0; i < 26; i++) {                       // 激素分子隨血液慢慢擴散
-        const born = i * 0.18; if (t < born) continue;
-        const ang = Math.PI + (t - born) * 0.9;
-        ctx.globalAlpha = Math.max(0, 1 - (t - born) / 9);
-        Lab.circle(cx + Math.cos(ang) * rx, cy + Math.sin(ang) * ry, 5, '#4cc9f0');
-        ctx.globalAlpha = 1;
-      }
-      Lab.pill(`已經 ${t.toFixed(1)} 秒`, cx, cy + ry + 60, '#4cc9f0', 14);
-    }
-    Lab.text('慢、隨血液到全身、作用久', W * 0.75, H - 40, 'rgba(238,241,250,.7)', 14);
-  }
-
-  /* ===== 植物的向性 ===== */
-  Lab.bindSlider('light', v => { S.light = v; }, v => v === 0 ? '正上方' : (v < 0 ? `左上 ${-v}°` : `右上 ${v}°`));
-  $('growBtn').addEventListener('click', () => { S.growing = 3; });
-  $('resetPlant').addEventListener('click', () => { S.bend = 0; S.growing = 0; });
-  function drawPlant(ctx, W, H, dt) {
-    const target = S.light * Math.PI / 180 * 0.9;
-    if (S.growing > 0) { S.growing -= dt; S.bend += (target - S.bend) * Math.min(1, dt * 0.8); }
-    const ground = H * 0.66, bx = W / 2;
-    ctx.fillStyle = 'rgba(138,106,74,.35)'; ctx.fillRect(0, ground, W, H - ground);
-    Lab.line(0, ground, W, ground, '#8a6a4a', 3);
-    // 光源
-    const la = S.light * Math.PI / 180, lx = bx + Math.sin(la) * H * 0.55, ly = ground - Math.cos(la) * H * 0.55;
-    Lab.circle(lx, ly, 26, '#ffd166'); Lab.text('☀', lx, ly, '#b36b1d', 22);
-    for (let i = -2; i <= 2; i++) Lab.line(lx + i * 10, ly + 30, bx + i * 18, ground - 160, 'rgba(255,209,102,.18)', 2);
-    // 莖：越往上越彎
-    const len = H * 0.36, n = 24, pts = [];
-    let x = bx, y = ground, ang = 0;
-    for (let i = 0; i <= n; i++) { pts.push([x, y]); ang = S.bend * (i / n); x += Math.sin(ang) * len / n; y -= Math.cos(ang) * len / n; }
-    ctx.strokeStyle = '#7ec850'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath();
-    pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.stroke();
-    const [tx, ty] = pts[n];
-    ctx.fillStyle = '#4fd18b'; ctx.beginPath(); ctx.ellipse(tx - 14, ty, 16, 7, -0.4 + ang, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(tx + 14, ty, 16, 7, 0.4 + ang, 0, Math.PI * 2); ctx.fill();
-    // 生長素：集中在背光的一側
-    if ($('showAuxin').checked && Math.abs(S.light) > 2) {
-      const side = S.light > 0 ? -1 : 1;
-      for (let i = 4; i < n; i += 3) {
-        const [px, py] = pts[i], a2 = S.bend * (i / n);
-        Lab.circle(px + side * Math.cos(a2) * 9, py + side * Math.sin(a2) * 9, 4, '#ff9f43');   // 莖的垂直方向偏移到背光側
-      }
-      Lab.pill('生長素（背光側）', bx + side * 120, ground - len * 0.55, '#ff9f43', 13);
-    }
-    // 根：向地性
-    ctx.strokeStyle = '#e9d8b4'; ctx.lineWidth = 4;
-    [[0, 1], [-0.5, 0.7], [0.5, 0.7]].forEach(([dx, k]) => { ctx.beginPath(); ctx.moveTo(bx, ground); ctx.quadraticCurveTo(bx + dx * 50, ground + 40 * k, bx + dx * 30, ground + 110 * k); ctx.stroke(); });
-    Lab.text('根：向地性（往下長）', bx, H - 26, '#e9d8b4', 14);
-    Lab.text(S.growing > 0 ? '生長中……' : `莖彎曲 ${Math.round(Math.abs(S.bend) * 180 / Math.PI)}°`, 24, 30, '#7ec850', 15, 'left', 'bold');
-  }
-
-  /* ===== 主程式 ===== */
-  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
-  Lab.init({
-    draw(ctx, W, H, dt, t) {
-      if (S.rt && S.rt.phase !== 'done') {
-        if (S.rt.phase === 'wait' && performance.now() >= S.rt.at) { S.rt.phase = 'go'; S.rt.at = performance.now(); }
-        ctx.fillStyle = S.rt.phase === 'go' ? '#1f9d5a' : '#3a1d2a'; ctx.fillRect(0, 0, W, H);
-        Lab.text(S.rt.phase === 'go' ? '現在！點一下！' : '等畫面變綠色……', W / 2, H / 2, '#fff', 32, 'center', 'bold');
-        return;
-      }
-      if (S.mode === 'path') drawPath(ctx, W, H, dt);
-      else if (S.mode === 'hormone') drawHormone(ctx, W, H, dt);
-      else drawPlant(ctx, W, H, dt);
-    },
-    down() { rtTap(); return false; }
-  });
+/* ================= 共用的美術工具 ================= */
+// 柔和光點的貼圖（只建立一次）
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
 })();
+function glowSprite(color, size, opacity = 1) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+  s.scale.set(size, size, 1);
+  return s;
+}
+// 「邊緣亮、中間透明」的膜（像玻璃標本或細胞膜）
+function rimMat(color, power = 2.2, intensity = 1, fill = 0) {
+  return new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color(color) }, power: { value: power }, intensity: { value: intensity }, fill: { value: fill } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform vec3 color; uniform float power; uniform float intensity; uniform float fill; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), power); float a = (r + fill) * intensity; gl_FragColor = vec4(color * a, a); }',
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+  });
+}
+const lineMat = (color, opacity) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+const fillMat = (color, opacity) => new THREE.MeshStandardMaterial({ color, transparent: true, opacity, roughness: 0.35, metalness: 0.1, depthWrite: false });
+// 沿曲線的管子（神經、血管）；曲線存在 userData.curve
+function tube(points, r, mat, seg = 64) {
+  const curve = new THREE.CatmullRomCurve3(points);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, seg, r, 8), mat);
+  m.userData.curve = curve; m.userData.baseOp = mat.opacity ?? 1; m.userData.heat = 0;
+  return m;
+}
+// 兩點之間的膠囊（四肢）
+function capsuleBetween(a, b, r, mat) {
+  const d = b.clone().sub(a), len = d.length();
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 8, 20), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(UP, d.normalize());
+  return m;
+}
+// 表面有起伏的球（腦的皺褶、細胞本體）
+function bumpy(radius, detail, amp, freq) {
+  let g = new THREE.IcosahedronGeometry(radius, detail);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g);
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i).normalize();
+    const k = 1 + amp * Math.sin(freq * v.x + 1.3) * Math.sin(freq * v.y * 1.7) * Math.sin(freq * v.z + 0.7);
+    v.multiplyScalar(radius * k); p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+// 標籤：只在指定的模式顯示
+const LBL = [];
+function lab(text, where, mode, cls = '', cond) { const it = L.label(text, where, cls); it.mode = mode; it.cond = cond; LBL.push(it); return it; }
+// 可以點的構造
+const PICK = [];
+function pickable(obj, mode, name, txt) { obj.userData.info = { name, txt }; obj.userData.mode = mode; PICK.push(obj); return obj; }
+// 依時間排程的事件（用動畫時間，切換模式時會清掉）
+const Q = [];
+const after = (sec, fn) => Q.push({ at: S.time + sec, fn });
+
+/* ---- 沿著一串曲線前進的路徑（訊號用） ---- */
+function makePath(segs) {
+  const pts = [], seg = [];
+  scene.updateMatrixWorld(true);
+  segs.forEach((s, si) => {
+    const c = s.mesh.userData.curve;
+    for (let i = 0; i <= 40; i++) {
+      const u = i / 40, p = c.getPoint(s.rev ? 1 - u : u).clone();
+      s.mesh.localToWorld(p); pts.push(p); seg.push(si);
+    }
+  });
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  return { pts, seg, cum, len: cum[cum.length - 1], segs };
+}
+function pathAt(P, d) {
+  d = Math.max(0, Math.min(P.len, d));
+  let i = 1; while (i < P.cum.length - 1 && P.cum[i] < d) i++;
+  const a = P.cum[i - 1], b = P.cum[i], k = b > a ? (d - a) / (b - a) : 0;
+  return { p: P.pts[i - 1].clone().lerp(P.pts[i], k), si: P.seg[i] };
+}
+/* ---- 發光的訊號（頭＋拖尾） ---- */
+function makeSpark(color, size = 0.55, withLight = false) {
+  const g = new THREE.Group(); scene.add(g); g.visible = false;
+  const head = glowSprite(color, size); g.add(head);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(size * 0.09, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffffff })); g.add(core);
+  const trail = [];
+  for (let i = 0; i < 12; i++) { const t = glowSprite(color, size * (0.8 - i * 0.05), 0.6 - i * 0.045); scene.add(t); t.visible = false; trail.push(t); }
+  let light = null;
+  if (withLight) { light = new THREE.PointLight(color, 2.5, 3, 2); g.add(light); }
+  return { g, head, core, trail, light, setColor(c) { head.material.color.set(c); trail.forEach(t => t.material.color.set(c)); if (light) light.color.set(c); }, hide() { g.visible = false; trail.forEach(t => (t.visible = false)); } };
+}
+function placeSpark(sp, P, d, gap = 0.07) {
+  const { p } = pathAt(P, d);
+  sp.g.visible = true; sp.g.position.copy(p);
+  sp.trail.forEach((t, i) => { const q = pathAt(P, d - (i + 1) * gap); t.visible = d - (i + 1) * gap > 0; t.position.copy(q.p); });
+}
+
+/* ================= 展示台（博物館感） ================= */
+const stage = new THREE.Group(); scene.add(stage);
+const ped = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.5, 0.35, 64), new THREE.MeshStandardMaterial({ color: 0x0b1118, metalness: 0.7, roughness: 0.35 }));
+ped.position.y = -4.45; stage.add(ped);
+const ring = new THREE.Mesh(new THREE.TorusGeometry(2.32, 0.025, 8, 96), lineMat(0x4cc9f0, 0.9));
+ring.rotation.x = Math.PI / 2; ring.position.y = -4.27; stage.add(ring);
+const grid = new THREE.GridHelper(40, 40, 0x16324a, 0x0c1c2a); grid.position.y = -4.63;
+grid.material.transparent = true; grid.material.opacity = 0.35; stage.add(grid);
+{ // 空氣中漂浮的微光
+  const n = 260, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { pos[i * 3] = (rnd() - 0.5) * 24; pos[i * 3 + 1] = rnd() * 12 - 4; pos[i * 3 + 2] = (rnd() - 0.5) * 24; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0x6fb7ff, size: 0.04, transparent: true, opacity: 0.5, depthWrite: false }));
+  dust.name = 'dust'; scene.add(dust);
+}
+
+/* ================= 宏觀：玻璃人體＋神經系統 ================= */
+const body = new THREE.Group(); scene.add(body);
+const skinRim = rimMat(0x58b8ff, 2.6, 0.6, 0.02), skinFill = fillMat(0x0b1a28, 0.45);
+function shell(geo, parent = body, pos, quat, scl) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(geo, skinFill)); g.add(new THREE.Mesh(geo, skinRim));
+  if (pos) g.position.copy(pos); if (quat) g.quaternion.copy(quat); if (scl) g.scale.copy(scl);
+  parent.add(g); return g;
+}
+function limbShell(a, b, r, parent = body) { const m = capsuleBetween(a, b, r, skinFill); shell(m.geometry, parent, m.position, m.quaternion); }
+// 頭、脖子、軀幹
+shell(new THREE.SphereGeometry(0.62, 40, 32), body, V(0, 3.35, 0), null, V(0.9, 1.1, 1));
+shell(new THREE.CylinderGeometry(0.2, 0.24, 0.5, 24, 1, true), body, V(0, 2.65, 0));
+{
+  const prof = [[0.001, -0.75], [0.55, -0.7], [0.72, -0.4], [0.66, 0.2], [0.6, 0.6], [0.72, 1.2], [0.84, 1.8], [0.86, 2.15], [0.6, 2.42], [0.25, 2.5], [0.001, 2.52]].map(([r, y]) => new THREE.Vector2(r, y));
+  shell(new THREE.LatheGeometry(prof, 48), body, V(0, 0, 0), null, V(1, 1, 0.58));
+}
+// 雙腿、左手（右手另外做成可以動的關節）
+[1, -1].forEach(s => {
+  limbShell(V(0.38 * s, -0.65, 0), V(0.42 * s, -2.35, 0.05), 0.26);
+  limbShell(V(0.42 * s, -2.35, 0.05), V(0.42 * s, -3.95, 0), 0.19);
+  limbShell(V(0.42 * s, -4.08, -0.05), V(0.42 * s, -4.08, 0.42), 0.12);
+});
+limbShell(V(0.95, 2.2, 0), V(1.18, 0.95, 0), 0.17);
+limbShell(V(1.18, 0.95, 0), V(1.28, -0.25, 0.05), 0.14);
+limbShell(V(1.28, -0.3, 0.05), V(1.3, -0.72, 0.06), 0.1);
+
+// 右手臂：肩膀 → 上臂 → 手肘 → 前臂 → 手（從觀眾看在左邊）
+const shoulder = new THREE.Group(); shoulder.position.set(-0.95, 2.2, 0); body.add(shoulder);
+const elbow = new THREE.Group(); elbow.position.set(0, -1.25, 0); shoulder.add(elbow);
+limbShell(V(0, 0, 0), V(0, -1.25, 0), 0.17, shoulder);
+limbShell(V(0, 0, 0), V(0, -1.2, 0), 0.14, elbow);
+limbShell(V(0, -1.25, 0), V(0, -1.6, 0), 0.1, elbow);
+const muscleMat = new THREE.MeshStandardMaterial({ color: 0x8a2433, emissive: 0x000000, roughness: 0.5, transparent: true, opacity: 0.85 });
+const biceps = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), muscleMat);
+biceps.position.set(0, -0.62, 0.1); biceps.scale.set(0.12, 0.4, 0.11); shoulder.add(biceps);
+pickable(biceps, 'path', '肌肉（動器）', '接受運動神經的命令而收縮，讓手臂動起來。');
+const fingertip = glowSprite(0x4cc9f0, 0.35, 0.8); fingertip.position.set(0, -1.62, 0.02); elbow.add(fingertip);
+
+// 腦：左右大腦半球＋小腦＋腦幹
+const brainMat = new THREE.MeshStandardMaterial({ color: 0xd98aa8, emissive: 0x3a1030, emissiveIntensity: 1, roughness: 0.6, transparent: true, opacity: 0.9 });
+const brainGeo = bumpy(1, 5, 0.06, 13);
+const brain = new THREE.Group(); body.add(brain);
+[1, -1].forEach(s => { const h = new THREE.Mesh(brainGeo, brainMat); h.position.set(0.13 * s, 3.5, -0.02); h.scale.set(0.24, 0.3, 0.42); brain.add(h); pickable(h, 'path', '大腦', '接收感覺、判斷，再下達命令。有意識的動作都要經過大腦。'); });
+const cereb = new THREE.Mesh(bumpy(1, 4, 0.08, 20), brainMat); cereb.position.set(0, 3.17, -0.3); cereb.scale.set(0.22, 0.12, 0.15); brain.add(cereb);
+pickable(cereb, 'path', '小腦', '協調肌肉，維持身體平衡。');
+const brainGlow = glowSprite(0xff8fc8, 1.8, 0); brainGlow.position.set(0, 3.5, 0); body.add(brainGlow);
+// 眼睛
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x335577, roughness: 0.2 });
+[1, -1].forEach(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), eyeMat); e.position.set(0.2 * s, 3.38, 0.5); body.add(e); });
+const eyeGlow = glowSprite(0x4cc9f0, 0.4, 0); eyeGlow.position.set(-0.2, 3.38, 0.55); body.add(eyeGlow);
+
+// 脊髓與脊椎骨
+const cordMat = lineMat(0xffe6a8, 0.7);
+const cordPts = [V(0, 3.05, -0.14), V(0, 2.6, -0.3), V(0, 2.17, -0.36), V(0, 1.5, -0.42), V(0, 0.8, -0.38), V(0, 0.1, -0.32), V(0, -0.45, -0.3)];
+const cord = tube(cordPts, 0.055, cordMat, 96); body.add(cord);
+pickable(cord, 'path', '脊髓', '腦和身體之間傳遞訊息的通道，也是反射的中樞（例如縮手反射）。');
+{
+  const bone = new THREE.MeshStandardMaterial({ color: 0xd9cfb8, transparent: true, opacity: 0.28, roughness: 0.6, depthWrite: false });
+  const vg = new THREE.CylinderGeometry(0.11, 0.12, 0.1, 14), sp = new THREE.BoxGeometry(0.05, 0.06, 0.14);
+  for (let i = 0; i <= 20; i++) {
+    const p = cord.userData.curve.getPoint(0.06 + i * 0.044);
+    const v = new THREE.Mesh(vg, bone); v.position.set(p.x, p.y, p.z - 0.07); body.add(v);
+    const s = new THREE.Mesh(sp, bone); s.position.set(p.x, p.y, p.z - 0.2); body.add(s);
+  }
+}
+// 周邊神經（靜態、淡淡發光）
+const periMat = lineMat(0x5fd8ff, 0.3);
+const legNerves = [];
+{
+  // 左手臂神經
+  body.add(tube([V(0, 2.25, -0.34), V(0.5, 2.25, -0.15), V(0.95, 2.2, 0), V(1.18, 0.95, 0.03), V(1.28, -0.25, 0.06), V(1.3, -0.7, 0.06)], 0.018, periMat));
+  // 肋間神經（沿著軀幹繞一圈）
+  const tr = y => (y > 1.2 ? 0.72 + (y - 1.2) * 0.2 : 0.62 + Math.abs(y - 0.6) * 0.15);
+  [1.9, 1.6, 1.3, 1.0, 0.7, 0.4, 0.1].forEach(y => [1, -1].forEach(s => {
+    const pts = []; for (let k = 0; k <= 8; k++) { const th = k / 8 * Math.PI * 0.85, r = tr(y) * 0.97; pts.push(V(s * r * Math.sin(th), y - 0.1 * th / Math.PI, -r * 0.58 * Math.cos(th))); }
+    body.add(tube(pts, 0.012, periMat, 24));
+  }));
+  // 腿部神經
+  [1, -1].forEach(s => { const m = tube([V(0, -0.45, -0.3), V(0.3 * s, -0.7, -0.15), V(0.4 * s, -1.4, 0), V(0.42 * s, -2.35, -0.05), V(0.42 * s, -3.9, -0.02), V(0.42 * s, -4.05, 0.38)], 0.02, lineMat(0x5fd8ff, 0.3)); body.add(m); legNerves.push(m); });
+  // 從腦伸出的神經（臉部）
+  [1, -1].forEach(s => body.add(tube([V(0.08 * s, 3.25, -0.05), V(0.3 * s, 3.15, 0.25), V(0.35 * s, 3.0, 0.45)], 0.012, periMat, 16)));
+}
+// 訊號路徑上的神經（會在訊號經過時亮起來）
+const SENS = 0x4cc9f0, MOTOR = 0xffa64d, CORD = 0xffe6a8;
+const N = {
+  receptor: tube([V(0, -1.66, 0.02), V(0, -1.6, 0.02), V(0.01, -1.54, 0.0)], 0.02, lineMat(SENS, 0.6), 8),
+  sensFore: tube([V(0.01, -1.54, 0.0), V(0.04, -1.0, -0.05), V(0.05, -0.3, -0.06), V(0.04, 0, -0.06)], 0.022, lineMat(SENS, 0.55)),
+  sensUpper: tube([V(0.04, -1.25, -0.06), V(0.06, -0.6, -0.08), V(0.04, -0.1, -0.06), V(0, 0, -0.04)], 0.022, lineMat(SENS, 0.55)),
+  sensRoot: tube([V(-0.95, 2.2, -0.04), V(-0.5, 2.27, -0.22), V(-0.06, 2.2, -0.34)], 0.022, lineMat(SENS, 0.55)),
+  inter: tube([V(-0.06, 2.2, -0.34), V(0, 2.16, -0.38), V(-0.06, 2.12, -0.34)], 0.03, lineMat(CORD, 0.0), 16),
+  motorRoot: tube([V(-0.06, 2.12, -0.34), V(-0.5, 2.1, -0.16), V(-0.95, 2.18, 0.04)], 0.022, lineMat(MOTOR, 0.55)),
+  motorUpper: tube([V(0, 0, 0.04), V(-0.03, -0.25, 0.08), V(0, -0.55, 0.1)], 0.022, lineMat(MOTOR, 0.55), 24),
+  muscle: tube([V(0, -0.55, 0.1), V(0, -0.65, 0.12), V(0, -0.75, 0.1)], 0.03, lineMat(MOTOR, 0.0), 8),
+  ascend: tube([V(-0.06, 2.12, -0.34), V(0, 2.3, -0.33), V(0, 2.7, -0.28), V(0, 3.05, -0.14), V(0, 3.4, -0.05), V(0.05, 3.72, -0.05)], 0.03, lineMat(0xff8fc8, 0.0)),
+  optic: tube([V(-0.2, 3.38, 0.45), V(-0.12, 3.36, 0.2), V(-0.05, 3.4, -0.1), V(0, 3.45, -0.32)], 0.02, lineMat(SENS, 0.55), 32),
+  eye: tube([V(-0.2, 3.38, 0.56), V(-0.2, 3.38, 0.5), V(-0.2, 3.38, 0.45)], 0.02, lineMat(SENS, 0.0), 8),
+  think: tube([V(0, 3.45, -0.32), V(0.12, 3.6, -0.3), V(0.15, 3.72, -0.05), V(0.05, 3.62, 0.2), V(-0.1, 3.75, 0.05)], 0.03, lineMat(0xff8fc8, 0.0), 48),
+  descend: tube([V(-0.1, 3.75, 0.05), V(-0.05, 3.45, -0.05), V(0, 3.05, -0.14), V(0, 2.6, -0.3), V(-0.02, 2.14, -0.36), V(-0.06, 2.12, -0.34)], 0.03, lineMat(CORD, 0.0))
+};
+body.add(N.sensRoot, N.inter, N.motorRoot, N.ascend, N.optic, N.eye, N.think, N.descend);
+elbow.add(N.receptor, N.sensFore); shoulder.add(N.sensUpper, N.motorUpper, N.muscle);
+pickable(N.sensFore, 'path', '感覺神經', '把受器（皮膚、眼睛）接收到的刺激傳到脊髓或腦。');
+pickable(N.sensUpper, 'path', '感覺神經', '把受器（皮膚、眼睛）接收到的刺激傳到脊髓或腦。');
+pickable(N.motorUpper, 'path', '運動神經', '把腦或脊髓的命令傳到肌肉（動器）。');
+pickable(N.optic, 'path', '視神經（感覺神經）', '把眼睛看到的訊息傳到大腦。');
+
+// 道具：蠟燭火焰、棒球
+const props = new THREE.Group(); body.add(props);
+const candle = new THREE.Group(); candle.position.set(-0.95, 0.12, 1.78); props.add(candle);
+candle.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 4.4, 8), new THREE.MeshStandardMaterial({ color: 0x2a3440, metalness: 0.7, roughness: 0.3 })));
+candle.children[0].position.y = -2.2;
+const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.22, 0.06, 24), new THREE.MeshStandardMaterial({ color: 0x3a4654, metalness: 0.8, roughness: 0.3 })); candle.add(dish);
+const wax = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.4, 20), new THREE.MeshStandardMaterial({ color: 0xf1e6d0, roughness: 0.7 })); wax.position.y = 0.23; candle.add(wax);
+const flame = new THREE.Group(); flame.position.y = 0.55; candle.add(flame);
+const fo = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), lineMat(0xff8a2a, 0.9)); fo.scale.set(1, 2.1, 1); flame.add(fo);
+const fi = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), lineMat(0xfff2a0, 1)); fi.scale.set(1, 1.8, 1); fi.position.y = -0.03; flame.add(fi);
+flame.add(glowSprite(0xff9a3a, 1.3, 0.8));
+const flameLight = new THREE.PointLight(0xff9a3a, 2, 4, 2); flame.add(flameLight);
+pickable(fo, 'path', '刺激（高溫）', '皮膚裡的受器感受到高溫，產生神經訊號。');
+const ball = new THREE.Group(); props.add(ball);
+ball.add(new THREE.Mesh(new THREE.SphereGeometry(0.16, 24, 18), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.5 })));
+{ const seam = new THREE.Mesh(new THREE.TorusGeometry(0.162, 0.01, 6, 40), new THREE.MeshBasicMaterial({ color: 0xd8344a })); seam.rotation.y = 0.6; ball.add(seam); }
+
+// 手臂姿勢
+const POSE = {
+  reflex:   { sx: -0.25, sz: 0, ex: -1.35 },
+  withdraw: { sx: 0.35, sz: -0.12, ex: -2.3 },
+  ready:    { sx: -0.05, sz: -0.12, ex: -0.4 },
+  catch:    { sx: -1.25, sz: -0.05, ex: -0.35 },
+  relax:    { sx: 0, sz: -0.17, ex: -0.05 }
+};
+S.pose = { ...POSE.reflex }; S.poseTarget = { ...POSE.reflex };
+const applyPose = () => { shoulder.rotation.set(S.pose.sx, 0, S.pose.sz); elbow.rotation.x = S.pose.ex; };
+const setPose = (k, instant) => { S.poseTarget = { ...POSE[k] }; if (instant) { S.pose = { ...POSE[k] }; applyPose(); } };
+applyPose();
+
+/* ---- 反射與意識 ---- */
+const PATHS = {
+  reflex: {
+    steps: ['受器（皮膚）', '感覺神經', '脊髓', '運動神經', '動器（肌肉）', '傳到大腦'],
+    segs: [{ mesh: N.receptor, st: 0 }, { mesh: N.sensFore, st: 1 }, { mesh: N.sensUpper, st: 1 }, { mesh: N.sensRoot, st: 1 }, { mesh: N.inter, st: 2 }, { mesh: N.motorRoot, st: 3 }, { mesh: N.motorUpper, st: 3 }, { mesh: N.muscle, st: 4 }],
+    dur: 1.6, real: '約 0.05 秒',
+    info: '縮手反射：<b>受器 → 感覺神經 → 脊髓 → 運動神經 → 動器</b>。不經過大腦，路徑短、反應快，屬於反射。手縮回來之後，訊息才傳到大腦，你才感覺到「好燙」。'
+  },
+  conscious: {
+    steps: ['受器（眼睛）', '感覺神經', '大腦', '脊髓', '運動神經', '動器（肌肉）'],
+    segs: [{ mesh: N.eye, st: 0 }, { mesh: N.optic, st: 1 }, { mesh: N.think, st: 2 }, { mesh: N.descend, st: 3 }, { mesh: N.motorRoot, st: 4 }, { mesh: N.motorUpper, st: 4 }, { mesh: N.muscle, st: 5 }],
+    dur: 4.4, real: '約 0.25 秒',
+    info: '接球：<b>受器（眼）→ 感覺神經 → 大腦 → 脊髓 → 運動神經 → 動器</b>。大腦要判斷球的位置再下命令，路徑比較長，反應比較慢。'
+  }
+};
+const spark = makeSpark(SENS, 0.55, true);
+const F = { on: false, P: null, d: 0, dur: 1, step: -1, done: null, color: SENS, last: -1 };   // 目前的訊號
+const resultLbl = lab('', () => biceps.getWorldPosition(new THREE.Vector3()).add(V(0, -0.5, 0.5)), 'path', 'big', () => resultLbl.on);
+const hotLbl = lab('🔥 好燙！（事後才感覺到）', V(0, 4.35, 0), 'path', 'big', () => hotLbl.on);
+lab('大腦', V(0.55, 3.95, 0), 'path'); lab('脊髓', V(0.3, 1.2, -0.45), 'path');
+lab('感覺神經', () => elbow.localToWorld(V(0.25, -0.8, -0.1)), 'path', '', () => S.kind === 'reflex');
+lab('運動神經', () => shoulder.localToWorld(V(-0.3, -0.3, 0.15)), 'path');
+lab('受器（皮膚）', () => fingertip.getWorldPosition(new THREE.Vector3()).add(V(-0.3, 0.25, 0)), 'path', '', () => S.kind === 'reflex');
+lab('受器（眼睛）', V(-0.75, 3.55, 0.5), 'path', '', () => S.kind === 'conscious');
+
+function renderSteps() {
+  const st = PATHS[S.kind].steps;
+  $('steps').innerHTML = st.map((s, i) => `<span class="${F.step === i ? 'now' : F.step > i ? 'on' : ''}">${s}</span>`).join('');
+}
+function resetPath() {
+  Q.length = 0; F.on = false; F.step = -1; spark.hide(); resultLbl.on = false; hotLbl.on = false;
+  muscleMat.emissive.setHex(0); biceps.scale.y = 0.4; brainMat.emissiveIntensity = 1; brainGlow.material.opacity = 0; eyeGlow.material.opacity = 0;
+  setPose(S.kind === 'reflex' ? 'reflex' : 'ready', true);
+  candle.visible = S.kind === 'reflex';
+  ball.visible = S.kind === 'conscious'; ball.position.set(-0.9, 2.4, 9); S.ballT = -1;
+  renderSteps();
+}
+function firePulse(segs, dur, onDone) {
+  F.P = makePath(segs); F.d = 0; F.dur = dur; F.on = true; F.done = onDone; F.last = -1;
+}
+Lab.bindGroup('#pathSeg button', k => { S.kind = k; $('pathInfo').innerHTML = PATHS[k].info; resetPath(); });
+$('fireBtn').addEventListener('click', () => {
+  if (S.mode !== 'path') return;
+  resetPath();
+  const k = S.kind, cfg = PATHS[k];
+  if (k === 'conscious') { S.ballT = 0; eyeGlow.material.opacity = 0.9; }
+  firePulse(cfg.segs, cfg.dur, () => {
+    F.step = k === 'reflex' ? 4 : 5; renderSteps();
+    muscleMat.emissive.setHex(0xff3040);
+    setPose(k === 'reflex' ? 'withdraw' : 'catch');
+    resultLbl.set(`完成！實際${cfg.real}`); resultLbl.on = true;
+    if (k === 'reflex') after(0.6, () => {   // 縮手之後，訊息才往上傳到大腦
+      F.step = 5; renderSteps();
+      firePulse([{ mesh: N.ascend, st: 5 }], 1.0, () => { brainGlow.material.opacity = 0.8; brainMat.emissiveIntensity = 3; hotLbl.on = true; });
+    });
+  });
+});
+
+/* ---- 反應時間測驗 ---- */
+const rt = $('rt');
+$('rtBtn').addEventListener('click', () => {
+  S.rt = { phase: 'wait', at: performance.now() + 1200 + Math.random() * 2500 };
+  rt.hidden = false; rt.style.background = '#3a1d2a'; rt.textContent = '等畫面變綠色……';
+  $('rtInfo').textContent = '準備……畫面變綠色時立刻點一下畫面！';
+});
+rt.addEventListener('pointerdown', () => {
+  if (!S.rt) return;
+  if (S.rt.phase === 'wait') { S.rt = null; rt.hidden = true; $('rtInfo').textContent = '太早點了！再試一次。'; return; }
+  const ms = Math.round(performance.now() - S.rt.at);
+  S.rt = null; rt.hidden = true;
+  $('rtInfo').innerHTML = `你的反應時間：<b>${ms} 毫秒</b>（${(ms / 1000).toFixed(2)} 秒）。<br>看到 → 大腦判斷 → 下命令，是有意識的反應，所以比縮手反射（約 0.05 秒）慢。`;
+});
+
+/* ================= 神經與激素（同一個人體） ================= */
+const hormoneG = new THREE.Group(); body.add(hormoneG);
+const organMat = (c, op = 0.85) => new THREE.MeshStandardMaterial({ color: c, emissive: 0x000000, roughness: 0.45, transparent: true, opacity: op });
+const heart = new THREE.Group(); heart.position.set(0.12, 1.55, 0.2); hormoneG.add(heart);
+{ const hm = organMat(0xc0303f); const a = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), hm); a.position.set(-0.07, 0.04, 0); const b = a.clone(); b.position.set(0.08, 0.05, 0); const c = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.36, 24), hm); c.rotation.z = Math.PI; c.position.y = -0.2; heart.add(a, b, c); heart.userData.mat = hm; heart.rotation.z = 0.35; }
+const ORG = {
+  heart: { obj: heart, name: '心臟' },
+  liver: { obj: new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), organMat(0x7a2a24)), pos: V(-0.35, 0.95, 0.2), scl: V(0.42, 0.18, 0.28), name: '肝臟' },
+  gut: { obj: new THREE.Mesh(new THREE.TorusKnotGeometry(0.2, 0.05, 80, 8, 3, 5), organMat(0xd9808a)), pos: V(0, 0.05, 0.22), scl: V(1.1, 0.8, 0.6), name: '腸' },
+  kidney: { obj: new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), organMat(0x8a2a36)), pos: V(0.32, 0.45, -0.22), scl: V(0.1, 0.17, 0.08), name: '腎臟' },
+  muscle: { obj: new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), organMat(0x8a2433)), pos: V(0.4, -1.45, 0.16), scl: V(0.14, 0.52, 0.1), name: '肌肉' },
+  skin: { obj: glowSprite(0xffc0a0, 0.9, 0), pos: V(1.24, 0.3, 0.1), name: '皮膚' }
+};
+for (const o of Object.values(ORG)) {
+  if (o.pos) { o.obj.position.copy(o.pos); if (o.scl) o.obj.scale.copy(o.scl); hormoneG.add(o.obj); }
+  o.lbl = lab(o.name, () => o.obj.getWorldPosition(new THREE.Vector3()).add(V(o === ORG.liver ? -0.7 : 0.6, 0.1, 0.2)), 'hormone');
+}
+const kidneyR = ORG.kidney.obj.clone(); kidneyR.position.x = -0.32; hormoneG.add(kidneyR);
+const adrenalMat = new THREE.MeshStandardMaterial({ color: 0xffd166, emissive: 0x6a4a00, roughness: 0.4 });
+const adrenal = [1, -1].map(s => { const m = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.12, 12), adrenalMat); m.position.set(0.32 * s, 0.66, -0.22); hormoneG.add(m); pickable(m, 'hormone', '腎上腺（內分泌腺）', '分泌腎上腺素到血液中，隨血液流到全身，讓心跳加快、血糖上升。'); return m; });
+lab('腎上腺', V(0.85, 0.75, -0.2), 'hormone', 'big');
+pickable(heart.children[2], 'hormone', '心臟', '腎上腺素到達後，心跳會加快一段時間。');
+// 血管：靜脈（腎上腺 → 心臟）與從心臟出去的動脈
+const veinMat = lineMat(0x5d7dff, 0.45), artMat = () => lineMat(0xff5d6e, 0.4);
+const HV = { toHeart: tube([V(0.3, 0.66, -0.2), V(0.1, 0.72, -0.12), V(0.06, 1.1, 0.0), V(0.08, 1.4, 0.15), V(0.12, 1.55, 0.2)], 0.035, veinMat) };
+hormoneG.add(HV.toHeart);
+const BR = [
+  { key: 'liver', pts: [V(0.12, 1.55, 0.2), V(-0.12, 1.25, 0.18), V(-0.35, 0.95, 0.2)] },
+  { key: 'gut', pts: [V(0.12, 1.55, 0.2), V(0.06, 1.05, -0.05), V(0.2, 0.55, 0.15), V(0, 0.05, 0.25)] },
+  { key: 'kidney', pts: [V(0.12, 1.55, 0.2), V(0.05, 1.0, -0.12), V(0.06, 0.55, -0.16), V(0.3, 0.45, -0.22)] },
+  { key: 'muscle', pts: [V(0.12, 1.55, 0.2), V(0.05, 1.0, -0.12), V(0.05, 0.0, -0.12), V(0.36, -0.7, 0.05), V(0.4, -1.45, 0.14)] },
+  { key: 'skin', pts: [V(0.12, 1.55, 0.2), V(0.5, 2.1, 0.05), V(0.95, 2.15, 0.05), V(1.18, 0.95, 0.08), V(1.24, 0.3, 0.1)] }
+].map(b => { b.mesh = tube(b.pts, 0.03, artMat()); hormoneG.add(b.mesh); return b; });
+// 裝飾用的其他血管（頭、右手、右腳）
+[[V(0.12, 1.55, 0.2), V(0.06, 2.2, 0.08), V(0.08, 2.8, 0.05), V(0.1, 3.2, 0.12)],
+ [V(0.12, 1.55, 0.2), V(-0.5, 2.1, 0.05), V(-0.95, 2.15, 0.05), V(-1.15, 0.97, 0.08), V(-1.33, -0.2, 0.1)],
+ [V(0.05, 0.0, -0.12), V(-0.36, -0.7, 0.05), V(-0.42, -2.35, 0.08), V(-0.42, -3.9, 0.05)]].forEach(p => hormoneG.add(tube(p, 0.03, artMat())));
+const legPath = tube([V(0.15, 3.72, 0), V(0.05, 3.4, -0.05), V(0, 3.05, -0.14), V(0, 2.2, -0.36), V(0, 0.8, -0.38), V(0, -0.45, -0.3), V(0.3, -0.7, -0.15), V(0.4, -1.4, 0.05)], 0.035, lineMat(CORD, 0.0));
+hormoneG.add(legPath);
+// 激素粒子（只建立一次，重複使用）
+const HP = [];
+for (let i = 0; i < 60; i++) { const s = glowSprite(0x5fffd0, 0.22, 0.95); s.visible = false; hormoneG.add(s); HP.push({ s, born: 0, br: BR[i % BR.length], on: false }); }
+const raceLbl = lab('', V(0, 4.45, 0), 'hormone', 'big', () => S.race >= 0);
+const nerveLbl = lab('神經：0.6 秒就到了', V(1.25, -1.4, 0.3), 'hormone', 'big', () => nerveLbl.on);
+const heartLbl = lab('❤ 心跳加快', V(0.9, 1.7, 0.3), 'hormone', 'big', () => heartLbl.on);
+const hSpark = makeSpark(CORD, 0.5);
+const HF = { on: false, P: null, d: 0 };
+S.race = -1;
+function resetRace() {
+  S.race = -1; S.raceDone = false; HF.on = false; hSpark.hide(); nerveLbl.on = false; heartLbl.on = false; S.heartRate = 1.2;
+  HP.forEach(p => { p.on = false; p.s.visible = false; });
+  for (const o of Object.values(ORG)) { o.hit = false; o.lbl.set(o.name); if (o.obj.material && o.obj.material.emissive) o.obj.material.emissive.setHex(0); }
+  heart.userData.mat.emissive.setHex(0); ORG.skin.obj.material.opacity = 0;
+}
+$('raceBtn').addEventListener('click', () => {
+  if (S.mode !== 'hormone') return;
+  resetRace(); S.race = 0;
+  HF.P = makePath([{ mesh: legPath }]); HF.d = 0; HF.on = true;
+  HP.forEach((p, i) => { p.born = i * 0.07; });
+});
+function hitOrgan(o) {
+  if (o.hit) return; o.hit = true; o.lbl.set(o.name + ' ✓');
+  if (o === ORG.heart) { heart.userData.mat.emissive.setHex(0x5fffd0); heart.userData.mat.emissiveIntensity = 0.35; S.heartRate = 2.6; heartLbl.on = true; }
+  else if (o === ORG.skin) o.obj.material.opacity = 0.7;
+  else o.obj.material.emissive.setHex(0x1f8a6a);
+}
+
+/* ================= 微觀：一個神經元 ================= */
+const neuronG = new THREE.Group(); neuronG.scale.setScalar(0.78); scene.add(neuronG);
+const memRim = rimMat(0x52e0ff, 2.0, 1.1, 0.03), memFill = fillMat(0x0d3346, 0.35);
+const SOMA = V(-4.2, 0, 0);
+const soma = new THREE.Mesh(bumpy(0.9, 4, 0.05, 6), memFill); soma.position.copy(SOMA); neuronG.add(soma);
+const somaRim = new THREE.Mesh(soma.geometry, rimMat(0x52e0ff, 2.0, 1.1, 0.03)); somaRim.position.copy(SOMA); neuronG.add(somaRim);
+pickable(soma, 'neuron', '細胞本體', '神經元的主體，含有細胞核，整合從樹突傳來的訊號。');
+const nucleus = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 24), new THREE.MeshStandardMaterial({ color: 0x8a6cff, emissive: 0x3a1f9a, emissiveIntensity: 0.8, roughness: 0.4 }));
+nucleus.position.copy(SOMA).add(V(-0.1, 0.05, 0.1)); neuronG.add(nucleus);
+const nucleolus = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshStandardMaterial({ color: 0x3a1f9a, roughness: 0.5 })); nucleolus.position.set(0.12, 0.08, 0.2); nucleus.add(nucleolus);
+pickable(nucleus, 'neuron', '細胞核', '含有遺傳物質，控制細胞的生命活動。');
+const somaGlow = glowSprite(0x7fe8ff, 3.2, 0); somaGlow.position.copy(SOMA); neuronG.add(somaGlow);
+// 樹突：從細胞本體分支出去
+const dendMat = rimMat(0x52e0ff, 1.8, 1.0, 0.05);
+const dends = [];
+function branch(start, dir, len, r, depth, root) {
+  const pts = [start.clone()]; let p = start.clone(); const d = dir.clone();
+  for (let i = 0; i < 4; i++) { d.add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(0.5)).normalize(); p = p.clone().addScaledVector(d, len / 4); pts.push(p); }
+  const m = tube(pts, r, dendMat, 24); neuronG.add(m);
+  const fill = new THREE.Mesh(m.geometry, memFill); neuronG.add(fill);
+  pickable(m, 'neuron', '樹突', '接收其他神經元或受器傳來的訊號，傳向細胞本體。');
+  if (root) dends.push(m);
+  if (depth > 0) for (let k = 0; k < 2; k++) branch(p, d.clone().add(V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5)).normalize(), len * 0.6, r * 0.62, depth - 1, false);
+}
+[[-1, 0.3, 0.1], [-0.8, 0.9, -0.3], [-0.6, -0.9, 0.3], [-0.2, 1, 0.4], [-0.3, -1, -0.5], [-0.9, -0.2, -0.8], [-0.7, 0.1, 0.9]].forEach(([x, y, z]) => {
+  const d = V(x, y, z).normalize(); branch(SOMA.clone().addScaledVector(d, 0.8), d, 1.6, 0.11, 2, true);
+});
+// 軸突、髓鞘、蘭氏結
+const axon = tube([V(-3.35, 0, 0), V(-2, 0.15, 0), V(0, -0.15, 0.1), V(2, 0.15, 0), V(4, -0.1, 0), V(5.3, 0, 0)], 0.08, rimMat(0x52e0ff, 1.8, 1.2, 0.06), 160);
+neuronG.add(axon); neuronG.add(new THREE.Mesh(axon.geometry, memFill));
+pickable(axon, 'neuron', '軸突', '把訊號從細胞本體傳出去，有的軸突很長（可以超過 1 公尺）。');
+const hillock = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.6, 24, 1, true), rimMat(0x52e0ff, 1.8, 1.0, 0.05));
+hillock.rotation.z = Math.PI / 2; hillock.position.set(-3.45, 0, 0); neuronG.add(hillock);
+const myelinMat = new THREE.MeshStandardMaterial({ color: 0xf3e7cc, emissive: 0x2a2416, roughness: 0.35, transparent: true, opacity: 0.88 });
+const myelin = new THREE.Group(); neuronG.add(myelin);
+const NODES = [];   // 髓鞘之間的空隙（蘭氏結）
+{
+  const ac = axon.userData.curve, n = 7, u0 = 0.06, u1 = 0.94, gap = 0.018, step = (u1 - u0) / n;
+  NODES.push(ac.getPointAt(u0));
+  for (let i = 0; i < n; i++) {
+    const a = u0 + i * step + gap / 2, b = u0 + (i + 1) * step - gap / 2, pa = ac.getPointAt(a), pb = ac.getPointAt(b);
+    const m = capsuleBetween(pa, pb, 0.2, myelinMat); m.geometry.dispose();
+    m.geometry = new THREE.CapsuleGeometry(0.2, Math.max(0.05, pa.distanceTo(pb) - 0.4), 8, 20);
+    myelin.add(m); pickable(m, 'neuron', '髓鞘', '包在軸突外面的「絕緣層」，讓訊號在髓鞘之間的空隙跳躍，傳得更快。');
+    NODES.push(ac.getPointAt(u0 + (i + 1) * step));
+  }
+}
+// 軸突末梢
+const TERM = [];
+[[1.1, 0.8, 0.5], [1.2, 0.2, -0.6], [1.0, -0.7, 0.4], [1.3, -0.3, 0.2], [0.9, 0.5, -0.3]].forEach(([x, y, z]) => {
+  const a = V(5.3, 0, 0), b = V(5.3 + x, y, z);
+  const m = tube([a, a.clone().lerp(b, 0.5).add(V(0, 0.15, 0)), b], 0.05, rimMat(0x52e0ff, 1.8, 1.1, 0.06), 20); neuronG.add(m);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 14), rimMat(0x52e0ff, 1.6, 1.3, 0.1)); bulb.position.copy(b); neuronG.add(bulb);
+  const g = glowSprite(0xffe6a8, 0.9, 0); g.position.copy(b); neuronG.add(g);
+  pickable(bulb, 'neuron', '軸突末梢', '訊號最後到這裡，釋放神經傳遞物質，把訊號傳給下一個細胞。');
+  TERM.push({ m, g });
+});
+const nodeGlow = NODES.map(p => { const g = glowSprite(0xffe6a8, 1.5, 0); g.position.copy(p); neuronG.add(g); return g; });
+const nw = v => neuronG.localToWorld(v.clone());   // 神經元內部座標 → 世界座標（神經元整體有縮放）
+lab('樹突', () => nw(V(-6.2, 1.5, 0)), 'neuron', 'big'); lab('細胞本體', () => nw(V(-4.2, 1.25, 0)), 'neuron', 'big'); lab('細胞核', () => nw(V(-4.3, -0.55, 0.6)), 'neuron');
+lab('軸突', () => nw(V(0.1, -0.7, 0)), 'neuron', 'big'); lab('髓鞘', () => nw(myelin.children[3].position.clone().add(V(0, 0.55, 0))), 'neuron', '', () => $('myelin').checked);
+lab('蘭氏結（髓鞘間的空隙）', () => nw(NODES[5].clone().add(V(0, -0.6, 0))), 'neuron', '', () => $('myelin').checked);
+lab('軸突末梢', () => nw(V(6.6, 1.1, 0)), 'neuron', 'big');
+// 電訊號的「跳躍」：一條會閃的光
+const arc = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1, 8, 1, true), lineMat(0xfff2c0, 0)); neuronG.add(arc);
+function stretch(m, a, b) { const d = b.clone().sub(a); m.position.copy(a).add(b).multiplyScalar(0.5); m.scale.set(1, d.length(), 1); m.quaternion.setFromUnitVectors(UP, d.normalize()); }
+// 離子（鈉離子流入、鉀離子流出）
+const IONS = [];
+for (let i = 0; i < 72; i++) { const s = glowSprite(0xffd166, 0.26, 0); s.visible = false; neuronG.add(s); IONS.push({ s, a: V(0, 0, 0), b: V(0, 0, 0), t0: 0, dur: 0.3, on: false }); }
+let ionNext = 0;
+function ionBurst(c, tangent, n = 6) {
+  if (!$('ions').checked) return;
+  const n1 = V(0, 1, 0).cross(tangent).normalize(), n2 = tangent.clone().cross(n1).normalize();
+  for (let k = 0; k < n * 2; k++) {
+    const io = IONS[ionNext]; ionNext = (ionNext + 1) % IONS.length;
+    const na = k < n, ang = (k % n) / n * Math.PI * 2 + (na ? 0 : 0.5), dir = n1.clone().multiplyScalar(Math.cos(ang)).addScaledVector(n2, Math.sin(ang));
+    const far = c.clone().addScaledVector(dir, 0.8), near = c.clone().addScaledVector(dir, 0.06);
+    io.a.copy(na ? far : near); io.b.copy(na ? near : far); io.t0 = S.time + (na ? 0 : 0.15); io.dur = na ? 0.25 : 0.3; io.on = true;
+    io.s.material.color.setHex(na ? 0xffd166 : 0xb388ff);
+  }
+}
+const nSpark = makeSpark(0xffe6a8, 0.95);
+const NU = { phase: 0, t: 0, P: null, node: 0, start: 0 };
+function resetNeuron() {
+  NU.phase = 0; nSpark.hide(); somaGlow.material.opacity = 0; arc.material.opacity = 0;
+  nodeGlow.forEach(g => (g.material.opacity = 0)); TERM.forEach(t => (t.g.material.opacity = 0));
+  IONS.forEach(io => { io.on = false; io.s.visible = false; });
+}
+$('myelin').addEventListener('change', () => { myelin.visible = $('myelin').checked; resetNeuron(); });
+$('nuFire').addEventListener('click', () => {
+  if (S.mode !== 'neuron') return;
+  resetNeuron();
+  // 樹突末端 → 細胞本體 → 軸丘
+  const somaPath = tube([SOMA.clone().addScaledVector(dends[0].userData.curve.getPoint(0).clone().sub(SOMA).normalize(), 0.8), SOMA.clone(), V(-3.35, 0, 0)], 0.01, lineMat(0, 0), 8);
+  neuronG.add(somaPath);
+  NU.P = makePath([{ mesh: dends[0], rev: true }, { mesh: somaPath }]);
+  neuronG.remove(somaPath); somaPath.geometry.dispose();
+  NU.phase = 1; NU.t = 0; NU.start = S.time;
+  $('nuInfo').innerHTML = '① 樹突接收刺激，產生電訊號，傳向<b>細胞本體</b>。';
+});
+$('toSyn').addEventListener('click', () => document.querySelector('.mode[data-k="synapse"]').click());
+
+/* ================= 微觀：突觸 ================= */
+const synG = new THREE.Group(); scene.add(synG);
+const preRim = rimMat(0x52e0ff, 1.9, 1.15, 0.04);
+{
+  const prof = [[0.001, 0.45], [0.6, 0.47], [1.1, 0.6], [1.35, 0.9], [1.35, 1.5], [0.9, 2.2], [0.3, 2.8], [0.25, 4.6]].map(([r, y]) => new THREE.Vector2(r, y));
+  const g = new THREE.LatheGeometry(prof, 56);
+  synG.add(new THREE.Mesh(g, fillMat(0x0d3346, 0.3)), new THREE.Mesh(g, preRim));
+}
+const preHit = new THREE.Mesh(new THREE.SphereGeometry(1.3, 16, 12), new THREE.MeshBasicMaterial({ visible: false })); preHit.position.y = 1.3; synG.add(preHit);
+pickable(preHit, 'synapse', '軸突末梢（前一個神經元）', '電訊號抵達後，裡面的突觸小泡會釋放神經傳遞物質。');
+const mito = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.45, 8, 16), new THREE.MeshStandardMaterial({ color: 0xff9f43, emissive: 0x5a2a00, roughness: 0.4 }));
+mito.position.set(0.65, 1.85, 0.1); mito.rotation.z = 0.9; synG.add(mito);
+pickable(mito, 'synapse', '粒線體', '提供能量，讓末梢可以不斷製造、釋放神經傳遞物質。');
+const VES = [];
+const vesRim = rimMat(0x7dffc8, 1.6, 1.2, 0.08);
+for (let i = 0; i < 16; i++) {
+  const a = rnd() * Math.PI * 2, r = 0.25 + rnd() * 0.75, home = V(Math.cos(a) * r, 0.75 + rnd() * 0.95, Math.sin(a) * r * 0.7);
+  const g = new THREE.Group(); g.position.copy(home); synG.add(g);
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.17, 20, 14), vesRim); g.add(shell);
+  g.add(glowSprite(0x5fffd0, 0.28, 0.9));
+  pickable(shell, 'synapse', '突觸小泡', '裝著神經傳遞物質的小囊，訊號來時移到細胞膜，把物質釋放出去。');
+  VES.push({ g, home, fire: false, target: V(0, 0, 0) });
+}
+// 下一個神經元（樹突）與受體
+const post = new THREE.Group(); synG.add(post);
+{
+  const g = new THREE.CylinderGeometry(1.6, 1.6, 7, 64, 1, true); g.rotateZ(Math.PI / 2);
+  const a = new THREE.Mesh(g, fillMat(0x1d1446, 0.3)), b = new THREE.Mesh(g, rimMat(0xa58bff, 1.9, 1.1, 0.04));
+  a.position.y = b.position.y = -1.9; post.add(a, b);
+  pickable(a, 'synapse', '下一個神經元的樹突', '受體和神經傳遞物質結合後，這裡會產生新的電訊號。');
+}
+const postRim = post.children[1].material;
+const REC = [];
+const recGeo = new THREE.CylinderGeometry(0.1, 0.06, 0.16, 12, 1, true);
+for (let i = 0; i < 12; i++) {
+  const x = -1.1 + (i % 6) * 0.44 + (i < 6 ? 0 : 0.22), z = i < 6 ? -0.3 : 0.3;
+  const m = new THREE.Mesh(recGeo, new THREE.MeshStandardMaterial({ color: 0x8a6cff, emissive: 0x1a0f4a, roughness: 0.4, side: THREE.DoubleSide }));
+  const y = -1.9 + Math.sqrt(1.6 * 1.6 - z * z);
+  m.position.set(x, y + 0.06, z); post.add(m);
+  pickable(m, 'synapse', '受體', '只和特定的神經傳遞物質結合，像鑰匙和鎖。');
+  REC.push({ m, top: V(x, y + 0.14, z), used: false });
+}
+// 神經傳遞物質
+const NT = [];
+for (let i = 0; i < 84; i++) { const s = glowSprite(0x5fffd0, 0.14, 0); s.visible = false; synG.add(s); NT.push({ s, v: V(0, 0, 0), on: false, bound: null }); }
+const synSpark = makeSpark(0xffe6a8, 0.7);
+const postWave = glowSprite(0xc8b8ff, 1.6, 0); synG.add(postWave);
+lab('軸突末梢', V(-1.9, 1.9, 0), 'synapse', 'big'); lab('突觸小泡', V(1.85, 1.15, 0), 'synapse');
+lab('突觸間隙', V(-2.0, 0.1, 0), 'synapse', 'big'); lab('受體', V(1.9, -0.25, 0.3), 'synapse');
+lab('下一個神經元', V(-2.6, -1.6, 0), 'synapse', 'big');
+lab('神經傳遞物質', V(0.9, 0.05, 1.2), 'synapse', '', () => NT.some(n => n.on));
+const newSigLbl = lab('⚡ 產生新的電訊號', V(2.6, -0.9, 0.6), 'synapse', 'big', () => newSigLbl.on);
+const SY_STEPS = ['電訊號抵達末梢', '突觸小泡移向細胞膜', '釋放神經傳遞物質', '擴散通過突觸間隙', '與受體結合', '產生新的電訊號'];
+const SY = { t: -1, step: -1 };
+const SY_INFO = [
+  '① 電訊號沿軸突傳到<b>軸突末梢</b>。', '② 末梢裡的<b>突觸小泡</b>移向細胞膜。', '③ 突觸小泡和細胞膜融合，把<b>神經傳遞物質</b>釋放到突觸間隙。',
+  '④ 神經傳遞物質<b>擴散</b>通過突觸間隙。', '⑤ 神經傳遞物質和下一個神經元上的<b>受體</b>結合。', '⑥ 下一個神經元產生<b>新的電訊號</b>；用過的神經傳遞物質會被分解或回收。'
+];
+function renderSynSteps() { $('synSteps').innerHTML = SY_STEPS.map((s, i) => `<span class="${SY.step === i ? 'now' : SY.step > i ? 'on' : ''}">${s}</span>`).join(''); }
+function setSynStep(i) { if (SY.step === i) return; SY.step = i; renderSynSteps(); $('synInfo').innerHTML = SY_INFO[i]; }
+function resetSyn() {
+  SY.t = -1; SY.step = -1; SY.boundAt = null; SY.clean = false; renderSynSteps(); synSpark.hide(); postWave.material.opacity = 0; newSigLbl.on = false; preRim.uniforms.intensity.value = 1.15; postRim.uniforms.intensity.value = 1.1;
+  VES.forEach(v => { v.fire = false; v.g.position.copy(v.home); v.g.scale.setScalar(1); v.g.visible = true; });
+  NT.forEach(n => { n.on = false; n.s.visible = false; n.bound = null; });
+  REC.forEach(r => { r.used = false; r.m.material.emissive.setHex(0x1a0f4a); });
+}
+const synAxon = tube([V(0, 4.6, 0), V(0, 3, 0), V(0, 1.4, 0)], 0.01, lineMat(0, 0), 8); synG.add(synAxon); synAxon.visible = false;
+$('synFire').addEventListener('click', () => {
+  if (S.mode !== 'synapse') return;
+  resetSyn(); SY.t = 0; SY.P = makePath([{ mesh: synAxon }]); setSynStep(0);
+  // 選出靠近細胞膜的 6 個小泡
+  VES.slice().sort((a, b) => a.home.y - b.home.y).slice(0, 6).forEach(v => { v.fire = true; v.target.set(v.home.x * 0.7, 0.62, v.home.z * 0.7); });
+});
+
+/* ================= 植物的向性 ================= */
+const plantG = new THREE.Group(); scene.add(plantG);
+{ // 玻璃花盆＋半透明的土（看得到根）
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.9, 1.6, 48, 1, true), new THREE.MeshStandardMaterial({ color: 0xaee6ff, transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
+  pot.position.y = -3.3; plantG.add(pot);
+  const potRim = new THREE.Mesh(pot.geometry, rimMat(0x9fe6ff, 2.5, 0.8)); potRim.position.y = -3.3; plantG.add(potRim);
+  const soil = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.88, 1.3, 48), new THREE.MeshStandardMaterial({ color: 0x4a3322, transparent: true, opacity: 0.55, roughness: 0.9, depthWrite: false }));
+  soil.position.y = -3.4; plantG.add(soil);
+  const rootMat = lineMat(0xf2dfb8, 0.85);
+  [[0, -1], [-0.45, -0.8], [0.5, -0.75], [0.15, -0.9], [-0.25, -0.95]].forEach(([x, k], i) => {
+    const pts = [V(0, -2.75, 0), V(x * 0.4, -3.1, (i % 2 ? 0.2 : -0.2)), V(x * 0.8, -3.5, (i % 2 ? 0.25 : -0.15)), V(x * 0.9, -2.75 + k * 1.2, 0)];
+    plantG.add(tube(pts, 0.03 - i * 0.003, rootMat, 32));
+  });
+}
+const SEG = 20, segLen = 0.17, stemSegs = [], auxin = [];
+const stemMat = new THREE.MeshStandardMaterial({ color: 0x6fc24a, emissive: 0x16330c, roughness: 0.5 });
+const auxMat = new THREE.MeshStandardMaterial({ color: 0xffa64d, emissive: 0xff7a1a, emissiveIntensity: 0.9 });
+const leafShape = new THREE.Shape(); leafShape.moveTo(0, 0); leafShape.quadraticCurveTo(0.24, 0.2, 0.62, 0); leafShape.quadraticCurveTo(0.24, -0.2, 0, 0);
+const leafGeo = new THREE.ShapeGeometry(leafShape, 12);
+const leafMat = new THREE.MeshStandardMaterial({ color: 0x3fbf6a, emissive: 0x0d3a1a, roughness: 0.45, side: THREE.DoubleSide });
+{
+  let parent = new THREE.Group(); parent.position.set(0, -2.75, 0); plantG.add(parent);
+  const segGeo = new THREE.CylinderGeometry(0.055, 0.065, segLen, 14), auxGeo = new THREE.SphereGeometry(0.035, 10, 8);
+  for (let i = 0; i < SEG; i++) {
+    const g = new THREE.Group(); if (i > 0) g.position.y = segLen; parent.add(g);
+    const c = new THREE.Mesh(segGeo, stemMat); c.position.y = segLen / 2; g.add(c);
+    pickable(c, 'plant', '莖', '向光生長（向光性）：背光側的生長素較多，長得較快，莖就彎向光源。');
+    if (i >= 3) { const a = new THREE.Mesh(auxGeo, auxMat); a.position.set(0.07, segLen / 2, 0); g.add(a); auxin.push(a); pickable(a, 'plant', '生長素', '植物激素，會往背光的一側移動，使那一側細胞長得比較快。'); }
+    if ([6, 11, 16, 19].includes(i)) [1, -1].forEach(s => {
+      const lf = new THREE.Mesh(leafGeo, leafMat); lf.position.y = segLen; lf.rotation.set(0.3 * s, s > 0 ? 0 : Math.PI, 0.5); lf.scale.setScalar(i === 19 ? 0.7 : 1); g.add(lf);
+    });
+    stemSegs.push(g); parent = g;
+  }
+  const bud = new THREE.Mesh(new THREE.SphereGeometry(0.08, 14, 10), stemMat); bud.position.y = segLen; parent.add(bud);
+}
+// 光源：發光的燈＋光束
+const lamp = new THREE.Group(); plantG.add(lamp);
+lamp.add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 24, 18), new THREE.MeshBasicMaterial({ color: 0xffe28a })));
+lamp.add(glowSprite(0xffd166, 2.6, 0.9));
+const plantSun = new THREE.DirectionalLight(0xfff0c0, 1.4); plantG.add(plantSun); plantG.add(plantSun.target); plantSun.target.position.set(0, -1, 0);
+const beam = new THREE.Mesh(new THREE.ConeGeometry(1.1, 1, 32, 1, true), lineMat(0xffd166, 0.07)); beam.geometry.translate(0, -0.5, 0); plantG.add(beam);
+lab('光源', () => lamp.position.clone().add(V(0, 0.6, 0)), 'plant', 'big');
+lab('莖：向光性', () => stemSegs[12].getWorldPosition(new THREE.Vector3()).add(V(S.light > 0 ? -0.9 : 0.9, 0, 0)), 'plant');
+lab('根：向地性（往下長）', V(0, -4.45, 0.9), 'plant', 'big');
+const auxLbl = lab('生長素（背光側）', () => stemSegs[9].getWorldPosition(new THREE.Vector3()).add(V(S.light > 0 ? -1.1 : 1.1, 0.2, 0)), 'plant', '', () => $('showAuxin').checked && Math.abs(S.light) > 2);
+Lab.bindSlider('light', v => { S.light = v; }, v => v === 0 ? '正上方' : (v < 0 ? `左上 ${-v}°` : `右上 ${v}°`));
+$('growBtn').addEventListener('click', () => { S.growing = 3; });
+$('resetPlant').addEventListener('click', () => { S.bend = 0; S.growing = 0; });
+
+/* ================= 模式切換 ================= */
+const CAM = {
+  path: [[-7.2, 2.3, 3.4], [-0.3, 1.4, 0.6]], hormone: [[0, 0.6, 12.5], [0, 0.0, 0]],
+  neuron: [[-0.4, 2.8, 13.8], [-0.4, 0, 0]], synapse: [[0.3, 1.4, 9.4], [0, 0.7, 0]], plant: [[0, 0.6, 11.5], [0, -0.7, 0]]
+};
+function setMode(k) {
+  S.mode = k; Lab.showMode(k); Q.length = 0;
+  body.visible = k === 'path' || k === 'hormone';
+  props.visible = k === 'path'; hormoneG.visible = k === 'hormone';
+  neuronG.visible = k === 'neuron'; synG.visible = k === 'synapse'; plantG.visible = k === 'plant';
+  stage.visible = body.visible || k === 'plant';
+  periMat.opacity = k === 'hormone' ? 0.12 : 0.3; legNerves.forEach(m => (m.material.opacity = k === 'hormone' ? 0.12 : 0.3));
+  if (k === 'path') resetPath(); else { F.on = false; spark.hide(); }
+  if (k === 'hormone') { setPose('relax', true); resetRace(); }
+  if (k === 'neuron') resetNeuron();
+  if (k === 'synapse') resetSyn();
+  // 畫面比較窄（直放、手機）時，鏡頭往後退，模型才放得下
+  const [p, t] = CAM[k], f = Math.max(1, 1.05 / (L.W / L.H));
+  L.fly(p.map((v, i) => t[i] + (v - t[i]) * f), t, 1.0);
+  $('info').textContent = '點畫面上的構造，看它的名稱和功能。拖曳可以轉動視角。';
+}
+Lab.bindGroup('.mode', k => setMode(k));
+
+/* ================= 每一幀 ================= */
+const tmpV = new THREE.Vector3();
+function frame(dt, now) {
+  S.time += dt;
+  for (let i = Q.length - 1; i >= 0; i--) if (S.time >= Q[i].at) { const f = Q[i].fn; Q.splice(i, 1); f(); }
+  scene.getObjectByName('dust').rotation.y += dt * 0.01;
+  // 手臂姿勢慢慢轉到目標
+  const k = Math.min(1, dt * 9);
+  for (const key of ['sx', 'sz', 'ex']) S.pose[key] += (S.poseTarget[key] - S.pose[key]) * k;
+  applyPose();
+  // 神經發亮後慢慢退回原本的亮度
+  for (const m of Object.values(N)) { m.userData.heat = Math.max(0, m.userData.heat - dt * 0.6); m.material.opacity = m.userData.baseOp + m.userData.heat * 0.85; }
+
+  if (S.mode === 'path') framePath(dt);
+  else if (S.mode === 'hormone') frameHormone(dt);
+  else if (S.mode === 'neuron') frameNeuron(dt);
+  else if (S.mode === 'synapse') frameSyn(dt);
+  else framePlant(dt);
+
+  for (const it of LBL) it.show = it.mode === S.mode && (!it.cond || it.cond());
+}
+function framePath(dt) {
+  flame.scale.set(1 + Math.sin(S.time * 23) * 0.06, 1 + Math.sin(S.time * 17) * 0.1, 1);
+  flameLight.intensity = 1.8 + Math.sin(S.time * 29) * 0.4;
+  if (F.on) {
+    F.d += F.P.len / F.dur * dt;
+    const { si } = pathAt(F.P, F.d), seg = F.P.segs[si];
+    if (seg.st !== F.step && seg.st != null) { F.step = seg.st; renderSteps(); }
+    seg.mesh.userData.heat = 1;
+    if (si !== F.last) { F.last = si; spark.setColor(seg.mesh.material.color.getHex() || CORD); }
+    if (seg.mesh === N.think) { brainMat.emissiveIntensity = 2.5; brainGlow.material.opacity = 0.6; }
+    placeSpark(spark, F.P, F.d);
+    if (F.d >= F.P.len) { F.on = false; spark.hide(); const f = F.done; F.done = null; f && f(); }
+  }
+  if (muscleMat.emissive.getHex()) biceps.scale.y += (0.32 - biceps.scale.y) * Math.min(1, dt * 8);
+  brainGlow.material.opacity *= 1 - dt * 0.4;
+  // 棒球飛向手
+  if (S.ballT >= 0) {
+    S.ballT += dt;
+    const T = PATHS.conscious.dur + 0.45, u = Math.min(1, S.ballT / T);
+    const hand = elbow.localToWorld(tmpV.set(0, -1.45, 0.12));
+    const start = V(-0.9, 2.4, 9);
+    ball.position.copy(start.lerp(hand, u)); ball.position.y += Math.sin(u * Math.PI) * 0.6 * (1 - u);
+    ball.rotation.x += dt * 8;
+  }
+}
+function frameHormone(dt) {
+  // 心跳
+  heart.scale.setScalar(1 + Math.max(0, Math.sin(S.time * Math.PI * 2 * (S.heartRate || 1.2))) * 0.08);
+  if (S.race < 0) return;
+  S.race += dt;
+  const allHit = Object.values(ORG).every(o => o.hit);
+  if (!allHit) raceLbl.set(`已經 ${S.race.toFixed(1)} 秒`);
+  else if (!S.raceDone) { S.raceDone = true; raceLbl.set(`激素花了 ${S.race.toFixed(1)} 秒才到全身`); }
+  if (HF.on) {
+    HF.d += HF.P.len / 0.6 * dt; placeSpark(hSpark, HF.P, HF.d);
+    if (HF.d >= HF.P.len) { HF.on = false; hSpark.hide(); nerveLbl.on = true; ORG.muscle.obj.material.emissive.setHex(0xffd166); }
+  }
+  // 激素：腎上腺 → 靜脈 → 心臟 → 動脈 → 器官
+  HP.forEach(p => {
+    const age = S.race - p.born; if (age < 0) return;
+    const t1 = 1.8, t2 = 3.6, fade = Math.max(0, 1 - (age - t1 - t2) / 2.5);
+    p.s.visible = fade > 0; p.s.material.opacity = 0.95 * fade;
+    if (age < t1) { p.s.position.copy(HV.toHeart.userData.curve.getPoint(age / t1)); if (age > t1 * 0.97) hitOrgan(ORG.heart); }
+    else { const u = Math.min(1, (age - t1) / t2); p.s.position.copy(p.br.mesh.userData.curve.getPoint(u)); if (u >= 1) hitOrgan(ORG[p.br.key]); }
+    p.s.position.x += Math.sin(p.born * 40) * 0.03; p.s.position.z += Math.cos(p.born * 31) * 0.03;
+  });
+  adrenalMat.emissiveIntensity = S.race < 4.5 ? 1.5 + Math.sin(S.time * 10) * 0.5 : 1;
+}
+function frameNeuron(dt) {
+  const myel = $('myelin').checked, ac = axon.userData.curve;
+  if (NU.phase === 1) {                 // 樹突 → 細胞本體
+    NU.t += dt; const d = NU.t / 1.0 * NU.P.len; placeSpark(nSpark, NU.P, d);
+    if (d > NU.P.len * 0.7) somaGlow.material.opacity = Math.min(0.8, somaGlow.material.opacity + dt * 3);
+    if (d >= NU.P.len) {
+      NU.phase = 2; NU.t = 0; NU.node = 0; nSpark.hide();
+      $('nuInfo').innerHTML = myel ? '② 訊號沿<b>軸突</b>傳出去。有髓鞘時，電訊號在髓鞘之間的空隙（蘭氏結）<b>一段一段跳過去</b>，每一跳都有離子進出細胞膜。' : '② 沒有髓鞘時，電訊號只能沿著軸突<b>一點一點連續前進</b>，比較慢。';
+      if (myel) { ionBurst(NODES[0], ac.getTangentAt(0.06)); nodeGlow[0].material.opacity = 1; }
+    }
+  } else if (NU.phase === 2) {
+    NU.t += dt;
+    if (myel) {                          // 跳躍傳導
+      const hop = 0.28, i = Math.floor(NU.t / hop) + 1;
+      if (i !== NU.node && i < NODES.length) {
+        NU.node = i; stretch(arc, NODES[i - 1], NODES[i]); arc.material.opacity = 0.9;
+        nodeGlow[i].material.opacity = 1; ionBurst(NODES[i], ac.getTangentAt(Math.min(0.99, 0.06 + i * 0.88 / 7)));
+        nSpark.g.visible = true; nSpark.g.position.copy(nw(NODES[i]));
+      }
+      if (NU.t >= hop * NODES.length) NU.phase = 3;
+    } else {                             // 連續傳導（慢）
+      const u = Math.min(1, NU.t / 4.2), p = ac.getPointAt(u);
+      nSpark.g.visible = true; nSpark.g.position.copy(nw(p));
+      if (Math.floor(NU.t / 0.12) !== NU.node) { NU.node = Math.floor(NU.t / 0.12); ionBurst(p, ac.getTangentAt(u), 4); }
+      if (u >= 1) NU.phase = 3;
+    }
+    if (NU.phase === 3) {
+      NU.t = 0; nSpark.hide(); TERM.forEach(t => (t.g.material.opacity = 1));
+      const sec = (S.time - NU.start).toFixed(1);
+      $('nuInfo').innerHTML = `③ 訊號到達<b>軸突末梢</b>（動畫用了 ${sec} 秒）。${myel ? '試試把髓鞘關掉，比比看哪一種比較快。' : '有髓鞘時跳躍傳導快很多，打開髓鞘再比一次。'}<br>接下來訊號要傳給下一個細胞 → 按「放大看突觸」。`;
+    }
+  }
+  arc.material.opacity = Math.max(0, arc.material.opacity - dt * 4);
+  nodeGlow.forEach(g => (g.material.opacity = Math.max(0, g.material.opacity - dt * 2.2)));
+  if (NU.phase !== 1) somaGlow.material.opacity = Math.max(0, somaGlow.material.opacity - dt * 0.8);
+  if (NU.phase === 3) TERM.forEach(t => (t.g.material.opacity = 0.6 + Math.sin(S.time * 6) * 0.3));
+  IONS.forEach(io => {
+    if (!io.on) return;
+    const u = (S.time - io.t0) / io.dur;
+    io.s.visible = u >= 0 && u < 1.6;
+    if (u >= 1.6) { io.on = false; return; }
+    if (u < 0) return;
+    io.s.position.copy(io.a).lerp(io.b, Math.min(1, u)); io.s.material.opacity = u < 1 ? 1 : Math.max(0, 1.6 - u) / 0.6;
+  });
+}
+function frameSyn(dt) {
+  mito.rotation.y += dt * 0.2;
+  VES.forEach((v, i) => { if (!v.fire || SY.t < 0) v.g.position.y = v.home.y + Math.sin(S.time * 1.5 + i) * 0.03; });
+  if (SY.t < 0) return;
+  SY.t += dt; const t = SY.t;
+  if (t < 0.9) placeSpark(synSpark, SY.P, t / 0.9 * SY.P.len);
+  else synSpark.hide();
+  preRim.uniforms.intensity.value = t > 0.8 && t < 1.6 ? 2.4 : 1.15;
+  if (t >= 0.9 && t < 1.5) { setSynStep(1); VES.forEach(v => { if (v.fire) v.g.position.lerp(v.target, Math.min(1, dt * 5)); }); }
+  if (t >= 1.5 && SY.step < 2) {        // 融合、釋放
+    setSynStep(2); let k = 0;
+    VES.forEach(v => { if (!v.fire) return; for (let j = 0; j < 14 && k < NT.length; j++, k++) { const n = NT[k]; n.on = true; n.s.visible = true; n.s.material.opacity = 1; n.s.position.copy(v.target).add(V((rnd() - 0.5) * 0.25, -0.1, (rnd() - 0.5) * 0.25)); n.v.set((rnd() - 0.5) * 0.6, -(0.22 + rnd() * 0.3), (rnd() - 0.5) * 0.45); } });
+  }
+  if (t >= 1.5 && t < 1.8) VES.forEach(v => { if (v.fire) v.g.scale.setScalar(Math.max(0.01, 1 - (t - 1.5) / 0.3)); });
+  if (t >= 1.9 && SY.step < 3) setSynStep(3);
+  let bound = 0;
+  NT.forEach(n => {
+    if (!n.on) return;
+    if (n.bound) { bound++; n.s.position.copy(n.bound.top); return; }
+    n.v.x += (rnd() - 0.5) * dt * 2; n.v.z += (rnd() - 0.5) * dt * 2;
+    n.s.position.addScaledVector(n.v, dt);
+    const p = n.s.position;
+    if (p.y < -0.18) {
+      const r = REC.find(r => !r.used && Math.hypot(r.top.x - p.x, r.top.z - p.z) < 0.4);
+      if (r && !SY.clean) { r.used = true; n.bound = r; r.m.material.emissive.setHex(0x8a6cff); }
+      else { p.y = -0.18; n.v.y = Math.abs(n.v.y) * 0.6; }
+    }
+    if (p.y > 0.42) { p.y = 0.42; n.v.y = -Math.abs(n.v.y); }
+    if (Math.abs(p.x) > 1.5) n.v.x *= -1;
+    if (Math.abs(p.z) > 0.9) n.v.z *= -1;
+  });
+  // 和受體結合之後，下一個神經元才產生電訊號（時間以「開始結合」為準）
+  if (bound >= 3 && SY.step < 4) { setSynStep(4); SY.boundAt = t; }
+  const tb = SY.boundAt == null ? -1 : t - SY.boundAt;
+  if (tb >= 0.7 && SY.step < 5) { setSynStep(5); newSigLbl.on = true; }
+  if (tb >= 0.7 && tb < 2.4) {           // 新的電訊號沿下一個神經元傳出去
+    const u = (tb - 0.7) / 1.7; postWave.position.set(u * 3.4, -0.4, 0); postWave.material.opacity = 1 - u * 0.6; postRim.uniforms.intensity.value = 1.1 + (1 - u) * 1.4;
+  } else postWave.material.opacity = 0;
+  if (tb >= 1.8) {                       // 分解或回收
+    const c = tb - 1.8; SY.clean = true;
+    REC.forEach(r => { r.used = false; r.m.material.emissive.setHex(0x1a0f4a); });
+    NT.forEach(n => { if (!n.on) return; n.bound = null; n.s.material.opacity = Math.max(0, 1 - c / 1.2); if (c > 1.2) { n.on = false; n.s.visible = false; } });
+    VES.forEach(v => { if (v.fire) { v.g.position.lerp(v.home, Math.min(1, dt * 2)); v.g.scale.setScalar(Math.min(1, c / 1.2)); } });
+    if (c > 1.6) { SY.t = -1; VES.forEach(v => { v.fire = false; v.g.scale.setScalar(1); v.g.position.copy(v.home); }); }
+  }
+}
+function framePlant(dt) {
+  const target = S.light * Math.PI / 180 * 0.9;
+  if (S.growing > 0) { S.growing -= dt; S.bend += (target - S.bend) * Math.min(1, dt * 0.8); }
+  const wsum = SEG * (SEG + 1) / 2;
+  stemSegs.forEach((g, i) => { g.rotation.z = -S.bend * (i + 1) / wsum; });
+  const side = S.light > 0 ? -1 : 1, showA = $('showAuxin').checked && Math.abs(S.light) > 2;
+  auxin.forEach((a, i) => { a.visible = showA; a.position.x = side * 0.07; a.scale.setScalar(0.8 + 0.4 * Math.sin(S.time * 3 + i)); });
+  const la = S.light * Math.PI / 180, R = 4.3;
+  lamp.position.set(Math.sin(la) * R, -2.75 + Math.cos(la) * R, 0.6);
+  plantSun.position.copy(lamp.position);
+  const top = stemSegs[SEG - 1].getWorldPosition(tmpV).clone(), dir = top.clone().sub(lamp.position), len = dir.length();
+  beam.position.copy(lamp.position); beam.scale.set(1, len, 1); beam.quaternion.setFromUnitVectors(V(0, -1, 0), dir.normalize());
+  $('plantInfo').textContent = S.growing > 0 ? '生長中……' : `莖彎曲 ${Math.round(Math.abs(S.bend) * 180 / Math.PI)}°`;
+}
+function ui() {
+  if (S.rt && S.rt.phase === 'wait' && performance.now() >= S.rt.at) { S.rt.phase = 'go'; S.rt.at = performance.now(); rt.style.background = '#1f9d5a'; rt.textContent = '現在！點一下！'; }
+  rt.style.width = L.W + 'px'; rt.style.height = L.H + 'px';
+}
+function tap(x, y) {
+  const objs = PICK.filter(o => o.userData.mode === S.mode && o.visible);
+  const hit = L.pick(x, y, objs);
+  if (!hit) return;
+  let o = hit.object; while (o && !o.userData.info) o = o.parent;
+  if (o) $('info').innerHTML = `<b>${o.userData.info.name}</b>：${o.userData.info.txt}`;
+}
+
+window.nerve = { S, F, NU, SY, NT, REC, VES, ORG };   // 除錯／驗證用
+$('pathInfo').innerHTML = PATHS.reflex.info;
+renderSynSteps();
+setMode('path');
 </script>
 <script src="lesson.js" defer></script>
 </body>
