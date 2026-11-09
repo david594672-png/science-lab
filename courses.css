@@ -1,0 +1,188 @@
+/* =========================================================
+   課程區（courses.html）與課程頁（course.html）共用樣式
+   色彩沿用首頁的深色主題
+   ========================================================= */
+:root {
+  color-scheme: dark;
+  --bg: #0b1020; --surface: #141c34; --surface-2: #1a2342; --surface-3: #212b50;
+  --ink: #eef1fa; --ink-soft: #a3abc4; --ink-faint: #6f7895;
+  --line: rgba(255,255,255,.08); --line-2: rgba(255,255,255,.14);
+  --phy: #5b9cff; --chem: #ff6b6b; --bio: #4fd18b; --earth: #f5c451; --accent: #a58bff;
+  --cta: #ffa64d;
+  --ease: cubic-bezier(.22,.61,.36,1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+body {
+  background: radial-gradient(1100px 520px at 85% -10%, rgba(165,139,255,.13), transparent 60%),
+              radial-gradient(900px 500px at -10% 10%, rgba(91,156,255,.11), transparent 60%), var(--bg);
+  background-attachment: fixed; color: var(--ink); min-height: 100vh;
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  line-height: 1.7; letter-spacing: .02em; -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 8px; }
+
+/* ===== 導覽列與「課程區／互動實驗室」切換 ===== */
+.navbar { position: sticky; top: 0; z-index: 100; background: rgba(11,16,32,.75); backdrop-filter: saturate(160%) blur(14px); -webkit-backdrop-filter: saturate(160%) blur(14px); border-bottom: 1px solid var(--line); }
+.nav-inner { max-width: 1240px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.08rem; white-space: nowrap; }
+.brand-mark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, var(--phy), var(--accent)); box-shadow: 0 0 18px rgba(165,139,255,.45); }
+.brand-mark svg { width: 18px; height: 18px; color: #fff; }
+.area-switch { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+.area-switch a { display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 18px; border-radius: 999px; font-size: .92rem; color: var(--ink-soft); white-space: nowrap; transition: background .25s var(--ease), color .25s var(--ease); }
+.area-switch a svg { width: 17px; height: 17px; }
+.area-switch a:hover { color: var(--ink); }
+.area-switch a[aria-current="page"] { background: var(--ink); color: var(--bg); font-weight: 700; }
+
+main { max-width: 1240px; margin: 0 auto; padding: 0 24px 80px; }
+footer { text-align: center; color: var(--ink-faint); font-size: .82rem; padding: 0 24px 40px; }
+
+/* ===== 課程區橫幅 ===== */
+.banner { max-width: 1240px; margin: 28px auto 30px; padding: 0 24px; }
+.banner-inner {
+  position: relative; overflow: hidden; border-radius: 22px; padding: 34px 36px; min-height: 170px;
+  background: linear-gradient(120deg, #1d2a57 0%, #2a2160 55%, #1b3a52 100%); border: 1px solid var(--line-2);
+}
+.banner-inner::after { content: ""; position: absolute; inset: 0; background: radial-gradient(420px 220px at 88% 30%, rgba(255,166,77,.22), transparent 70%), radial-gradient(360px 200px at 60% 120%, rgba(79,209,139,.18), transparent 70%); pointer-events: none; }
+.banner h1 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); font-weight: 900; line-height: 1.3; }
+.banner p { color: var(--ink-soft); margin-top: 6px; max-width: 560px; }
+.banner .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; position: relative; z-index: 1; }
+.banner .stats span { padding: 6px 14px; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid var(--line-2); font-size: .86rem; }
+.banner .stats b { font-size: 1.05rem; margin-right: 4px; }
+.banner-art { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); display: flex; gap: 14px; z-index: 1; }
+.banner-art i { width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 22%, transparent); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); color: var(--c); }
+.banner-art i:nth-child(even) { transform: translateY(18px); }
+.banner-art svg { width: 30px; height: 30px; }
+
+/* ===== 篩選：學制 → 年級 → 科目 ===== */
+.page-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; color: var(--ink-soft); }
+.stage-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.stage-tab { min-width: 120px; min-height: 48px; padding: 0 22px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--surface); cursor: pointer; font-weight: 600; color: var(--ink-soft); transition: all .2s var(--ease); }
+.stage-tab:hover { color: var(--ink); border-color: rgba(255,255,255,.3); }
+.stage-tab[aria-selected="true"] { background: var(--phy); border-color: var(--phy); color: #08122a; box-shadow: 0 8px 22px rgba(91,156,255,.3); }
+.filter-box { border-radius: 14px; border: 1px solid var(--line); background: var(--surface); overflow: hidden; margin-bottom: 26px; }
+.grade-tabs { display: flex; flex-wrap: wrap; background: rgba(255,255,255,.03); border-bottom: 1px solid var(--line); }
+.grade-tab { min-height: 46px; padding: 0 24px; border: 0; background: transparent; cursor: pointer; color: var(--ink-soft); position: relative; }
+.grade-tab + .grade-tab::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 1px; background: var(--line-2); }
+.grade-tab:hover { color: var(--ink); }
+.grade-tab[aria-selected="true"] { color: var(--ink); font-weight: 700; background: var(--surface-2); box-shadow: inset 0 -3px 0 var(--phy); }
+.subject-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 12px 18px; font-size: .92rem; }
+.subject-row > span { color: var(--ink-faint); }
+.subject-row label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; min-height: 36px; }
+.subject-row input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--line-2); display: grid; place-items: center; cursor: pointer; transition: all .15s; }
+.subject-row input:checked { background: var(--c); border-color: var(--c); }
+.subject-row input:checked::after { content: ""; width: 5px; height: 10px; border: solid #0b1020; border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+.subject-row label i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.result-count { margin-left: auto; color: var(--ink-faint); font-size: .85rem; }
+
+/* ===== 課程卡 ===== */
+.course-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 22px; }
+.course-card { display: flex; flex-direction: column; border-radius: 18px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); transition: transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease); }
+.course-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--c) 45%, transparent); box-shadow: 0 16px 36px rgba(0,0,0,.35); }
+.cover { position: relative; aspect-ratio: 16 / 9; overflow: hidden; padding: 16px 18px; display: flex; flex-direction: column; justify-content: flex-end; background: var(--cover); }
+.cover::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 85% 20%, rgba(255,255,255,.25), transparent 45%), linear-gradient(180deg, transparent 40%, rgba(0,0,0,.35)); }
+.cover .art { position: absolute; right: -14px; top: -10px; width: 52%; color: rgba(255,255,255,.28); }
+.cover .grade { position: absolute; left: 14px; top: 14px; padding: 3px 12px; border-radius: 999px; background: rgba(8,12,28,.55); font-size: .78rem; font-weight: 700; backdrop-filter: blur(6px); }
+.cover .big { position: relative; font-size: 1.5rem; font-weight: 900; line-height: 1.25; text-shadow: 0 2px 12px rgba(0,0,0,.35); color: #fff; }
+.cover .sub { position: relative; font-size: .82rem; color: rgba(255,255,255,.85); }
+.info { padding: 14px 18px 4px; flex: 1; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.tag { font-size: .72rem; padding: 2px 9px; border-radius: 6px; background: rgba(255,255,255,.08); color: var(--ink-soft); }
+.tag.subj { background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); font-weight: 700; }
+.info h3 { font-size: 1.05rem; font-weight: 700; line-height: 1.45; }
+.meta { font-size: .84rem; color: var(--ink-soft); margin-top: 4px; }
+.meta b { color: var(--cta); }
+.bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.07); margin: 10px 0 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 60%, #fff)); }
+.bar-cap { font-size: .74rem; color: var(--ink-faint); }
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px 18px 18px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; padding: 0 10px; border-radius: 10px; font-size: .88rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--cta); color: var(--cta); background: transparent; white-space: nowrap; transition: background .2s, color .2s, transform .1s; }
+.btn:hover { background: rgba(255,166,77,.12); }
+.btn:active { transform: scale(.97); }
+.btn.solid { background: var(--cta); color: #1d1205; }
+.btn.solid:hover { background: #ffb870; }
+.btn.lab { border-color: color-mix(in srgb, var(--c) 70%, transparent); color: var(--c); }
+.btn.lab:hover { background: color-mix(in srgb, var(--c) 14%, transparent); }
+.btn svg { width: 15px; height: 15px; }
+.empty { padding: 50px 20px; text-align: center; color: var(--ink-faint); border: 1px dashed var(--line-2); border-radius: 16px; }
+
+/* ===== 課程介紹彈窗 ===== */
+dialog.intro { margin: auto; width: min(640px, calc(100vw - 32px)); max-height: min(84vh, 760px); border: 1px solid var(--line-2); border-radius: 20px; background: var(--surface); color: var(--ink); padding: 0; overflow: hidden; }
+dialog.intro::backdrop { background: rgba(4,7,18,.65); backdrop-filter: blur(4px); }
+.intro-head { padding: 22px 24px 16px; background: var(--cover); position: relative; }
+.intro-head h2 { font-size: 1.35rem; font-weight: 900; color: #fff; }
+.intro-head p { color: rgba(255,255,255,.88); font-size: .9rem; }
+.intro-close { position: absolute; right: 14px; top: 14px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(0,0,0,.3); color: #fff; cursor: pointer; font-size: 1.2rem; }
+.intro-body { padding: 16px 24px; overflow-y: auto; max-height: calc(min(84vh, 760px) - 190px); }
+.intro-body ol { list-style: none; counter-reset: ch; }
+.intro-body li { counter-increment: ch; padding: 9px 0; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: baseline; }
+.intro-body li::before { content: counter(ch, decimal-leading-zero); color: var(--c); font-weight: 700; font-size: .85rem; min-width: 22px; }
+.intro-body li span { flex: 1; }
+.intro-body li small { color: var(--ink-faint); font-size: .78rem; white-space: nowrap; }
+.intro-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 24px 20px; border-top: 1px solid var(--line); }
+.intro-foot .btn { min-width: 120px; }
+
+/* ===== 課程頁 ===== */
+.crumbs { max-width: 1240px; margin: 20px auto 0; padding: 0 24px; font-size: .85rem; color: var(--ink-faint); }
+.crumbs a { color: var(--ink-soft); }
+.crumbs a:hover { color: var(--ink); }
+.c-hero { max-width: 1240px; margin: 14px auto 26px; padding: 0 24px; }
+.c-hero-inner { display: grid; grid-template-columns: 320px 1fr; gap: 26px; align-items: center; padding: 22px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); }
+.c-hero .cover { border-radius: 14px; }
+.c-hero h1 { font-size: clamp(1.4rem, 3vw, 1.9rem); font-weight: 900; line-height: 1.3; }
+.c-hero p { color: var(--ink-soft); margin-top: 4px; }
+.c-hero .stats { display: flex; flex-wrap: wrap; gap: 18px; margin: 14px 0; }
+.c-hero .stats div { font-size: .82rem; color: var(--ink-faint); }
+.c-hero .stats b { display: block; font-size: 1.35rem; color: var(--ink); line-height: 1.2; }
+.c-hero .row { display: flex; flex-wrap: wrap; gap: 10px; }
+.c-hero .row .btn { min-width: 130px; }
+.layout { display: grid; grid-template-columns: 250px 1fr; gap: 26px; align-items: start; }
+.toc { position: sticky; top: 84px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); padding: 10px; max-height: calc(100vh - 110px); overflow-y: auto; }
+.toc a { display: flex; gap: 10px; align-items: baseline; padding: 9px 10px; border-radius: 10px; font-size: .88rem; color: var(--ink-soft); }
+.toc a:hover { background: rgba(255,255,255,.05); color: var(--ink); }
+.toc a.on { background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--ink); }
+.toc a b { color: var(--c); font-size: .78rem; min-width: 22px; }
+.toc a span { flex: 1; }
+.toc a small { color: var(--ink-faint); font-size: .72rem; }
+.chapter { border-radius: 18px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 18px; overflow: hidden; scroll-margin-top: 84px; }
+.chapter-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: rgba(255,255,255,.03); border-bottom: 1px solid var(--line); }
+.chapter-head .num { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 900; font-size: .9rem; background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--c); flex: none; }
+.chapter-head h2 { font-size: 1.05rem; font-weight: 700; flex: 1; }
+.chapter-head small { color: var(--ink-faint); font-size: .8rem; }
+.lesson { display: grid; grid-template-columns: 54px 1fr auto; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--line); align-items: start; }
+.lesson:last-child { border-bottom: 0; }
+.lesson .no { font-weight: 700; color: var(--c); font-size: .9rem; padding-top: 2px; }
+.lesson h3 { font-size: 1rem; font-weight: 600; }
+.lesson .goals { list-style: none; margin-top: 6px; display: grid; gap: 3px; }
+.lesson .goals li { font-size: .84rem; color: var(--ink-soft); padding-left: 18px; position: relative; }
+.lesson .goals li::before { content: ""; position: absolute; left: 3px; top: .7em; width: 7px; height: 7px; border-radius: 2px; background: var(--c); opacity: .7; }
+.lesson .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { font-size: .74rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--ink-faint); }
+.chip.ok { border-color: color-mix(in srgb, var(--c) 50%, transparent); color: var(--c); }
+.lesson .go { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 132px; }
+.lesson .go .btn { min-height: 40px; font-size: .84rem; }
+.lesson .go .soon { min-height: 40px; display: grid; place-items: center; border-radius: 10px; border: 1.5px dashed var(--line-2); color: var(--ink-faint); font-size: .8rem; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .toc { position: static; max-height: none; display: flex; gap: 6px; overflow-x: auto; padding: 6px; }
+  .toc a { white-space: nowrap; flex: none; }
+  .toc a small { display: none; }
+  .c-hero-inner { grid-template-columns: 1fr; }
+  .c-hero .cover { max-width: 420px; }
+  .banner-art { display: none; }
+}
+@media (max-width: 640px) {
+  .nav-inner { padding: 10px 16px; flex-wrap: wrap; }
+  .brand span.txt { display: none; }
+  main, .banner, .c-hero, .crumbs { padding-left: 16px; padding-right: 16px; }
+  .area-switch a { padding: 0 12px; }
+  .lesson { grid-template-columns: 40px 1fr; }
+  .lesson .go { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+  .lesson .go > * { flex: 1; }
+  .actions { grid-template-columns: 1fr 1fr; }
+  .actions .btn:first-child { grid-column: 1 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } html { scroll-behavior: auto; } }

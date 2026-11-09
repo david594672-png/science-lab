@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1020">
+<title>課程區 · 自然科互動動畫實驗室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="courses.css">
+</head>
+<body>
+
+<header class="navbar">
+  <div class="nav-inner">
+    <a class="brand" href="courses.html">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg></span>
+      <span class="txt">自然科互動動畫實驗室</span>
+    </a>
+    <nav class="area-switch" aria-label="切換區域">
+      <a href="courses.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 7h6"/></svg>課程區</a>
+      <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg>互動實驗室</a>
+    </nav>
+  </div>
+</header>
+
+<section class="banner">
+  <div class="banner-inner">
+    <h1>國中・高中自然　線上課程</h1>
+    <p>依課本章節一課一課學：每個單元有學習目標，搭配可以親手操作的互動實驗。</p>
+    <div class="stats" id="stats"></div>
+    <div class="banner-art" id="bannerArt" aria-hidden="true"></div>
+  </div>
+</section>
+
+<main>
+  <h2 class="page-title">課程列表</h2>
+  <div class="stage-tabs" role="tablist" aria-label="學制">
+    <button class="stage-tab" role="tab" data-stage="jh">國中課程</button>
+    <button class="stage-tab" role="tab" data-stage="sh">高中課程</button>
+  </div>
+  <div class="filter-box">
+    <div class="grade-tabs" id="gradeTabs" role="tablist" aria-label="年級"></div>
+    <div class="subject-row" id="subjects"></div>
+  </div>
+  <div class="course-grid" id="grid"></div>
+</main>
+
+<dialog class="intro" id="intro" aria-labelledby="introTitle"></dialog>
+
+<footer>國中依 108 課綱章節編排 · 高中依課本目錄編排</footer>
+
+<script src="curriculum.js"></script>
+<script src="courses-ui.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const GRADES = { jh: ['g7', 'g8', 'g9'], sh: ['h10', 'h11', 'h12'] };
+  // 狀態寫在網址 #：#sh&h10&phy,chem（科目留空 = 全部）
+  const S = { stage: 'jh', grade: 'all', subj: new Set() };
+
+  // 橫幅數字與圖示
+  const units = COURSE_LIST.reduce((t, c) => t + allUnits(c).length, 0);
+  const labs = new Set(COURSE_LIST.flatMap(c => allUnits(c).filter(u => u.url).map(u => u.url.split('#')[0]))).size;
+  $('stats').innerHTML = `<span><b>${COURSE_LIST.length}</b>門課程</span><span><b>${units}</b>個單元</span><span><b>${labs}</b>個互動實驗</span>`;
+  $('bannerArt').innerHTML = ['phy', 'chem', 'bio', 'earth'].map(k => `<i style="--c:${SUBJECTS[k].color}">${SUBJECTS[k].art}</i>`).join('');
+
+  function readHash() {
+    const [stage, grade, subj] = decodeURIComponent(location.hash.slice(1)).split('&');
+    if (stage === 'jh' || stage === 'sh') S.stage = stage;
+    S.grade = GRADES[S.stage].includes(grade) ? grade : 'all';
+    S.subj = new Set((subj || '').split(',').filter(k => SUBJECTS[k]));
+  }
+  function writeHash() {
+    try { history.replaceState(null, '', `#${S.stage}&${S.grade}&${[...S.subj].join(',')}`); } catch (e) { /* file:// */ }
+  }
+
+  function renderFilters() {
+    document.querySelectorAll('.stage-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.stage === S.stage)));
+    $('gradeTabs').innerHTML = ['all', ...GRADES[S.stage]].map(g =>
+      `<button class="grade-tab" role="tab" data-g="${g}" aria-selected="${g === S.grade}">${g === 'all' ? '全部年級' : GRADE_NAME[g]}</button>`).join('');
+    // 只列出這個學制有開的科目
+    const have = [...new Set(COURSE_LIST.filter(c => c.stage === S.stage).flatMap(c => c.subjects))];
+    const order = ['phy', 'chem', 'bio', 'earth'].filter(k => have.includes(k));
+    $('subjects').innerHTML = '<span>科目：</span>' + order.map(k =>
+      `<label style="--c:${SUBJECTS[k].color}"><input type="checkbox" value="${k}" ${S.subj.has(k) ? 'checked' : ''}><i></i>${SUBJECTS[k].name}</label>`).join('') +
+      '<span class="result-count" id="count"></span>';
+  }
+
+  function card(c) {
+    const n = allUnits(c).length, k = labCount(c), pct = Math.round(k / n * 100);
+    return `<article class="course-card" style="--c:${mainColor(c)}">
+      ${coverHTML(c)}
+      <div class="info">
+        <div class="tags">${c.subjects.map(s => `<span class="tag subj" style="--c:${SUBJECTS[s].color}">${SUBJECTS[s].name}</span>`).join('')}<span class="tag">${c.stage === 'jh' ? '108 課綱' : '課本章節'}</span></div>
+        <h3>${esc(courseTitle(c))}</h3>
+        <p class="meta">${c.chapters.length} 章 · ${n} 個單元 · <b>${k} 個互動實驗</b></p>
+        <div class="bar" aria-hidden="true"><i style="width:${pct}%"></i></div>
+        <span class="bar-cap">互動實驗完成度 ${pct}%</span>
+      </div>
+      <div class="actions">
+        <button class="btn" data-intro="${c.id}">課程介紹</button>
+        <a class="btn solid" href="${courseHref(c)}">開始上課</a>
+        <a class="btn lab" href="${labHref(c)}">${PLAY}互動實驗</a>
+      </div>
+    </article>`;
+  }
+
+  function renderGrid() {
+    const list = COURSE_LIST.filter(c => c.stage === S.stage && (S.grade === 'all' || c.grade === S.grade) &&
+      (!S.subj.size || c.subjects.some(s => S.subj.has(s))));
+    $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="empty">這個條件下還沒有課程，換個年級或科目看看。</div>';
+    $('count').textContent = `共 ${list.length} 門課程`;
+  }
+  const render = () => { renderFilters(); renderGrid(); writeHash(); };
+
+  // 課程介紹：章節大綱
+  function openIntro(c) {
+    const dlg = $('intro');
+    dlg.style.setProperty('--c', mainColor(c));
+    dlg.innerHTML = `
+      <div class="intro-head" style="--cover:${coverBg(c)}">
+        <button class="intro-close" aria-label="關閉">✕</button>
+        <h2 id="introTitle">${esc(courseTitle(c))}</h2>
+        <p>${esc(c.desc)}</p>
+      </div>
+      <div class="intro-body">
+        <ol>${c.chapters.map(ch => {
+          const k = ch.units.filter(u => u.url).length;
+          return `<li><span>${esc(ch.title)}${ch.units.length > 1 ? `<br><small style="white-space:normal">${ch.units.map(u => esc(u.no + ' ' + u.title)).join('、')}</small>` : ''}</span><small>${k ? `▶ ${k} 個實驗` : '製作中'}</small></li>`;
+        }).join('')}</ol>
+      </div>
+      <div class="intro-foot"><a class="btn lab" href="${labHref(c)}">${PLAY}互動實驗</a><a class="btn solid" href="${courseHref(c)}">開始上課</a></div>`;
+    dlg.showModal();
+  }
+
+  document.querySelector('.stage-tabs').addEventListener('click', e => {
+    const b = e.target.closest('.stage-tab'); if (!b || b.dataset.stage === S.stage) return;
+    S.stage = b.dataset.stage; S.grade = 'all'; S.subj.clear(); render();
+  });
+  $('gradeTabs').addEventListener('click', e => {
+    const b = e.target.closest('.grade-tab'); if (!b) return;
+    S.grade = b.dataset.g; render();
+  });
+  $('subjects').addEventListener('change', e => {
+    const k = e.target.value; e.target.checked ? S.subj.add(k) : S.subj.delete(k);
+    renderGrid(); writeHash();
+  });
+  $('grid').addEventListener('click', e => {
+    const b = e.target.closest('[data-intro]'); if (b) openIntro(COURSE_LIST.find(c => c.id === b.dataset.intro));
+  });
+  $('intro').addEventListener('click', e => {
+    if (e.target.closest('.intro-close') || e.target === $('intro')) $('intro').close();
+  });
+  addEventListener('hashchange', () => { readHash(); render(); });
+
+  readHash(); render();
+})();
+</script>
+</body>
+</html>

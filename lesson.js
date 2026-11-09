@@ -554,6 +554,10 @@
     myths: [...LESSONS['moon-phases.html'].myths, ...LESSONS['daily-motion.html'].myths]
   };
 
+  // 課程頁（course.html）只借用學習目標資料，不顯示按鈕
+  window.LAB_LESSONS = LESSONS;
+  if (document.currentScript && document.currentScript.dataset.dataOnly != null) return;
+
   /* ===== 樣式（lx- 前綴，避免和各頁原本的樣式衝突） ===== */
   const css = `
   .lx-fab { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; gap: 8px; }

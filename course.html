@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1020">
+<title>課程 · 自然科互動動畫實驗室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="courses.css">
+</head>
+<body>
+
+<header class="navbar">
+  <div class="nav-inner">
+    <a class="brand" href="courses.html">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg></span>
+      <span class="txt">自然科互動動畫實驗室</span>
+    </a>
+    <nav class="area-switch" aria-label="切換區域">
+      <a href="courses.html" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 7h6"/></svg>課程區</a>
+      <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/></svg>互動實驗室</a>
+    </nav>
+  </div>
+</header>
+
+<nav class="crumbs" id="crumbs" aria-label="目前位置"></nav>
+<section class="c-hero" id="hero"></section>
+<main>
+  <div class="layout">
+    <aside class="toc" id="toc" aria-label="章節"></aside>
+    <div id="chapters"></div>
+  </div>
+</main>
+<footer>國中依 108 課綱章節編排 · 高中依課本目錄編排</footer>
+
+<script src="curriculum.js"></script>
+<script src="courses-ui.js"></script>
+<script src="lesson.js" data-data-only></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const id = new URLSearchParams(location.search).get('id');
+  const c = COURSE_LIST.find(x => x.id === id);
+  if (!c) { location.replace('courses.html'); return; }
+  const LES = window.LAB_LESSONS || {};
+  const lessonOf = url => url && (LES[url] || LES[url.split('#')[0]]);
+  const stage = c.stage === 'jh' ? '國中課程' : '高中課程';
+
+  document.title = `${courseTitle(c)} · 課程區`;
+  document.body.style.setProperty('--c', mainColor(c));
+  $('crumbs').innerHTML = `<a href="courses.html">課程區</a> ／ <a href="courses.html#${c.stage}&all&">${stage}</a> ／ <a href="courses.html#${c.stage}&${c.grade}&">${c.gradeName}</a> ／ ${esc(c.name)}`;
+
+  const n = allUnits(c).length, k = labCount(c);
+  const tasks = allUnits(c).reduce((t, u) => t + ((lessonOf(u.url) || {}).tasks || []).length, 0);
+  const first = allUnits(c).find(u => u.url);
+  $('hero').innerHTML = `<div class="c-hero-inner" style="--c:${mainColor(c)}">
+    ${coverHTML(c)}
+    <div>
+      <div class="tags">${c.subjects.map(s => `<span class="tag subj" style="--c:${SUBJECTS[s].color}">${SUBJECTS[s].name}</span>`).join('')}<span class="tag">${stage}</span></div>
+      <h1>${esc(courseTitle(c))}</h1>
+      <p>${esc(c.desc)}</p>
+      <div class="stats">
+        <div><b>${c.chapters.length}</b>章</div><div><b>${n}</b>個單元</div><div><b>${k}</b>個互動實驗</div><div><b>${tasks}</b>個探究任務</div>
+      </div>
+      <div class="row">
+        ${first ? `<a class="btn solid" href="${esc(first.url)}">${PLAY}從第一個實驗開始</a>` : ''}
+        <a class="btn lab" href="${labHref(c)}">到互動實驗室</a>
+      </div>
+    </div>
+  </div>`;
+
+  const multi = c.chapters.some(ch => ch.units.length > 1);   // 高中：章底下有好幾節
+  $('toc').innerHTML = c.chapters.map((ch, i) =>
+    `<a href="#ch${i}" data-i="${i}"><b>${String(i + 1).padStart(2, '0')}</b><span>${esc(ch.title)}</span><small>${ch.units.filter(u => u.url).length ? '▶' : ''}</small></a>`).join('');
+
+  const lessonRow = u => {
+    const L = lessonOf(u.url), s = SUBJECTS[u.subject];
+    const goals = L ? `<ul class="goals">${L.goals.map(g => `<li>${esc(g)}</li>`).join('')}</ul>` : '';
+    const chips = [
+      u.url ? '<span class="chip ok">互動實驗</span>' : '<span class="chip">實驗製作中</span>',
+      L ? `<span class="chip ok">探究任務 ${L.tasks.length}</span>` : '',
+      L && L.myths && L.myths.length ? `<span class="chip ok">常見迷思 ${L.myths.length}</span>` : ''
+    ].join('');
+    const more = (u.more || []).map(m => `<a class="btn lab" href="${esc(m.url)}">${PLAY}${esc(m.label)}</a>`).join('');
+    return `<div class="lesson" style="--c:${s.color}">
+      <span class="no">${esc(u.no)}</span>
+      <div><h3>${esc(u.title)}</h3>${goals}<div class="chips">${chips}</div></div>
+      <div class="go">${u.url ? `<a class="btn solid" href="${esc(u.url)}">${PLAY}進入實驗</a>${more}` : '<span class="soon">製作中</span>'}</div>
+    </div>`;
+  };
+  $('chapters').innerHTML = c.chapters.map((ch, i) => `
+    <section class="chapter" id="ch${i}" style="--c:${SUBJECTS[ch.units[0].subject].color}">
+      <div class="chapter-head"><span class="num">${i + 1}</span><h2>${multi ? `第 ${i + 1} 章　` : ''}${esc(ch.title)}</h2><small>${ch.units.length} 個單元</small></div>
+      ${ch.units.map(lessonRow).join('')}
+    </section>`).join('');
+
+  // 目錄跟著捲動標示目前章節
+  const links = [...document.querySelectorAll('.toc a')];
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) links.forEach(a => a.classList.toggle('on', a.dataset.i === e.target.id.slice(2)));
+    }), { rootMargin: '-90px 0px -60% 0px' });
+    document.querySelectorAll('.chapter').forEach(s => io.observe(s));
+  }
+})();
+</script>
+</body>
+</html>
