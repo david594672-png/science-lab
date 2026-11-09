@@ -66,8 +66,14 @@
           <button data-k="convex" aria-pressed="true">凸透鏡</button>
           <button data-k="concave" aria-pressed="false">凹透鏡</button>
         </div>
-        <div class="ctrl" style="margin-top:8px"><label for="lf">焦距 <output id="lfVal"></output></label><input type="range" id="lf" min="60" max="160" step="5" value="100"></div>
-        <p class="note">在畫面上<b>左右拖動物體（箭頭）</b>改變物距。</p>
+        <div class="ctrl" style="margin-top:8px"><label for="lo">物距（物體到透鏡）<output id="loVal"></output></label><input type="range" id="lo" min="2" max="40" step="0.5" value="26"></div>
+        <div class="chips" style="--n:4" id="loPre">
+          <button class="btn" data-d="30">2F 外</button>
+          <button class="btn" data-d="20">2F 上</button>
+          <button class="btn" data-d="15">F～2F</button>
+          <button class="btn" data-d="6">F 內</button>
+        </div>
+        <p class="note">焦距固定 <b>f = 10 cm</b>。拉桿或<b>直接拖動物體（箭頭）</b>改變物距，看像的位置、大小怎麼變。</p>
         <dl class="live" style="margin-top:8px">
           <dt>物距</dt><dd id="do">—</dd><dt>像距</dt><dd id="di">—</dd><dt>像的性質</dt><dd id="kind">—</dd>
         </dl>
@@ -83,6 +89,7 @@
 (() => {
   const $ = Lab.$;
   const MED = { air: [30, '空氣'], water: [22.5, '水'], glass: [20, '玻璃'], diamond: [12.4, '鑽石'] };
+  const CM = 10;                                   // 透鏡畫面：10 像素代表 1 cm（焦距 10 cm）
   const S = { mode: 'pinhole', pObj: 200, pScr: 150, pHole: 3, rAng: 40, rObj: null, med: 'water', fAng: 45, fDir: 'down', lens: 'convex', f: 100, obj: 260, drag: null, t: 0 };
   const LIGHT = '#ffd34d', D2R = Math.PI / 180;
   let W = 600, H = 400;
@@ -204,8 +211,9 @@
     if (f > 0) { ctx.ellipse(lx, ay, 14, 150, 0, 0, Math.PI * 2); }
     else { ctx.moveTo(lx - 16, ay - 150); ctx.quadraticCurveTo(lx - 2, ay, lx - 16, ay + 150); ctx.lineTo(lx + 16, ay + 150); ctx.quadraticCurveTo(lx + 2, ay, lx + 16, ay - 150); ctx.closePath(); }
     ctx.fill(); ctx.stroke();
-    [-1, 1].forEach(s => { [1, 2].forEach(m => { const x = lx + s * m * S.f; Lab.circle(x, ay, 4, '#ffd34d'); Lab.text(m === 1 ? 'F' : '2F', x, ay + 18, '#ffd34d', 13); }); });
+    [-1, 1].forEach(s => { [1, 2].forEach(m => { const x = lx + s * m * S.f; Lab.circle(x, ay, 4, '#ffd34d'); Lab.text(m === 1 ? 'F' : '2F', x, ay + 18, '#ffd34d', 13); Lab.text(`${m * 10} cm`, x, ay + 34, 'rgba(255,211,77,.6)', 11); }); });
     // 物體
+    if (S.obj > lx - 20) setObj((lx - 20) / CM);          // 畫面變窄時，物體不能跑出畫面
     const dO = S.obj, ox = lx - dO, oh = 70;
     arrowObj(ox, ay, oh, '#ff8a5c');
     const top = [ox, ay - oh];
@@ -240,8 +248,8 @@
       Lab.text(real ? '實像' : '虛像', ix, ay + (ihh > 0 ? 22 : -22) * -1 + (ihh > 0 ? 20 : -20) + (ihh > 0 ? 0 : 0), '#9fd8ff', 13);
       kind = `${real ? '<b>實像</b>' : '<b>虛像</b>'}、${m < 0 ? '倒立' : '正立'}、${Math.abs(m) > 1.02 ? '放大' : Math.abs(m) < 0.98 ? '縮小' : '等大'}（${Math.abs(m).toFixed(2)} 倍）`;
     }
-    $('do').textContent = (dO / S.f).toFixed(2) + ' f';
-    $('di').textContent = invalid ? '無限遠' : (Math.abs(di) / S.f).toFixed(2) + ' f' + (di < 0 ? '（和物體同側）' : '');
+    $('do').textContent = `${(dO / CM).toFixed(1)} cm（${(dO / S.f).toFixed(2)} f）`;
+    $('di').textContent = invalid ? '無限遠' : `${(Math.abs(di) / CM).toFixed(1)} cm（${(Math.abs(di) / S.f).toFixed(2)} f）` + (di < 0 ? '，和物體同側' : '');
     $('kind').innerHTML = kind;
     $('info').innerHTML = f > 0
       ? '<b>凸透鏡</b>：平行主軸的光線折射後<b>經過焦點</b>，經過光心的光線直進。物體在焦點外成<b>倒立實像</b>（可投影在屏幕上，例：投影機、相機）；在焦點內成<b>正立放大虛像</b>（例：放大鏡）。'
@@ -260,7 +268,7 @@
       return false;
     },
     move(x, y) {
-      if (S.drag === 'obj') S.obj = Math.max(20, Math.min(S.lensGeom.lx - 20, S.lensGeom.lx - x));
+      if (S.drag === 'obj') setObj(Math.max(20, Math.min(S.lensGeom.lx - 20, S.lensGeom.lx - x)) / CM);
       if (S.drag === 'r') S.rObj = [Math.max(40, Math.min(W - 40, x)), Math.max(60, Math.min(H * 0.62 - 50, y))];
     },
     up() { S.drag = null; }
@@ -273,13 +281,22 @@
   Lab.bindSlider('pHole', v => (S.pHole = v), v => v + ' mm');
   Lab.bindSlider('rAng', v => (S.rAng = v), v => v + '°');
   Lab.bindSlider('fAng', v => (S.fAng = v), v => v + '°');
-  Lab.bindSlider('lf', v => (S.f = v), v => v + ' 單位');
+  // 物距：拉桿、快速按鈕、拖動物體三種方式，互相同步
+  const loEl = $('lo');
+  function setObj(cm) {
+    const max = S.lensGeom ? (S.lensGeom.lx - 20) / CM : 40;
+    cm = Math.max(2, Math.min(max, Math.round(cm * 2) / 2));
+    S.obj = cm * CM; loEl.value = cm; Lab.paint(loEl); $('loVal').textContent = cm.toFixed(1) + ' cm';
+  }
+  loEl.addEventListener('input', () => setObj(+loEl.value));
+  document.getElementById('loPre').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b) setObj(+b.dataset.d); });
+  setObj(26);
   Lab.bindGroup('#media .btn', k => (S.med = k));
   Lab.bindGroup('#fDir button', k => (S.fDir = k));
   Lab.bindGroup('#lensType button', k => (S.lens = k));
   const MODES = ['pinhole', 'reflect', 'refract', 'lens'];
+  const hash = location.hash.slice(1);          // 先記下網址的 #，綁定按鈕時會被改掉
   Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); history.replaceState(null, '', '#' + k); });
-  const hash = location.hash.slice(1);
   if (MODES.includes(hash)) document.querySelector(`.mode[data-k="${hash}"]`).click();
   window.opticsSim = S;
 })();
