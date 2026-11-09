@@ -126,9 +126,12 @@
       const pct = 100 / S.n, ppm = 1e6 / S.n, cy = h / 2 - 60;
       Lab.glass(ix, cy - 50, iw, 230, 16);
       Lab.text('濃度 ＝', ix + 20, cy, '#eef1fa', 18, 'left', 'bold');
-      Lab.text('1', ix + 140, cy - 18, '#ff8fb8', 22, 'center', 'bold');
-      Lab.line(ix + 100, cy, ix + 180, cy, '#eef1fa', 2);
-      Lab.text(fmt(S.n), ix + 140, cy + 20, '#c58bff', 18, 'center', 'bold');
+      // 分數線以分母的寬度為準，左右各多 10 px
+      ctx.font = `bold 18px ${Lab.FONT}`;
+      const half = ctx.measureText(fmt(S.n)).width / 2 + 10, fx = ix + 105 + half;
+      Lab.text('1', fx, cy - 18, '#ff8fb8', 22, 'center', 'bold');
+      Lab.line(fx - half, cy, fx + half, cy, '#eef1fa', 2);
+      Lab.text(fmt(S.n), fx, cy + 20, '#c58bff', 18, 'center', 'bold');
       Lab.text(`＝ ${pct >= 0.01 ? pct : pct.toFixed(4)} %`, ix + 20, cy + 70, '#eef1fa', 18, 'left', 'bold');
       Lab.text(`＝ ${fmt(ppm)} ppm`, ix + 20, cy + 110, '#ffd166', 22, 'left', 'bold');
       Lab.text(S.n === 1000000 ? '百萬分之一，就是 1 ppm！' : '再多 100 倍的粒子試試看 →', ix + 20, cy + 150, 'rgba(238,241,250,.7)', 14, 'left');
