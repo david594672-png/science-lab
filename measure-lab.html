@@ -14,11 +14,60 @@
   .answer input { min-width: 0; width: 100%; }
   .answer .btn { flex: none; white-space: nowrap; min-width: 72px; }
   .sure { color: #4fd18b; } .est { color: #ffa64d; }
+  .ideas { position: absolute; z-index: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .ideas[hidden] { display: none; }
+  .idea { pointer-events: auto; border-radius: 14px; padding: 12px 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-top: 3px solid var(--c); }
+  .idea.wide { grid-column: 1 / -1; }
+  .idea h3 { font-size: .98rem; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; color: #fff; }
+  .idea h3 i { font-style: normal; width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; font-size: .8rem; background: var(--c); color: #0b1020; flex: none; }
+  .idea p { margin: 0; font-size: .88rem; line-height: 1.65; color: rgba(238,241,250,.82); }
   .big-read { font-size: 1.35rem; font-weight: 800; letter-spacing: .04em; }
 </style>
 </head>
 <body>
 <canvas id="cv" aria-label="用直尺量長度、用量筒量體積的模擬"></canvas>
+
+<!-- 畫面空白處的觀念卡（位置由程式跟著畫面排） -->
+<section class="ideas" id="ideasLen" aria-label="觀念說明：長度">
+  <div class="idea" style="--c:#4fd18b">
+    <h3><i>1</i>準確值：尺上「看得到」的</h3>
+    <p>看筆尖<b>已經超過</b>哪一條刻度線。<br>例：筆尖過了 <b>8.4</b>、還沒到 8.5 → 準確值是 <b class="sure">8.4</b>。</p>
+  </div>
+  <div class="idea" style="--c:#ffa64d">
+    <h3><i>2</i>估計值：用眼睛「猜」的</h3>
+    <p>把兩條線中間想成切成 <b>10 小份</b>，筆尖大約在第幾份？<br>大約第 6 份 → 估計值是 <b class="est">6</b>。<b>只能猜一位！</b></p>
+  </div>
+  <div class="idea" style="--c:#5fa2ff">
+    <h3><i>3</i>合起來，再加單位</h3>
+    <p><b class="sure">8.4</b> ＋ <b class="est">6</b> → <b>8.46 cm</b><br>剛好對在線上也要寫 0：<b>8.40 cm</b>（0 不能省）。</p>
+  </div>
+  <div class="idea" style="--c:#c58bff">
+    <h3><i>?</i>為什麼大家答案不太一樣？</h3>
+    <p>最後一位是「猜」的，8.45、8.47 都合理。<br>所以要<b>多量幾次、取平均</b>，結果會更可靠。</p>
+  </div>
+  <div class="idea wide" style="--c:#9fc4ff">
+    <h3><i>📏</i>尺越精細，寫的位數越多</h3>
+    <p>最小刻度 <b>1 cm</b> 的尺 → 記到 0.1 cm（例：8.5 cm）　｜　最小刻度 <b>1 mm</b> 的尺 → 記到 0.01 cm（例：8.46 cm）</p>
+  </div>
+</section>
+<section class="ideas" id="ideasVol" aria-label="觀念說明：體積" hidden>
+  <div class="idea" style="--c:#4fd18b">
+    <h3><i>👀</i>眼睛要平視</h3>
+    <p>眼睛和水面<b>一樣高</b>，看<b>凹下去最低的地方</b>。</p>
+  </div>
+  <div class="idea" style="--c:#ff6b6b">
+    <h3><i>⚠</i>看歪了會讀錯</h3>
+    <p>從上往下看（俯視）→ 讀數<b>偏大</b>；<br>從下往上看（仰視）→ 讀數<b>偏小</b>。</p>
+  </div>
+  <div class="idea" style="--c:#5fa2ff">
+    <h3><i>🪨</i>排水法量石頭</h3>
+    <p>石頭放進去，水面升高多少，就是石頭的體積：<br><b>放入後 − 放入前</b>。</p>
+  </div>
+  <div class="idea" style="--c:#ffa64d">
+    <h3><i>✎</i>量筒也要估一位</h3>
+    <p>最小刻度 2 mL，就在兩條線之間再估一位，例如 <b>43.0 mL</b>。</p>
+  </div>
+</section>
 
 <aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
@@ -76,13 +125,6 @@
       </div>
     </div>
 
-    <div class="group">
-      <p class="note">測量值 = <b class="sure">準確值</b> + <b class="est">一位估計值</b> + <b>單位</b>。<br>
-      ・準確值：尺上<b>讀得到</b>的刻度，到最小刻度為止。<br>
-      ・估計值：最小刻度之間<b>憑眼睛估</b>的那一位，<b>只能估一位</b>；就算剛好對齊刻度，也要寫 0（例如 12.30 cm）。<br>
-      ・最小刻度 1 mm 的尺記到 0.01 cm；1 cm 的尺記到 0.1 cm。<br>
-      ・估計值每個人可能差一點點，所以要<b>多次測量取平均</b>。</p>
-    </div>
   </div>
 </aside>
 
@@ -92,6 +134,13 @@
   const $ = Lab.$;
   const S = { mode: 'len', unit: 0.1, len: 12.37, rec: [], pan: 0, zf: 1, hint: false, mark: null, drag: null, eye: 0, rock: false, water: 42, rockV: 0 };
   const STEP_MSG = '照上面三個步驟讀出鉛筆長度。放大鏡可以<b>左右拖曳</b>，看看筆尖<b>前面和後面</b>的刻度數字。';
+  // 觀念卡跟著畫面排；放不下時自動隱藏
+  function placeIdeas(id, x, y, wd, h) {
+    const el = $(id), r = $('cv').getBoundingClientRect();
+    el.style.left = (r.left + x) + 'px'; el.style.top = (r.top + y) + 'px'; el.style.width = wd + 'px';
+    el.hidden = S.mode !== (id === 'ideasLen' ? 'len' : 'vol') || wd < 220 || y + 120 > h;
+    if (!el.hidden) { el.style.maxHeight = (h - y - 12) + 'px'; el.style.overflow = 'auto'; }
+  }
   function newPencil() { S.len = Math.round((6 + Math.random() * 11) * 1000) / 1000; S.rec = []; S.pan = 0; S.mark = null; renderRec(); $('feedback').innerHTML = STEP_MSG; $('ans').value = ''; }
 
   // 鉛筆：xl 左端、xt 筆尖、cy 中心高度、hh 粗細
@@ -137,6 +186,7 @@
     const zx0 = 24, zx1 = w - 24, zy0 = ry + fh + 56, zh = Math.max(150, Math.min(250, h - zy0 - 150)), zc = (zx0 + zx1) / 2;
     const k = (S.unit < 1 ? 340 : 150) * S.zf;                                   // 放大鏡裡 1 cm 有幾 px
     S.k = k; S.win = [zx0, zy0, zx1, zy0 + zh];
+    placeIdeas('ideasLen', zx0, zy0 + zh + (S.hint ? 150 : 28), zx1 - zx0, h);
     const cc = Math.max(0, Math.min(20, S.len + S.pan)), Z = cm => zc + (cm - cc) * k;
     const half = (zx1 - zx0) / 2 / k;
     // 主畫面上標出放大的範圍，連到視窗
@@ -200,6 +250,7 @@
   }
 
   function drawCylinder(ctx, w, h) {
+    placeIdeas('ideasVol', w * 0.42 + 90, 60, w - (w * 0.42 + 90) - 20, h);
     const cx = w * 0.42, top = 60, bot = h - 60, cw = 90, Hc = bot - top, maxV = 100;
     const Y = v => bot - v / maxV * (Hc - 30);
     const level = S.water + (S.rock ? S.rockV : 0);
@@ -281,7 +332,7 @@
   $('hint').addEventListener('change', e => { S.hint = e.target.checked; });
   $('newObj').addEventListener('click', newPencil);
   Lab.bindGroup('#ruler button', k => { S.unit = Number(k); S.rec = []; S.mark = null; S.pan = 0; renderRec(); $('feedback').innerHTML = STEP_MSG; });
-  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
+  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); $('ideasLen').hidden = k !== 'len'; $('ideasVol').hidden = k !== 'vol'; });
   Lab.bindSlider('eye', v => { S.eye = Math.abs(v) < 0.05 ? 0 : v; }, v => (Math.abs(v) < 0.05 ? '平視' : v > 0 ? '偏上（俯視）' : '偏下（仰視）'));
   $('drop').addEventListener('click', () => { S.rockV = Math.round((8 + Math.random() * 22) * 5) / 5; S.rock = true; });
   $('takeout').addEventListener('click', () => { S.rock = false; });
