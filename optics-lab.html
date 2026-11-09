@@ -167,6 +167,17 @@
     $('info').innerHTML = '<b>反射定律</b>：入射角 = 反射角，入射光、反射光和法線在同一平面上。<br>平面鏡成<b>正立、等大的虛像</b>，像和物體到鏡面的距離相等、左右相反。';
   }
 
+  // 畫角度弧：從法線（ny 方向：-1 往上、+1 往下）轉到光線 (dx,dy)，side 決定文字放左（-1）或右（+1）
+  function angArc(ctx, cx, cy, ny, dx, dy, color, label, side) {
+    const a0 = Math.atan2(ny, 0), a1 = Math.atan2(dy, dx), r = 62;
+    let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+    if (Math.abs(d) < 0.01) return;
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + d, d < 0); ctx.stroke();
+    ctx.fillStyle = Lab.alpha(color, 0.18); ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a0 + d, d < 0); ctx.closePath(); ctx.fill();
+    const am = a0 + d / 2, lx = cx + Math.cos(am) * (r + 46), ly = cy + Math.sin(am) * (r + 26);
+    Lab.pill(label, lx + side * 8, ly, color, 14);
+  }
+
   function refract(ctx, dt) {
     S.t += dt;
     const iy = H * 0.5, cx = W * 0.5;
@@ -176,6 +187,7 @@
     Lab.text('空氣', 30, iy - 24, '#eef1fa', 16, 'left', 'bold');
     Lab.text(MED[S.med][1], 30, iy + 26, '#9fd8ff', 16, 'left', 'bold');
     Lab.line(cx, 30, cx, H - 30, 'rgba(255,255,255,.45)', 1.5, [6, 6]);
+    Lab.text('法線', cx + 8, H - 40, 'rgba(255,255,255,.6)', 13, 'left', 'bold');
     const a1 = S.fAng * D2R, vin = up ? vBot : vTop, vout = up ? vTop : vBot;
     const s2 = Math.sin(a1) * vout / vin, L = Math.min(iy - 40, 240);
     const dirIn = up ? 1 : -1;                       // 入射光從上方（-1）或下方（+1）來
@@ -184,6 +196,8 @@
     let msg;
     if (s2 >= 1) {
       Lab.arrow(cx, iy, cx + Math.sin(a1) * L, sy, LIGHT, 3, 14);
+      angArc(ctx, cx, iy, dirIn, sx - cx, sy - iy, '#ffa64d', `入射角 ${S.fAng}°`, -1);
+      Lab.pill(`入射角 ${S.fAng}° 太大 → 全反射，沒有折射角`, cx, 40, '#ff8a8a', 15);
       msg = '入射角太大，光<b>全部反射</b>回介質中，沒有折射出去（全反射）。';
     } else {
       const a2 = Math.asin(s2), ex = cx + Math.sin(a2) * L, ey = iy - dirIn * Math.cos(a2) * L;
@@ -195,8 +209,21 @@
       if (tt < seg1 / vin) { const f = tt * vin / seg1; px = sx + (cx - sx) * f; py = sy + (iy - sy) * f; }
       else { const f = (tt - seg1 / vin) * vout / seg2; px = cx + (ex - cx) * f; py = iy + (ey - iy) * f; }
       Lab.circle(px, py, 8, '#fff'); Lab.circle(px, py, 16, 'rgba(255,255,255,.25)');
-      const toward = vout < vin;
-      msg = `光從${up ? MED[S.med][1] : '空氣'}進入${up ? '空氣' : MED[S.med][1]}，速度變${toward ? '<b>慢</b>' : '<b>快</b>'}，所以折射光${toward ? '<b>偏向法線</b>' : '<b>偏離法線</b>'}。<br>入射角 ${S.fAng}°，折射角約 ${(Math.asin(s2) / D2R).toFixed(0)}°。白點是光：看它在哪一邊走得比較慢。`;
+      const toward = vout < vin, a2d = Math.round(Math.asin(s2) / D2R);
+      // 角度標示：入射角、折射角都是「光線和法線」的夾角
+      angArc(ctx, cx, iy, dirIn, sx - cx, sy - iy, '#ffa64d', `入射角 ${S.fAng}°`, -1);
+      angArc(ctx, cx, iy, -dirIn, ex - cx, ey - iy, '#5cc8ff', `折射角 ${a2d}°`, 1);
+      const sign = S.fAng === 0 ? '＝' : toward ? '＞' : '＜';
+      const cmpW = Math.min(W - 40, 460);
+      Lab.card(cx - cmpW / 2, 18, cmpW, 52, 'rgba(10,16,32,.85)', 'rgba(255,255,255,.2)', 14);
+      ctx.font = `bold 20px ${Lab.FONT}`;
+      const t1 = `入射角 ${S.fAng}°`, t2 = ` ${sign} `, t3 = `折射角 ${a2d}°`;
+      const w1 = ctx.measureText(t1).width, w2 = ctx.measureText(t2).width, w3 = ctx.measureText(t3).width, x0 = cx - (w1 + w2 + w3) / 2;
+      Lab.text(t1, x0, 44, '#ffa64d', 20, 'left', 'bold'); Lab.text(t2, x0 + w1, 44, '#fff', 20, 'left', 'bold'); Lab.text(t3, x0 + w1 + w2, 44, '#5cc8ff', 20, 'left', 'bold');
+      Lab.text(S.fAng === 0 ? '垂直射入：方向不變' : toward ? '光變慢 → 偏向法線 → 折射角比較小' : '光變快 → 偏離法線 → 折射角比較大', cx, 84, '#eef1fa', 14, 'center', 'bold');
+      msg = `光從${up ? MED[S.med][1] : '空氣'}進入${up ? '空氣' : MED[S.med][1]}，速度變${toward ? '<b>慢</b>' : '<b>快</b>'}，所以折射光${toward ? '<b>偏向法線</b>' : '<b>偏離法線</b>'}。<br>
+        <b style="color:#ffa64d">入射角 ${S.fAng}°</b> ${S.fAng === 0 ? '＝' : toward ? '<b>＞</b>' : '<b>＜</b>'} <b style="color:#5cc8ff">折射角 ${a2d}°</b><br>
+        記法：光在哪一邊走得<b>比較慢</b>，那一邊的角就<b>比較小</b>。白點是光，看它在哪一邊走得比較慢。`;
       if (S.fAng === 0) msg = '光<b>垂直</b>射入時，方向不改變，但速度仍然改變。';
     }
     $('info').innerHTML = msg;

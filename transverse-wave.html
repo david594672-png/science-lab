@@ -17,8 +17,8 @@
 
   <div class="body">
     <div class="group">
-      <div class="row"><button class="btn primary grow" id="play">❚❚ 暫停</button></div>
-      <p class="note" style="margin-top:8px">在畫面上<b>左右拖動</b>，可以自己把波往前、往後推。點一個質點可以追蹤它。</p>
+      <div class="row"><button class="btn" id="back">◀ 往後</button><button class="btn primary grow" id="play">❚❚ 暫停</button><button class="btn" id="fwd">往前 ▶</button></div>
+      <p class="note" style="margin-top:8px">按住畫面<b>左右拖動</b>，或按「往前／往後」，就能自己把波推前推後。<b>輕點</b>一個質點可以追蹤它。</p>
     </div>
     <div class="group">
       <div class="ctrl"><label for="f">頻率 f <output id="fVal"></output></label><input type="range" id="f" min="0.2" max="1.2" step="0.05" value="0.5"></div>
@@ -89,6 +89,8 @@
     }
     // 比例尺：10 cm
     { const bx = x0, by = y0 + S.A + 46; Lab.line(bx, by, bx + 10 * PX, by, '#eef1fa', 2); Lab.line(bx, by - 6, bx, by + 6, '#eef1fa', 2); Lab.line(bx + 10 * PX, by - 6, bx + 10 * PX, by + 6, '#eef1fa', 2); Lab.text('10 cm', bx + 5 * PX, by + 16, '#eef1fa', 12); }
+    if (!S.dragged) Lab.pill('👆 按住畫面左右拖，可以自己把波往前、往後推', w / 2, y0 - S.A - 70, '#ffd166', 14);
+    if (S.drag) Lab.pill('拖動中：波跟著你的手指前進或後退', w / 2, y0 - S.A - 70, '#ffd166', 14);
     Lab.arrow(w - 150, y0 + S.A + 46, w - 60, y0 + S.A + 46, '#ffa64d', 3, 12);
     Lab.text('波前進方向', w - 105, y0 + S.A + 66, '#ffa64d', 13);
     // y-t 圖
@@ -101,13 +103,18 @@
 
   Lab.init({
     draw,
-    down(x, y) {
-      // 點質點 → 選取；否則開始拖動波
-      for (let i = 0; i < N; i++) { const px = x0 + i * dx, py = y0 - yAt(px); if (Math.hypot(px - x, py - y) < 18) { S.sel = i; S.hist = []; return false; } }
-      S.drag = { x }; return true;
+    // 按下去先記位置：手指有左右移動就是「拖動波」，沒移動就是「點選質點」
+    down(x, y) { S.press = { x, y, x0: x, moved: false }; return true; },
+    move(x) {
+      const p = S.press; if (!p) return;
+      if (!p.moved && Math.abs(x - p.x0) > 6) { p.moved = true; S.drag = true; S.dragged = true; }
+      if (p.moved) { S.phase += k() * (x - p.x); p.x = x; }     // 往右拖，波就往右（前）走
     },
-    move(x) { if (!S.drag) return; S.phase += k() * (x - S.drag.x); S.drag.x = x; },
-    up() { S.drag = null; },
+    up() {
+      const p = S.press; S.press = null; S.drag = null;
+      if (!p || p.moved) return;
+      for (let i = 0; i < N; i++) { const px = x0 + i * dx, py = y0 - yAt(px); if (Math.hypot(px - p.x0, py - p.y) < 22) { S.sel = i; S.hist = []; return; } }
+    },
     ui() {
       const lam = S.v / S.f / PX;
       $('vfl').textContent = `${S.f.toFixed(2)} Hz × ${lam.toFixed(1)} cm ＝ ${(S.v / PX).toFixed(0)} cm/s`;
@@ -115,6 +122,9 @@
       $('per').innerHTML = `<span class="frac"><span>1</span><span>${S.f.toFixed(2)}</span></span> ＝ ${(1 / S.f).toFixed(2)} 秒`;
     }
   });
+  // 一次推 1/8 個波長，並先暫停，方便一步一步看質點怎麼動
+  const step = dir => { S.play = false; $('play').textContent = '▶ 播放'; S.phase += dir * Math.PI / 4; if (S.graphOn) S.hist.push(yAt(x0 + S.sel * dx) / PX); };
+  $('back').addEventListener('click', () => step(-1)); $('fwd').addEventListener('click', () => step(1));
   $('play').addEventListener('click', e => { S.play = !S.play; e.currentTarget.textContent = S.play ? '❚❚ 暫停' : '▶ 播放'; });
   Lab.bindSlider('f', v => { S.f = v; }, v => v.toFixed(2) + ' Hz');
   Lab.bindSlider('A', v => { S.A = v; }, v => (v / PX).toFixed(1) + ' cm');
