@@ -44,8 +44,8 @@ const COURSES = [
     desc: '從測量與物質出發，探索波、光、熱與化學反應的規律。',
     units: [
       { title: '科學方法與基本測量', subject: 'phy',  url: 'measure-lab.html' },
-      { title: '物質的世界',         subject: 'chem', url: 'solution-lab.html',
-        more: [{ label: 'ppm 濃度', url: 'ppm-lab.html' }] },
+      { title: '物質的世界',         subject: 'chem', url: 'solution-lab.html' },
+      { title: 'ppm 濃度',           subject: 'chem', url: 'ppm-lab.html' },
       { title: '波動與聲音',         subject: 'phy',  url: 'transverse-wave.html' },
       { title: '光',                 subject: 'phy',  url: 'optics-lab.html' },
       { title: '溫度與熱',           subject: 'phy',  url: 'heat-lab.html' },
