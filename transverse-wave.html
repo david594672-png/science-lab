@@ -25,8 +25,9 @@
       <div class="ctrl"><label for="A">振幅 A <output id="AVal"></output></label><input type="range" id="A" min="20" max="80" step="5" value="50"></div>
       <div class="ctrl"><label for="v">波速 v <output id="vVal"></output></label><input type="range" id="v" min="100" max="300" step="10" value="200"></div>
       <dl class="live">
-        <dt>波長 λ = v ÷ f</dt><dd id="lam">—</dd>
-        <dt>週期 T = 1 ÷ f</dt><dd id="per">—</dd>
+        <dt>波速 v ＝ 頻率 f × 波長 λ</dt><dd id="vfl">—</dd>
+        <dt>波長 λ（畫面上量）</dt><dd id="lam">—</dd>
+        <dt>週期 T ＝ <span class="frac"><span>1</span><span>f</span></span></dt><dd id="per">—</dd>
       </dl>
     </div>
     <div class="group">
@@ -46,6 +47,7 @@
   const $ = Lab.$;
   const S = { f: 0.5, A: 50, v: 200, phase: 0, play: true, sel: 14, hist: [], drag: null };
   const N = 44;
+  const PX = 10;                                  // 畫面比例：10 像素代表 1 cm
   let W = 600, H = 400, x0 = 30, dx = 12, y0 = 200;
   const k = () => 2 * Math.PI * S.f / S.v;
   const yAt = x => S.A * Math.sin(S.phase - k() * (x - x0));          // 往右傳
@@ -82,16 +84,18 @@
         const yy = y0 - S.A - 30;
         Lab.line(xc, yy, xc + lam, yy, '#ffd34d', 2);
         Lab.line(xc, yy - 8, xc, yy + 8, '#ffd34d', 2); Lab.line(xc + lam, yy - 8, xc + lam, yy + 8, '#ffd34d', 2);
-        Lab.text('一個波長 λ', xc + lam / 2, yy - 14, '#ffd34d', 14, 'center', 'bold');
+        Lab.text(`一個波長 λ ＝ ${(lam / PX).toFixed(1)} cm`, xc + lam / 2, yy - 14, '#ffd34d', 14, 'center', 'bold');
       }
     }
+    // 比例尺：10 cm
+    { const bx = x0, by = y0 + S.A + 46; Lab.line(bx, by, bx + 10 * PX, by, '#eef1fa', 2); Lab.line(bx, by - 6, bx, by + 6, '#eef1fa', 2); Lab.line(bx + 10 * PX, by - 6, bx + 10 * PX, by + 6, '#eef1fa', 2); Lab.text('10 cm', bx + 5 * PX, by + 16, '#eef1fa', 12); }
     Lab.arrow(w - 150, y0 + S.A + 46, w - 60, y0 + S.A + 46, '#ffa64d', 3, 12);
     Lab.text('波前進方向', w - 105, y0 + S.A + 66, '#ffa64d', 13);
     // y-t 圖
     if (S.graphOn) {
-      if (S.play || S.drag) { S.hist.push(yAt(sx)); if (S.hist.length > 240) S.hist.shift(); }
+      if (S.play || S.drag) { S.hist.push(yAt(sx) / PX); if (S.hist.length > 240) S.hist.shift(); }
       const gy = h * 0.66, gh = h - gy - 14;
-      Lab.chart(20, gy, w - 40, gh, [{ data: S.hist, color: '#ff5d5d', n: 240 }], { min: -90, max: 90, xLabel: '時間 →', yLabel: '紅色質點的位移', ref: { v: 0, label: '平衡位置' } });
+      Lab.chart(20, gy, w - 40, gh, [{ data: S.hist, color: '#ff5d5d', n: 240 }], { min: -9, max: 9, xLabel: '時間 →', yLabel: '紅色質點的位移（cm）', ref: { v: 0, label: '平衡位置' } });
     }
   }
 
@@ -105,14 +109,16 @@
     move(x) { if (!S.drag) return; S.phase += k() * (x - S.drag.x); S.drag.x = x; },
     up() { S.drag = null; },
     ui() {
-      $('lam').textContent = (S.v / S.f).toFixed(0) + ' 像素';
-      $('per').textContent = (1 / S.f).toFixed(2) + ' 秒';
+      const lam = S.v / S.f / PX;
+      $('vfl').textContent = `${S.f.toFixed(2)} Hz × ${lam.toFixed(1)} cm ＝ ${(S.v / PX).toFixed(0)} cm/s`;
+      $('lam').textContent = lam.toFixed(1) + ' cm';
+      $('per').innerHTML = `<span class="frac"><span>1</span><span>${S.f.toFixed(2)}</span></span> ＝ ${(1 / S.f).toFixed(2)} 秒`;
     }
   });
   $('play').addEventListener('click', e => { S.play = !S.play; e.currentTarget.textContent = S.play ? '❚❚ 暫停' : '▶ 播放'; });
   Lab.bindSlider('f', v => { S.f = v; }, v => v.toFixed(2) + ' Hz');
-  Lab.bindSlider('A', v => { S.A = v; }, v => v + ' 像素');
-  Lab.bindSlider('v', v => { S.v = v; }, v => v + ' 像素/秒');
+  Lab.bindSlider('A', v => { S.A = v; }, v => (v / PX).toFixed(1) + ' cm');
+  Lab.bindSlider('v', v => { S.v = v; }, v => (v / PX).toFixed(0) + ' cm/s');
   window.waveSim = S;
 })();
 </script>

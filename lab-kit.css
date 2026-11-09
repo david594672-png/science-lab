@@ -160,3 +160,9 @@ html[data-subject="earth"] h1::before { content: "地"; border: 2px solid var(--
 }
 .lbl.big { font-size: 15px; padding: 5px 12px; }
 .lbl.plain { background: none; border: 0; text-shadow: 0 1px 4px #000; }
+
+/* 分數：<span class="frac"><span>分子</span><span>分母</span></span> */
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; line-height: 1.25; margin: 2px 3px; }
+.frac > span { padding: 0 4px; white-space: nowrap; }
+.frac > span:first-child { border-bottom: 1.5px solid currentColor; padding-bottom: 1px; }
+.frac > span:last-child { padding-top: 1px; }

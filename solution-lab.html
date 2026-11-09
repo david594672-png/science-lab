@@ -64,7 +64,7 @@
   <div class="learn-pane" data-p="mass" hidden>
     <div class="formula">重量百分濃度 ＝ <span class="frac"><span>溶質質量</span><span>溶液質量</span></span> × 100%</div>
     <div class="calc" id="massCalc"></div>
-    <p class="tip">意思是：<b>每 100 g 溶液裡有幾 g 溶質</b>。分母是「溶液」（溶質＋溶劑），不是只有水喔！<br>例：10 g 糖＋90 g 水 → 10 ÷ 100 × 100% ＝ <b>10%</b>（不是 10 ÷ 90）。</p>
+    <p class="tip">意思是：<b>每 100 g 溶液裡有幾 g 溶質</b>。分母是「溶液」（溶質＋溶劑），不是只有水喔！<br>例：10 g 糖＋90 g 水 → <span class="frac"><span>10</span><span>10 ＋ 90</span></span> × 100% ＝ <b>10%</b>（分母不是只有 90）。</p>
   </div>
 
   <div class="learn-pane" data-p="vol" hidden>
@@ -168,24 +168,25 @@
     el.style.left = (r.left + x) + 'px'; el.style.top = (r.top + y) + 'px'; el.style.width = wd + 'px'; el.style.maxHeight = maxH + 'px';
   }
   // 教學區裡的數字：用燒杯目前的狀態
+  const frac = (a, b) => `<span class="frac"><span>${a}</span><span>${b}</span></span>`;
   function updateLearn() {
     const d = dissolved(), und = S.added - d, name = SOL[S.k].name, sol = d + S.water, pct = d / sol * 100;
     $('lbSolute').textContent = name; $('lbSoluteG').textContent = d.toFixed(1) + ' g';
     $('lbWaterG').textContent = S.water + ' g'; $('lbSolG').textContent = sol.toFixed(1) + ' g';
     $('lbSolution').textContent = name + '水溶液'; $('lbUnd').textContent = und.toFixed(1) + ' g';
     $('massCalc').innerHTML = `燒杯現在：溶了 ${d.toFixed(1)} g ${name}、水 ${S.water} g<br>`
-      + `${d.toFixed(1)} ÷ (${d.toFixed(1)} ＋ ${S.water}) × 100% ＝ <b>${pct.toFixed(1)}%</b>`
+      + `${frac(d.toFixed(1), `${d.toFixed(1)} ＋ ${S.water}`)} × 100% ＝ <b>${pct.toFixed(1)}%</b>`
       + (und > 0.05 ? `<br><small>杯底沒溶的 ${und.toFixed(1)} g 不算進去。</small>` : '');
   }
   function updateVol() {
     const a = +$('volAlc').value;
     $('volAlcVal').textContent = a; $('volBar').style.height = a + '%';
-    $('volCalc').innerHTML = `${a} mL 酒精 ÷ 100 mL 溶液 × 100% ＝ <b>${a}%</b>（水約 ${100 - a} mL）`;
+    $('volCalc').innerHTML = `${frac(`酒精 ${a} mL`, '溶液 100 mL')} × 100% ＝ <b>${a}%</b>（水約 ${100 - a} mL）`;
   }
   function updatePpm() {
     const mg = +$('ppmMg').value;
     $('ppmMgVal').textContent = mg; $('ppmBig').textContent = mg;
-    $('ppmCalc').innerHTML = `${mg} mg ÷ 1000000 mg（溶質很少，溶液約等於 1 公斤）× 1000000 ＝ <b>${mg} ppm</b><br>換成百分濃度只有 ${(mg / 10000).toFixed(4)}%，用 ppm 好讀多了！`;
+    $('ppmCalc').innerHTML = `${frac(`${mg} mg`, '1000000 mg')} × 1000000 ＝ <b>${mg} ppm</b><br><small>（溶質很少，溶液約等於 1 公斤 ＝ 1000000 mg）</small><br>換成百分濃度只有 ${(mg / 10000).toFixed(4)}%，用 ppm 好讀多了！`;
   }
 
   function draw(ctx, w, h, dt, t) {
@@ -290,8 +291,8 @@
       $('conc').textContent = conc.toFixed(1) + '%';
       const max = maxDiss();
       $('state').innerHTML = und > 0.05
-        ? `<b>飽和溶液</b>：${S.T}°C 時 ${S.water} g 水最多只能溶 ${max.toFixed(1)} g ${SOL[S.k].name}，多的沉在杯底。<br>濃度 = ${d.toFixed(1)} ÷ (${d.toFixed(1)} + ${S.water}) × 100% = <b>${conc.toFixed(1)}%</b>`
-        : `<b>未飽和溶液</b>：還可以再溶 ${(max - d).toFixed(1)} g。<br>濃度 = ${d.toFixed(1)} ÷ (${d.toFixed(1)} + ${S.water}) × 100% = <b>${conc.toFixed(1)}%</b>`;
+        ? `<b>飽和溶液</b>：${S.T}°C 時 ${S.water} g 水最多只能溶 ${max.toFixed(1)} g ${SOL[S.k].name}，多的沉在杯底。<br>濃度 = ${frac(d.toFixed(1), `${d.toFixed(1)} + ${S.water}`)} × 100% = <b>${conc.toFixed(1)}%</b>`
+        : `<b>未飽和溶液</b>：還可以再溶 ${(max - d).toFixed(1)} g。<br>濃度 = ${frac(d.toFixed(1), `${d.toFixed(1)} + ${S.water}`)} × 100% = <b>${conc.toFixed(1)}%</b>`;
     }
   });
   Lab.bindGroup('#solute .btn', k => { S.k = k; S.added = 0; });
