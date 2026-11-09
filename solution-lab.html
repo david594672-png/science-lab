@@ -5,9 +5,94 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>水溶液與濃度</title>
 <link rel="stylesheet" href="lab-kit.css">
+<style>
+  .learn { position: absolute; z-index: 2; border-radius: 16px; background: rgba(20,14,34,.82); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; flex-direction: column; overflow: hidden; }
+  .learn[hidden] { display: none; }
+  .learn-tabs { display: flex; gap: 4px; padding: 6px; border-bottom: 1px solid rgba(255,255,255,.1); overflow-x: auto; flex: none; }
+  .learn-tabs button { flex: 1; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: rgba(238,241,250,.65); font: inherit; font-size: .9rem; white-space: nowrap; cursor: pointer; }
+  .learn-tabs button[aria-selected="true"] { background: var(--accent); color: #1a0d1f; font-weight: 700; }
+  .learn-pane { padding: 12px 16px 14px; overflow-y: auto; }
+  .learn-pane[hidden] { display: none; }
+  .learn .tip { margin: 10px 0 0; font-size: .88rem; line-height: 1.7; color: rgba(238,241,250,.85); }
+  .learn .eq { display: flex; align-items: stretch; gap: 8px; }
+  .learn .box { flex: 1; text-align: center; border-radius: 12px; padding: 8px 6px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); border-top: 3px solid var(--c); }
+  .learn .box small { display: block; color: var(--c); font-weight: 700; font-size: .85rem; }
+  .learn .box b { display: block; font-size: 1.05rem; color: #fff; }
+  .learn .box span { display: block; font-size: 1.15rem; font-weight: 800; color: var(--c); }
+  .learn .box em { display: block; font-style: normal; font-size: .76rem; color: rgba(238,241,250,.6); }
+  .learn .op { align-self: center; font-size: 1.4rem; font-weight: 800; color: rgba(238,241,250,.7); }
+  .learn .formula { font-size: 1.02rem; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .frac { display: inline-flex; flex-direction: column; text-align: center; font-size: .92rem; }
+  .frac span:first-child { border-bottom: 2px solid currentColor; padding: 0 6px 2px; color: #ff8fb8; }
+  .frac span:last-child { padding: 2px 6px 0; color: #c58bff; }
+  .learn .calc { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(var(--accent-rgb),.12); font-size: .92rem; line-height: 1.7; }
+  .learn .calc b { color: #ffd166; font-size: 1.05rem; }
+  .vol-demo { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
+  .vol-ctrl { flex: 1; } .vol-ctrl label { font-size: .9rem; } .vol-ctrl input { width: 100%; }
+  .cyl { position: relative; width: 46px; height: 96px; border: 2px solid rgba(220,235,255,.7); border-top: 0; border-radius: 0 0 10px 10px; background: rgba(95,162,255,.25); overflow: hidden; flex: none; }
+  .cyl i { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(#ffb3d1, #ff6fa8); }
+  .cyl span { position: absolute; top: 2px; left: 0; right: 0; text-align: center; font-size: .62rem; color: #fff; }
+  .bigppm { flex: none; width: 110px; text-align: center; border-radius: 12px; padding: 6px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+  .bigppm b { display: block; font-size: 1.9rem; line-height: 1.1; color: #ffd166; }
+  .bigppm span { font-weight: 700; } .bigppm small { display: block; font-size: .7rem; color: rgba(238,241,250,.6); }
+  @media (max-width: 700px) { .learn .eq { flex-wrap: wrap; } .learn .op { display: none; } .learn .box { min-width: 30%; } }
+</style>
 </head>
 <body>
 <canvas id="cv" aria-label="燒杯中溶解、濃度與溶解度曲線的模擬"></canvas>
+
+<!-- 畫面下方的教學區：用分頁切換四個觀念（位置由程式跟著燒杯排） -->
+<section class="learn" id="learn" aria-label="濃度觀念教學">
+  <div class="learn-tabs" role="tablist">
+    <button role="tab" data-t="basic" aria-selected="true">溶質・溶劑・溶液</button>
+    <button role="tab" data-t="mass" aria-selected="false">重量百分濃度</button>
+    <button role="tab" data-t="vol" aria-selected="false">體積百分濃度</button>
+    <button role="tab" data-t="ppm" aria-selected="false">ppm</button>
+  </div>
+
+  <div class="learn-pane" data-p="basic">
+    <div class="eq">
+      <div class="box" style="--c:#ff8fb8"><small>溶質</small><b id="lbSolute">食鹽</b><span id="lbSoluteG">0 g</span><em>被溶解的東西</em></div>
+      <div class="op">＋</div>
+      <div class="box" style="--c:#5cc8ff"><small>溶劑</small><b>水</b><span id="lbWaterG">100 g</span><em>用來溶解別人的東西</em></div>
+      <div class="op">＝</div>
+      <div class="box" style="--c:#c58bff"><small>溶液</small><b id="lbSolution">食鹽水</b><span id="lbSolG">100 g</span><em>兩個混在一起、均勻透明</em></div>
+    </div>
+    <p class="tip">口訣：<b>「溶質被溶、溶劑去溶」</b>。糖水裡糖是溶質、水是溶劑。<br>注意：<b>沉在杯底沒溶掉的</b>不算溶質，不能算進溶液裡！（目前杯底有 <b id="lbUnd">0 g</b>）</p>
+  </div>
+
+  <div class="learn-pane" data-p="mass" hidden>
+    <div class="formula">重量百分濃度 ＝ <span class="frac"><span>溶質質量</span><span>溶液質量</span></span> × 100%</div>
+    <div class="calc" id="massCalc"></div>
+    <p class="tip">意思是：<b>每 100 g 溶液裡有幾 g 溶質</b>。分母是「溶液」（溶質＋溶劑），不是只有水喔！<br>例：10 g 糖＋90 g 水 → 10 ÷ 100 × 100% ＝ <b>10%</b>（不是 10 ÷ 90）。</p>
+  </div>
+
+  <div class="learn-pane" data-p="vol" hidden>
+    <div class="formula">體積百分濃度 ＝ <span class="frac"><span>溶質體積</span><span>溶液體積</span></span> × 100%</div>
+    <div class="vol-demo">
+      <div class="cyl" aria-hidden="true"><i id="volBar"></i><span>100 mL</span></div>
+      <div class="vol-ctrl">
+        <label for="volAlc">酒精 <output id="volAlcVal">75</output> mL，再加水到 100 mL</label>
+        <input type="range" id="volAlc" min="5" max="95" step="5" value="75">
+        <div class="calc" id="volCalc"></div>
+      </div>
+    </div>
+    <p class="tip">溶質和溶劑都是<b>液體</b>時常用，例如酒精。消毒用的酒精約 <b>75%</b>：100 mL 裡有 75 mL 是酒精。<br>小知識：酒精和水混合後體積會比相加還少一點，所以要說「<b>加水到</b> 100 mL」。</p>
+  </div>
+
+  <div class="learn-pane" data-p="ppm" hidden>
+    <div class="formula">ppm ＝ <span class="frac"><span>溶質質量</span><span>溶液質量</span></span> × 1000000（百萬）</div>
+    <div class="vol-demo">
+      <div class="bigppm" aria-hidden="true"><b id="ppmBig">2</b><span>ppm</span><small>百萬份裡有這幾份</small></div>
+      <div class="vol-ctrl">
+        <label for="ppmMg">在 1 公斤（1000000 mg）的水裡溶了 <output id="ppmMgVal">2</output> mg</label>
+        <input type="range" id="ppmMg" min="1" max="50" step="1" value="2">
+        <div class="calc" id="ppmCalc"></div>
+      </div>
+    </div>
+    <p class="tip">ppm 是「<b>百萬分之一</b>」。濃度<b>非常非常低</b>時用 % 會寫出一堆 0，改用 ppm 比較方便，例如水裡的污染物、空氣中的微量氣體。<br>好記的換算：<b>1 ppm ＝ 1 公斤裡有 1 毫克</b>，也等於 0.0001%。</p>
+  </div>
+</section>
 
 <aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
@@ -52,7 +137,7 @@
     </div>
 
     <div class="group">
-      <p class="note"><b>重量百分濃度</b> = 溶質質量 ÷ <b>溶液</b>質量 × 100%（溶液 = 溶質 + 溶劑）。<br>在一定溫度下，溶質不能再溶解時就是<b>飽和溶液</b>。100 g 水最多能溶解的溶質克數叫<b>溶解度</b>，通常會隨溫度改變。</p>
+      <p class="note">濃度的算法看畫面下方的教學區。<br>在一定溫度下，溶質不能再溶解時就是<b>飽和溶液</b>。100 g 水最多能溶解的溶質克數叫<b>溶解度</b>，通常會隨溫度改變。</p>
     </div>
   </div>
 </aside>
@@ -74,6 +159,34 @@
 
   // 粒子：溶解的散在水中、沒溶解的堆在杯底
   for (let i = 0; i < 260; i++) S.parts.push({ x: Math.random(), y: Math.random(), vx: 0, vy: 0, ph: Math.random() * 6 });
+
+  // 教學區跟著桌面位置排；太矮放不下就隱藏
+  function placeLearn(x, y, wd, h) {
+    const el = $('learn'), r = $('cv').getBoundingClientRect(), maxH = h - y - 70;
+    el.hidden = maxH < 150 || wd < 300;
+    if (el.hidden) return;
+    el.style.left = (r.left + x) + 'px'; el.style.top = (r.top + y) + 'px'; el.style.width = wd + 'px'; el.style.maxHeight = maxH + 'px';
+  }
+  // 教學區裡的數字：用燒杯目前的狀態
+  function updateLearn() {
+    const d = dissolved(), und = S.added - d, name = SOL[S.k].name, sol = d + S.water, pct = d / sol * 100;
+    $('lbSolute').textContent = name; $('lbSoluteG').textContent = d.toFixed(1) + ' g';
+    $('lbWaterG').textContent = S.water + ' g'; $('lbSolG').textContent = sol.toFixed(1) + ' g';
+    $('lbSolution').textContent = name + '水溶液'; $('lbUnd').textContent = und.toFixed(1) + ' g';
+    $('massCalc').innerHTML = `燒杯現在：溶了 ${d.toFixed(1)} g ${name}、水 ${S.water} g<br>`
+      + `${d.toFixed(1)} ÷ (${d.toFixed(1)} ＋ ${S.water}) × 100% ＝ <b>${pct.toFixed(1)}%</b>`
+      + (und > 0.05 ? `<br><small>杯底沒溶的 ${und.toFixed(1)} g 不算進去。</small>` : '');
+  }
+  function updateVol() {
+    const a = +$('volAlc').value;
+    $('volAlcVal').textContent = a; $('volBar').style.height = a + '%';
+    $('volCalc').innerHTML = `${a} mL 酒精 ÷ 100 mL 溶液 × 100% ＝ <b>${a}%</b>（水約 ${100 - a} mL）`;
+  }
+  function updatePpm() {
+    const mg = +$('ppmMg').value;
+    $('ppmMgVal').textContent = mg; $('ppmBig').textContent = mg;
+    $('ppmCalc').innerHTML = `${mg} mg ÷ 1000000 mg（溶質很少，溶液約等於 1 公斤）× 1000000 ＝ <b>${mg} ppm</b><br>換成百分濃度只有 ${(mg / 10000).toFixed(4)}%，用 ppm 好讀多了！`;
+  }
 
   function draw(ctx, w, h, dt, t) {
     const bw = Math.min(230, w * 0.3), bx = 46, by = 110, bh = Math.max(200, Math.min(h - 260, 400)), bot = by + bh;
@@ -136,6 +249,7 @@
     Lab.circle(tx, tb, 9, Lab.rg(tx, tb, 1, 9, ['#ff9a8a', '#e02c2c'], tx - 3, tb - 3), 'rgba(255,255,255,.6)', 1.5);
     for (let k = 0; k <= 4; k++) Lab.line(tx + 6, tb - 10 - (tb - ttop - 20) * k / 4, tx + 12, tb - 10 - (tb - ttop - 20) * k / 4, 'rgba(255,255,255,.6)', 1);
     Lab.text(`${S.water} g 水`, bx + bw / 2, deskY + 22, '#eef1fa', 14, 'center', 'bold');
+    placeLearn(16, deskY + 40, w - 32, h);
     // 放大鏡：微觀下溶質粒子分散在水分子之間
     const mx = bx + bw + 64, my = by + 40, mr = 44;
     if (mx + mr < w * 0.5 + 60) {
@@ -167,6 +281,7 @@
   Lab.init({
     draw,
     ui() {
+      updateLearn();
       const d = dissolved(), und = S.added - d, conc = d / (d + S.water) * 100;
       $('w').textContent = S.water + ' g';
       $('added').textContent = S.added + ' g';
@@ -184,6 +299,15 @@
   $('water').addEventListener('click', () => { S.water = Math.min(300, S.water + 50); });
   $('empty').addEventListener('click', () => { S.water = 100; S.added = 0; });
   Lab.bindSlider('temp', v => { S.T = v; }, v => v + ' °C');
+  document.querySelector('.learn-tabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    document.querySelectorAll('.learn-tabs button').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+    document.querySelectorAll('.learn-pane').forEach(p => { p.hidden = p.dataset.p !== b.dataset.t; });
+  });
+  $('volAlc').addEventListener('input', updateVol); $('ppmMg').addEventListener('input', updatePpm);
+  Lab.paint($('volAlc')); Lab.paint($('ppmMg'));
+  $('volAlc').addEventListener('input', () => Lab.paint($('volAlc'))); $('ppmMg').addEventListener('input', () => Lab.paint($('ppmMg')));
+  updateVol(); updatePpm();
   window.solSim = S;
 })();
 </script>
