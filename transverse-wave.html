@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>連續週期波與質點運動</title>
 <link rel="stylesheet" href="lab-kit.css">
+<style>#cv { cursor: grab; touch-action: none; }</style>
 </head>
 <body>
 <canvas id="cv" aria-label="繩波上質點運動的模擬，可左右拖動波形"></canvas>
@@ -17,8 +18,8 @@
 
   <div class="body">
     <div class="group">
-      <div class="row"><button class="btn" id="back">◀ 往後</button><button class="btn primary grow" id="play">❚❚ 暫停</button><button class="btn" id="fwd">往前 ▶</button></div>
-      <p class="note" style="margin-top:8px">按住畫面<b>左右拖動</b>，或按「往前／往後」，就能自己把波推前推後。<b>輕點</b>一個質點可以追蹤它。</p>
+      <div class="row"><button class="btn primary grow" id="play">❚❚ 暫停</button></div>
+      <p class="note" style="margin-top:8px">按住畫面<b>左右拖動</b>，就能自己把波推前推後。<b>輕點</b>一個質點可以追蹤它。</p>
     </div>
     <div class="group">
       <div class="ctrl"><label for="f">頻率 f <output id="fVal"></output></label><input type="range" id="f" min="0.2" max="1.2" step="0.05" value="0.5"></div>
@@ -33,6 +34,7 @@
     <div class="group">
       <label class="sw"><input type="checkbox" id="vel" checked><span class="track"></span>質點速度方向（箭頭）</label>
       <label class="sw"><input type="checkbox" id="lamMark" checked><span class="track"></span>標出波長</label>
+      <label class="sw"><input type="checkbox" id="next"><span class="track"></span>顯示質點接下來的位置</label>
       <label class="sw"><input type="checkbox" id="graph" checked><span class="track"></span>追蹤質點的位移－時間圖</label>
     </div>
     <div class="group">
@@ -63,6 +65,19 @@
     ctx.strokeStyle = 'rgba(95,162,255,.6)'; ctx.lineWidth = 2; ctx.beginPath();
     for (let x = x0; x <= w - 30; x += 3) { const y = y0 - yAt(x); x === x0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
     ctx.stroke();
+    // 接下來的位置：1/8 週期後的波形（虛線）與質點（空心圈）
+    if ($('next').checked) {
+      const nx = x => S.A * Math.sin(S.phase + Math.PI / 4 - k() * (x - x0));
+      ctx.strokeStyle = 'rgba(255,209,102,.6)'; ctx.lineWidth = 2; ctx.setLineDash([7, 6]); ctx.beginPath();
+      for (let x = x0; x <= w - 30; x += 3) { const y = y0 - nx(x); x === x0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke(); ctx.setLineDash([]);
+      for (let i = 0; i < N; i++) {
+        const x = x0 + i * dx, y1 = y0 - yAt(x), y2 = y0 - nx(x);
+        if (Math.abs(y2 - y1) > 4) Lab.line(x, y1, x, y2, 'rgba(255,209,102,.35)', 1.5);
+        Lab.circle(x, y2, 6, null, '#ffd166', 2);
+      }
+      Lab.pill('黃色虛線、空心圈：再過 1/8 個週期的位置', w / 2, y0 + S.A + 90, '#ffd166', 13);
+    }
     // 質點
     for (let i = 0; i < N; i++) {
       const x = x0 + i * dx, y = y0 - yAt(x), sel = i === S.sel;
@@ -104,14 +119,14 @@
   Lab.init({
     draw,
     // 按下去先記位置：手指有左右移動就是「拖動波」，沒移動就是「點選質點」
-    down(x, y) { S.press = { x, y, x0: x, moved: false }; return true; },
+    down(x, y) { S.press = { x, y, x0: x, moved: false }; $('cv').style.cursor = 'grabbing'; return true; },
     move(x) {
       const p = S.press; if (!p) return;
       if (!p.moved && Math.abs(x - p.x0) > 6) { p.moved = true; S.drag = true; S.dragged = true; }
       if (p.moved) { S.phase += k() * (x - p.x); p.x = x; }     // 往右拖，波就往右（前）走
     },
     up() {
-      const p = S.press; S.press = null; S.drag = null;
+      const p = S.press; S.press = null; S.drag = null; $('cv').style.cursor = 'grab';
       if (!p || p.moved) return;
       for (let i = 0; i < N; i++) { const px = x0 + i * dx, py = y0 - yAt(px); if (Math.hypot(px - p.x0, py - p.y) < 22) { S.sel = i; S.hist = []; return; } }
     },
@@ -122,9 +137,6 @@
       $('per').innerHTML = `<span class="frac"><span>1</span><span>${S.f.toFixed(2)}</span></span> ＝ ${(1 / S.f).toFixed(2)} 秒`;
     }
   });
-  // 一次推 1/8 個波長，並先暫停，方便一步一步看質點怎麼動
-  const step = dir => { S.play = false; $('play').textContent = '▶ 播放'; S.phase += dir * Math.PI / 4; if (S.graphOn) S.hist.push(yAt(x0 + S.sel * dx) / PX); };
-  $('back').addEventListener('click', () => step(-1)); $('fwd').addEventListener('click', () => step(1));
   $('play').addEventListener('click', e => { S.play = !S.play; e.currentTarget.textContent = S.play ? '❚❚ 暫停' : '▶ 播放'; });
   Lab.bindSlider('f', v => { S.f = v; }, v => v.toFixed(2) + ' Hz');
   Lab.bindSlider('A', v => { S.A = v; }, v => (v / PX).toFixed(1) + ' cm');
