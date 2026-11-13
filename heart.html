@@ -29,6 +29,10 @@
   <p class="sub">國一生物 · 生物的運輸與防禦</p>
 
   <div class="body">
+    <div class="seg" style="--n:2;margin-bottom:10px" id="viewSeg">
+      <button data-k="3d" aria-pressed="true">3D 心臟</button>
+      <button data-k="map" aria-pressed="false">循環路線圖</button>
+    </div>
     <div class="modes" style="--n:3">
       <button class="mode" data-k="all" aria-pressed="true">完整循環</button>
       <button class="mode" data-k="pul" aria-pressed="false">只看<br>肺循環</button>
@@ -50,7 +54,7 @@
       <div class="phase" id="phase"><span>心房收縮</span><span>心室收縮</span><span>舒張</span></div>
     </div>
 
-    <div class="group">
+    <div class="group only3d">
       <div class="group-title">要看哪些部分</div>
       <label class="sw"><input type="checkbox" id="lShell" checked><span class="track"></span>心臟外壁</label>
       <label class="sw"><input type="checkbox" id="lValve" checked><span class="track"></span>瓣膜</label>
@@ -60,7 +64,7 @@
       <div class="row"><button class="btn grow" id="onlyValve">只看瓣膜</button><button class="btn grow" id="showAll">全部顯示</button></div>
     </div>
 
-    <div class="group">
+    <div class="group only3d">
       <div class="group-title">點一下心臟的部位</div>
       <div class="result" id="info">點腔室、瓣膜或血管，看它的功能。</div>
     </div>
@@ -266,6 +270,172 @@ function ui() {
   const ph = phaseAt(S.t % 1);
   phaseEls.forEach((e, i) => e.classList.toggle('on', i === ph));
 }
+
+// =========================================================
+// 循環路線圖（2D）：把心臟、肺、全身組織畫成一張路線圖，血液沿著管子流動
+// 座標先在 1000×600 的設計圖上排好，畫的時候再縮放到畫布大小
+// =========================================================
+const cv2 = document.createElement('canvas');
+cv2.id = 'cv2'; cv2.setAttribute('aria-label', '體循環與肺循環的路線圖動畫');
+cv2.style.cssText = 'position:fixed;left:0;top:0;display:none;z-index:1';
+document.body.insertBefore(cv2, document.body.firstChild);
+const c2 = cv2.getContext('2d');
+
+// 血液走的路線：每一段 [名稱, 點, 氧氣（1 充氧、0 缺氧、'down' 由充氧變缺氧、'up' 由缺氧變充氧）, 屬於哪個循環]
+const SEGS = [
+  ['大動脈', [[640, 420], [640, 545], [270, 545], [270, 470]], 1, 'sys'],
+  ['小動脈', [[270, 470], [270, 335]], 1, 'sys'],
+  ['微血管', [[270, 335], [270, 295]], 'down', 'sys'],
+  ['小靜脈', [[270, 295], [270, 160]], 0, 'sys'],
+  ['大靜脈', [[270, 160], [270, 38], [500, 38], [500, 140]], 0, 'sys'],
+  ['右心', [[500, 140], [500, 420]], 0, 'heart'],
+  ['肺動脈', [[500, 420], [500, 500], [900, 500], [900, 450]], 0, 'pul'],
+  ['肺', [[900, 450], [900, 150]], 'up', 'pul'],
+  ['肺靜脈', [[900, 150], [900, 62], [640, 62], [640, 140]], 1, 'pul'],
+  ['左心', [[640, 140], [640, 420]], 1, 'heart']
+];
+// 把每段切成等長的小點，方便血球沿路移動
+const PATH = [];
+SEGS.forEach(([name, pts, ox, loop], si) => {
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i], [bx, by] = pts[i + 1], len = Math.hypot(bx - ax, by - ay);
+    PATH.push({ si, ax, ay, bx, by, len, i, n: pts.length - 1 });
+  }
+});
+const TOTAL = PATH.reduce((t, p) => t + p.len, 0);
+function at(d) {
+  d = ((d % TOTAL) + TOTAL) % TOTAL;
+  for (const p of PATH) {
+    if (d <= p.len) {
+      const f = d / p.len, x = p.ax + (p.bx - p.ax) * f, y = p.ay + (p.by - p.ay) * f;
+      const seg = SEGS[p.si], prog = (p.i + f) / p.n;
+      const ox = seg[2] === 'down' ? 1 - prog : seg[2] === 'up' ? prog : seg[2];
+      return { x, y, ox, loop: seg[3] };
+    }
+    d -= p.len;
+  }
+  return { x: 0, y: 0, ox: 0, loop: 'sys' };
+}
+const oxCol = (ox, a = 1) => `rgba(${Math.round(77 + (232 - 77) * ox)},${Math.round(125 - 60 * ox)},${Math.round(255 - 180 * ox)},${a})`;
+const CELLS = Array.from({ length: 110 }, (_, i) => ({ d: i / 110 * TOTAL }));
+
+function drawRoute(dt, t) {
+  const r = $('cv').getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (cv2.width !== Math.round(r.width * dpr) || cv2.height !== Math.round(r.height * dpr)) { cv2.width = Math.round(r.width * dpr); cv2.height = Math.round(r.height * dpr); }
+  Object.assign(cv2.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  const k = Math.min(r.width / 1010, r.height / 640), ox0 = (r.width - 1000 * k) / 2, oy0 = (r.height - 600 * k) / 2 + 10 * k;
+  const ctx = c2; Lab.ctx = ctx;                       // 借用 lab-kit 的繪圖工具
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = Lab.rg(r.width / 2, r.height / 2, 0, Math.max(r.width, r.height) * 0.7, ['#10261c', '#08140f']); ctx.fillRect(0, 0, r.width, r.height);
+  ctx.setTransform(dpr * k, 0, 0, dpr * k, dpr * ox0, dpr * oy0);
+  const f = S.t % 1, ph = phaseAt(f);
+  const dim = loop => (S.mode === 'pul' && loop === 'sys') || (S.mode === 'sys' && loop === 'pul');
+
+  // --- 全身組織、肺（方塊） ---
+  const box = (x, y, w, h, fill, stroke, a = 1) => { ctx.globalAlpha = a; Lab.rr(x, y, w, h, 18); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 4; ctx.stroke(); ctx.globalAlpha = 1; };
+  const aSys = dim('sys') ? 0.25 : 1, aPul = dim('pul') ? 0.25 : 1;
+  box(20, 150, 150, 320, 'rgba(255,170,90,.08)', '#e8935a', aSys);
+  ctx.globalAlpha = aSys;
+  ['全身', '組織', '器官'].forEach((s2, i) => Lab.text(s2, 95, 250 + i * 50, '#f2a46b', 36, 'center', 'bold'));
+  // 微血管網：小靜脈（上，藍）、小動脈（下，紅），中間是網狀的微血管
+  Lab.rr(205, 150, 130, 330, 16); ctx.setLineDash([10, 8]); ctx.strokeStyle = '#c98a4a'; ctx.lineWidth = 3; ctx.stroke(); ctx.setLineDash([]);
+  box(220, 165, 100, 125, oxCol(0, 0.85), '#6f9bff', aSys);
+  box(220, 340, 100, 125, oxCol(1, 0.85), '#ff6b78', aSys);
+  ctx.globalAlpha = aSys;
+  ctx.strokeStyle = 'rgba(255,190,200,.8)'; ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(230 + i * 20, 340); ctx.bezierCurveTo(222 + i * 20 + 10 * Math.sin(i), 318, 238 + i * 20, 312, 230 + i * 20, 290); ctx.stroke(); }
+  Lab.text('小靜脈', 270, 225, '#fff', 20, 'center', 'bold');
+  Lab.text('小動脈', 270, 405, '#fff', 20, 'center', 'bold');
+  Lab.pill('微血管', 270, 315, '#ffd166', 16);
+  ctx.globalAlpha = 1;
+  // 肺：下面進缺氧血（藍），上面出充氧血（紅）
+  ctx.globalAlpha = aPul;
+  Lab.rr(840, 150, 120, 300, 22); ctx.fillStyle = Lab.lg(0, 150, 0, 450, [oxCol(1, 0.9), oxCol(0.5, 0.8), oxCol(0, 0.9)]); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 3; ctx.stroke();
+  for (let i = 0; i < 9; i++) Lab.circle(860 + (i % 3) * 40, 200 + Math.floor(i / 3) * 80, 14 + 2 * Math.sin(t * 2 + i), null, 'rgba(255,255,255,.25)', 2);   // 肺泡
+  Lab.text('肺', 900, 300, '#fff', 34, 'center', 'bold');
+  ctx.globalAlpha = 1;
+
+  // --- 血管（粗管子） ---
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  SEGS.forEach(([name, pts, ox, loop]) => {
+    if (loop === 'heart' || name === '肺' || name === '微血管' || name === '小動脈' || name === '小靜脈') return;
+    ctx.globalAlpha = dim(loop) ? 0.18 : 1;
+    const o = typeof ox === 'number' ? ox : 0.5;
+    ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 34; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+    ctx.strokeStyle = oxCol(o, 0.95); ctx.lineWidth = 26; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.globalAlpha = 1;
+  });
+
+  // --- 心臟：四個腔室跟著心跳收縮 ---
+  const atr = ph === 0 ? 1 - 0.1 * Math.sin((f / 0.15) * Math.PI) : 1;
+  const ven = ph === 1 ? 1 - 0.12 * Math.sin(((f - 0.15) / 0.35) * Math.PI) : 1;
+  Lab.rr(430, 95, 280, 360, 50); ctx.fillStyle = 'rgba(180,40,60,.18)'; ctx.fill(); ctx.strokeStyle = '#c23a4c'; ctx.lineWidth = 6; ctx.stroke();
+  Lab.line(570, 100, 570, 450, '#c23a4c', 6);
+  const chamber = (cx, cy, s, ox, name) => {
+    const w = 110 * s, h = 112 * s;
+    Lab.rr(cx - w / 2, cy - h / 2, w, h, 24); ctx.fillStyle = oxCol(ox, 0.35); ctx.fill(); ctx.strokeStyle = oxCol(ox, 0.9); ctx.lineWidth = 3; ctx.stroke();
+    NAMES.push([cx, cy, ox, name]);
+  };
+  const NAMES = [];
+  chamber(500, 200, atr, 0, '右心房'); chamber(500, 362, ven, 0, '右心室');
+  chamber(640, 200, atr, 1, '左心房'); chamber(640, 362, ven, 1, '左心室');
+  // 房室之間的瓣膜：心室收縮時關閉，其餘時候打開讓血往下流
+  const avOpen = ph !== 1, slOpen = ph === 1;
+  const valve = (x, y, open, col) => {
+    const a = open ? 1.2 : 0.15;
+    [-1, 1].forEach(s2 => { ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x + s2 * 26, y); ctx.lineTo(x + s2 * 26 - s2 * Math.cos(a) * 24, y + Math.sin(a) * 24); ctx.stroke(); });
+  };
+  valve(500, 272, avOpen, '#ff8f9b'); valve(640, 272, avOpen, '#ff8f9b');
+  valve(500, 432, slOpen, '#ffd166'); valve(640, 432, slOpen, '#ffd166');
+
+  // --- 血球 ---
+  const fast = ph === 1 ? 260 : 90;
+  CELLS.forEach(c => {
+    if (S.play) c.d += fast * dt * S.bpm / 40;
+    const p = at(c.d);
+    if (dim(p.loop)) return;
+    Lab.circle(p.x, p.y, 6.5, oxCol(p.ox), 'rgba(255,255,255,.7)', 1.5);
+  });
+  // 腔室名稱、瓣膜說明蓋在血球上面，才看得清楚
+  NAMES.forEach(([cx, cy, ox, name]) => { Lab.card(cx - 50, cy - 19, 100, 38, oxCol(ox, 0.95), 'rgba(255,255,255,.5)', 10); Lab.text(name, cx, cy, '#fff', 21, 'center', 'bold'); });
+  Lab.pill('瓣膜', 570, 272, '#ff8f9b', 17);
+  Lab.pill(avOpen ? '房室瓣打開：心房 → 心室' : '心室收縮：房室瓣關閉，防止倒流', 570, 470, avOpen ? '#ff8f9b' : '#ffd166', 15);
+  // 前進方向的小箭頭
+  [[640, 500, 0, 1], [420, 545, -1, 0], [270, 90, 0, -1], [400, 38, 1, 0], [700, 500, 1, 0], [780, 62, -1, 0]].forEach(([x, y, dx, dy]) => {
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.moveTo(x + dx * 9, y + dy * 9); ctx.lineTo(x - dy * 7 - dx * 6, y + dx * 7 - dy * 6); ctx.lineTo(x + dy * 7 - dx * 6, y - dx * 7 - dy * 6); ctx.fill();
+  });
+  // --- 氣體交換：O₂、CO₂ 飄動 ---
+  const gas = (x0, y0, x1, y1, txt, col, ph0, a) => { const g = (t * 0.6 + ph0) % 1; ctx.globalAlpha = a * Math.sin(g * Math.PI); Lab.text(txt, x0 + (x1 - x0) * g, y0 + (y1 - y0) * g, col, 16, 'center', 'bold'); ctx.globalAlpha = 1; };
+  if (!dim('sys')) { gas(225, 315, 150, 300, 'O₂', '#ff9aa6', 0, 1); gas(150, 340, 225, 330, 'CO₂', '#9ec0ff', 0.5, 1); }
+  if (!dim('pul')) { gas(915, 280, 990, 260, 'CO₂', '#9ec0ff', 0.2, 1); gas(990, 330, 915, 310, 'O₂', '#ff9aa6', 0.7, 1); }
+
+  // --- 血管名稱 ---
+  const tag = (s2, x, y, ox, loop) => { ctx.globalAlpha = dim(loop) ? 0.3 : 1; Lab.card(x - 52, y - 18, 104, 36, oxCol(ox, 1), 'rgba(255,255,255,.6)', 10); Lab.text(s2, x, y, '#fff', 20, 'center', 'bold'); ctx.globalAlpha = 1; };
+  tag('大動脈', 455, 545, 1, 'sys'); tag('大靜脈', 385, 38, 0, 'sys'); tag('肺動脈', 760, 500, 0, 'pul'); tag('肺靜脈', 770, 62, 1, 'pul');
+  // 循環名稱
+  if (S.mode !== 'pul') Lab.text('體循環', 110, 525, 'rgba(255,170,120,.85)', 22, 'center', 'bold');
+  if (S.mode !== 'sys') Lab.text('肺循環', 900, 545, 'rgba(160,200,255,.9)', 22, 'center', 'bold');
+  Lab.text('（面對著人看，心臟的「右」在畫面左邊）', 570, 595, 'rgba(238,241,250,.5)', 14, 'center');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+// 切換「3D 心臟」和「循環路線圖」
+let view = '3d', last = performance.now();
+function loop2(now) {
+  const dt = Math.min((now - last) / 1000, 0.05); last = now;
+  if (view === 'map') { const keep = Lab.ctx; drawRoute(dt, now / 1000); Lab.ctx = keep; }
+  requestAnimationFrame(loop2);
+}
+requestAnimationFrame(loop2);
+Lab.bindGroup('#viewSeg button', k => {
+  view = k;
+  cv2.style.display = k === 'map' ? 'block' : 'none';
+  $('cv').style.visibility = k === 'map' ? 'hidden' : '';
+  const lb = document.getElementById('labels'); if (lb) lb.style.display = k === 'map' ? 'none' : '';
+  document.querySelectorAll('.only3d').forEach(el => { el.hidden = k === 'map'; });
+});
 window.heartSim = S;
 </script>
 <script src="lesson.js" defer></script>
