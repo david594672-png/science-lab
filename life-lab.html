@@ -3,64 +3,84 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0b1020">
+<meta name="theme-color" content="#03060b">
 <title>生命的特性</title>
 <link rel="stylesheet" href="lab-kit.css">
+<style>
+  /* 組成層次的「麵包屑」：目前在哪一層 */
+  .crumbs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+  .crumbs button { flex: 1 1 18%; min-height: 44px; border: 0; border-radius: 10px; background: rgba(255,255,255,.05); color: var(--muted); font-size: .78rem; cursor: pointer; }
+  .crumbs button.on { background: rgba(var(--accent-rgb), .2); color: var(--white); }
+  .crumbs button.now { background: rgba(255,209,102,.28); color: #fff; font-weight: 700; box-shadow: 0 0 0 1px #ffd166 inset; }
+  .crumbs button:disabled { opacity: .35; cursor: default; }
+  .sys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sys .btn { min-height: 46px; font-size: .78rem; padding: 0 4px; white-space: nowrap; }
+  .sys .btn i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 6px currentColor; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 </head>
 <body>
-<canvas id="cv" aria-label="生命的特性互動畫面"></canvas>
+<canvas id="cv" aria-label="人體器官系統、植物器官、組織與細胞的 3D 模型"></canvas>
 
 <aside class="panel" id="panel" aria-label="控制面板">
   <button class="collapse" id="collapse">收合</button>
   <a class="back" href="index.html#g7">← 回課程總覽</a>
   <h1>生命的特性</h1>
-  <p class="sub">國一生物 · 生命現象、組成層次與細胞</p>
+  <p class="sub">國一生物 · 生物體的組成層次與細胞</p>
 
   <div class="body">
-    <div class="modes" style="--n:3">
-      <button class="mode" data-k="judge" aria-pressed="true">是不是<br>生物？</button>
-      <button class="mode" data-k="level">組成層次</button>
+    <div class="modes" style="--n:2">
+      <button class="mode" data-k="level" aria-pressed="true">組成層次</button>
       <button class="mode" data-k="cell">細胞構造</button>
     </div>
 
-    <!-- 模式一：是不是生物 -->
-    <div data-mode="judge">
-      <div class="group">
-        <div class="group-title">選一個東西</div>
-        <div class="chips" style="--n:4" id="things"></div>
-      </div>
-      <div class="group">
-        <div class="row">
-          <button class="btn primary grow" id="revealBtn">逐項檢查生命現象</button>
-        </div>
-        <div class="result" id="verdict">先猜猜看：它是不是生物？再按上面的按鈕逐項檢查。</div>
-      </div>
-      <div class="group">
-        <p class="note">判斷是不是生物，要<b>綜合</b>看：是否由<b>細胞</b>構成、能不能<b>代謝、生長、感應、生殖</b>。只符合其中一兩項（例如火會「長大」）不算生物。</p>
-      </div>
-    </div>
-
-    <!-- 模式二：組成層次 -->
-    <div data-mode="level" hidden>
+    <!-- 組成層次 -->
+    <div data-mode="level">
       <div class="group">
         <div class="seg" style="--n:2" id="kindSeg">
           <button data-k="animal" aria-pressed="true">動物（人）</button>
-          <button data-k="plant" aria-pressed="false">植物</button>
+          <button data-k="plant" aria-pressed="false">植物（菜豆）</button>
+        </div>
+      </div>
+      <div class="group" id="sysGroup">
+        <div class="group-title">器官系統</div>
+        <div class="sys" id="sysBtns">
+          <button class="btn" data-k="digest"><i style="background:#ff9f7a;color:#ff9f7a"></i>消化系統</button>
+          <button class="btn" data-k="circ"><i style="background:#ff4d5e;color:#ff4d5e"></i>循環系統</button>
+          <button class="btn" data-k="nerve"><i style="background:#ffe6a8;color:#ffe6a8"></i>神經系統</button>
+          <button class="btn" data-k="resp"><i style="background:#7fd4ff;color:#7fd4ff"></i>呼吸系統</button>
+          <button class="btn" data-k="defense"><i style="background:#7dff9a;color:#7dff9a"></i>防禦系統</button>
+          <button class="btn" data-k="all">全部</button>
+        </div>
+      </div>
+      <div class="group" id="grpGroup" hidden>
+        <div class="group-title">植物的器官</div>
+        <div class="seg" style="--n:3" id="grpSeg">
+          <button data-k="all" aria-pressed="true">全部</button>
+          <button data-k="veg" aria-pressed="false">營養器官</button>
+          <button data-k="rep" aria-pressed="false">生殖器官</button>
         </div>
       </div>
       <div class="group">
-        <div class="ctrl">
-          <label for="zoom">放大程度 <output id="zoomVal"></output></label>
-          <input type="range" id="zoom" min="0" max="4" step="1" value="0">
+        <div class="group-title">組成層次（點一下可以跳回那一層）</div>
+        <div class="crumbs" id="crumbs"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn" id="upBtn">← 上一層</button>
+          <button class="btn primary grow" id="downBtn">放大 →</button>
         </div>
         <div class="result" id="levelInfo"></div>
       </div>
       <div class="group">
-        <p class="note">由小到大：<b>細胞 → 組織 → 器官 → 器官系統 → 個體</b>。植物沒有「器官系統」這一層，器官直接組成個體。</p>
+        <p class="note">由小到大：<b>細胞 → 組織 → 器官 → 器官系統 → 個體</b>。植物沒有「器官系統」這一層，<b>器官直接組成個體</b>。點畫面上的器官，再按「放大」往下一層看。</p>
       </div>
     </div>
 
-    <!-- 模式三：細胞構造 -->
+    <!-- 細胞構造 -->
     <div data-mode="cell" hidden>
       <div class="group">
         <div class="seg" style="--n:2" id="cellSeg">
@@ -69,447 +89,1317 @@
         </div>
       </div>
       <div class="group">
-        <div class="group-title">點畫面上的構造看功能</div>
-        <div class="result" id="partInfo">點一下細胞裡的構造。</div>
+        <div class="group-title">點細胞裡的構造看功能</div>
+        <div class="result" id="partInfo">點一下細胞裡的構造。拖曳可以轉動，兩指可以放大。</div>
       </div>
       <div class="group">
-        <p class="note">植物細胞比動物細胞多了<b>細胞壁、葉綠體</b>，而且有<b>大型液胞</b>。動物和植物細胞都有細胞膜、細胞核、細胞質、粒線體。</p>
+        <p class="note">植物細胞比動物細胞多了<b>細胞壁、葉綠體</b>，而且有<b>大型液胞</b>。動物和植物細胞都有細胞膜、細胞核、細胞質、粒線體。標示「延伸」的構造是高中才會學的。</p>
       </div>
     </div>
   </div>
 </aside>
 
 <script src="lab-kit.js"></script>
-<script>
-(() => {
-  const { $ } = Lab;
-  const TRAITS = ['由細胞構成', '代謝（吸收、利用能量）', '生長', '感應（對刺激反應）', '生殖（產生後代）'];
-  // 每項：1 有、0 沒有、0.5 只有像（不算真的）
-  const THINGS = [
-    { k: 'cat', emoji: '🐱', name: '貓', t: [1, 1, 1, 1, 1], v: '是生物', why: '五項生命現象都有。' },
-    { k: 'seed', emoji: '🌰', name: '休眠的種子', t: [1, 1, 1, 1, 1], v: '是生物', why: '看起來不動，但種子由細胞構成，仍在進行很微弱的代謝，條件適合就會發芽、長大。' },
-    { k: 'mimosa', emoji: '🌿', name: '含羞草', t: [1, 1, 1, 1, 1], v: '是生物', why: '植物也會感應：含羞草被碰觸，葉子會合起來。' },
-    { k: 'yeast', emoji: '🍞', name: '酵母菌', t: [1, 1, 1, 1, 1], v: '是生物', why: '單細胞生物，一個細胞就能完成所有生命現象（會讓麵包發酵）。' },
-    { k: 'fire', emoji: '🔥', name: '火焰', t: [0, 0.5, 0.5, 0, 0.5], v: '不是生物', why: '火會「消耗燃料、變大、蔓延」，只是很像代謝、生長、生殖；它不是由細胞構成，也不會對刺激產生反應。' },
-    { k: 'crystal', emoji: '🧂', name: '鹽的結晶', t: [0, 0, 0.5, 0, 0], v: '不是生物', why: '結晶會「長大」，但只是外面一直堆積，不是由細胞吸收養分生長。' },
-    { k: 'robot', emoji: '🤖', name: '機器人', t: [0, 0.5, 0, 0.5, 0], v: '不是生物', why: '用電、有感測器，看起來像代謝與感應，但沒有細胞、不會自己生長或生殖。' },
-    { k: 'virus', emoji: '🦠', name: '病毒', t: [0, 0, 0, 0, 0.5], v: '介於生物與非生物之間', why: '病毒沒有細胞構造，自己不能代謝；只有進入其他生物的細胞，才能利用宿主複製出新病毒。' }
-  ];
-  const S = { mode: 'judge', thing: THINGS[0], shown: 0, revealT: 0, kind: 'animal', zoom: 0, zoomAnim: 0, cell: 'animal', part: null, t: 0 };
+<script type="module">
+import { start3D, THREE } from './lab3d.js';
+import { mergeVertices, mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
-  /* ---------- 美術小工具 ---------- */
-  const GOLD = '#ffd166';
-  const ICONS = ['🧫', '⚡', '📈', '👆', '🐣'];                         // 五項生命現象的小圖示
-  const statusCol = v => (v === 1 ? '#4fd18b' : v === 0.5 ? GOLD : '#ff5d8f');
-  const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };  // 固定的亂數
-  const DOTS = Array.from({ length: 60 }, (_, i) => [rnd(i) * 2 - 1, rnd(i + 100) * 2 - 1, 1 + rnd(i + 200) * 2]);  // 細胞質顆粒
-  const easeBack = p => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;   // 彈一下的動畫曲線
+const $ = id => document.getElementById(id);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const UP = V(0, 1, 0);
+const rnd = (() => { let s = 11; return () => { s = (s * 16807) % 2147483647; return s / 2147483647; }; })();   // 固定的亂數：每次形狀都一樣
+const rr = (a, b) => a + (b - a) * rnd();
+const gs = (x, s) => Math.exp(-(x * x) / (2 * s * s));                // 高斯：做局部的隆起或凹槽
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const pos = x => Math.max(0, x);
 
-  /** 背景的柔和綠色光暈 */
-  function backdrop(ctx, W, H, x, y, r) {
-    ctx.fillStyle = Lab.rg(x, y, 0, r, ['rgba(79,209,139,.16)', 'rgba(79,209,139,.05)', 'rgba(79,209,139,0)']);
-    ctx.fillRect(0, 0, W, H);
+const S = { mode: 'level', kind: 'animal', sys: 'digest', grp: 'all', view: 'body', organ: null, cellKind: 'animal', time: 0 };
+const L = start3D({ background: 0x03060b, camera: [0, 1.2, 7], target: [0, 1.0, 0], minDist: 1.0, maxDist: 30, ambient: 0.35, key: 1.1, frame, ui, tap });
+const { scene } = L;
+scene.fog = new THREE.FogExp2(0x03060b, 0.022);
+// 環境反光：讓器官表面有濕潤的光澤
+{
+  const pm = new THREE.PMREMGenerator(L.renderer);
+  scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+  L.renderer.toneMappingExposure = 1.05;
+  const a = new THREE.DirectionalLight(0x6fb7ff, 0.9); a.position.set(-6, 4, -8); scene.add(a);
+  const b = new THREE.DirectionalLight(0xffe0c0, 0.7); b.position.set(5, 3, 7); scene.add(b);
+}
+
+/* ================= 數學：雜訊（做皺褶、紋理） ================= */
+function h3(x, y, z) { let h = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1274126177); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+function noise3(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), xf = x - xi, yf = y - yi, zf = z - zi;
+  const f = t => t * t * (3 - 2 * t), u = f(xf), v = f(yf), w = f(zf), l = (a, b, t) => a + (b - a) * t;
+  return l(l(l(h3(xi, yi, zi), h3(xi + 1, yi, zi), u), l(h3(xi, yi + 1, zi), h3(xi + 1, yi + 1, zi), u), v),
+           l(l(h3(xi, yi, zi + 1), h3(xi + 1, yi, zi + 1), u), l(h3(xi, yi + 1, zi + 1), h3(xi + 1, yi + 1, zi + 1), u), v), w);
+}
+const fbm = (x, y, z, o = 3) => { let a = 0.5, f = 1, s = 0; for (let i = 0; i < o; i++) { s += a * noise3(x * f, y * f, z * f); f *= 2.03; a *= 0.5; } return s; };
+
+/* ================= 幾何：雕塑球、放樣管 ================= */
+// 從球「雕」出形狀：fn(單位方向) → 位置
+function sculpt(detail, fn) {
+  let g = new THREE.IcosahedronGeometry(1, detail);
+  g.deleteAttribute('normal'); g.deleteAttribute('uv'); g = mergeVertices(g);
+  const p = g.attributes.position, v = new THREE.Vector3(), uv = [];
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i).normalize();
+    uv.push(Math.atan2(v.z, v.x) / (Math.PI * 2) + 0.5, Math.asin(Math.max(-1, Math.min(1, v.y))) / Math.PI + 0.5);
+    const q = fn(v.clone()); p.setXYZ(i, q.x, q.y, q.z);
   }
-  /** 有立體感的管子（消化道）：先畫暗邊，再畫本體，最後畫一條亮光 */
-  function tube(ctx, path, w, col) {
-    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    [[w + 4, Lab.shade(col, -0.5)], [w, col], [w * 0.25, 'rgba(255,255,255,.35)']].forEach(([lw, sc]) => {
-      ctx.beginPath(); path(); ctx.lineWidth = lw; ctx.strokeStyle = sc; ctx.stroke();
-    });
-    ctx.restore();
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.computeVertexNormals();
+  return g;
+}
+const bumpy = (radius, detail, amp, freq, seed = 0) => sculpt(detail, n => n.multiplyScalar(radius * (1 + amp * Math.sin(freq * n.x + 1.3 + seed) * Math.sin(freq * n.y * 1.7 + seed) * Math.sin(freq * n.z + 0.7))));
+// 沿曲線放樣：截面半徑 rFn(u, a)，a=0 朝 front 方向；可只做一部分角度（豆莢的半邊）
+function loft(points, rFn, segs = 64, radial = 24, o = {}) {
+  const curve = new THREE.CatmullRomCurve3(points), front = o.front || V(0, 0, 1);
+  const a0 = o.a0 ?? 0, a1 = o.a1 ?? Math.PI * 2, P = [], UV = [], I = [], frames = [];
+  for (let i = 0; i <= segs; i++) {
+    const u = i / segs, c = curve.getPointAt(u), T = curve.getTangentAt(u);
+    const N = front.clone().addScaledVector(T, -front.dot(T)); if (N.lengthSq() < 1e-6) N.set(1, 0, 0).addScaledVector(T, -T.x); N.normalize();
+    const B = new THREE.Vector3().crossVectors(T, N); frames.push([c, T]);
+    for (let j = 0; j <= radial; j++) {
+      const a = a0 + (a1 - a0) * j / radial, r = typeof rFn === 'number' ? rFn : rFn(u, a);
+      P.push(c.x + r * (Math.cos(a) * N.x + Math.sin(a) * B.x), c.y + r * (Math.cos(a) * N.y + Math.sin(a) * B.y), c.z + r * (Math.cos(a) * N.z + Math.sin(a) * B.z));
+      UV.push(u, j / radial);
+    }
   }
-  /** 葉子：x,y 為中心，len 半長，wid 半寬，ang 角度 */
-  function leaf(ctx, x, y, len, wid, ang, veins = 0) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
-    ctx.beginPath(); ctx.moveTo(-len, 0);
-    ctx.quadraticCurveTo(0, -wid * 2, len, 0); ctx.quadraticCurveTo(0, wid * 2, -len, 0); ctx.closePath();
-    ctx.fillStyle = Lab.lg(0, -wid, 0, wid, ['#8ff0aa', '#3fbf6a', '#237a45']); ctx.fill();
-    ctx.strokeStyle = '#1d5e35'; ctx.lineWidth = 1.5; ctx.stroke();
-    Lab.line(-len * 0.95, 0, len * 0.9, 0, 'rgba(230,255,235,.55)', Math.max(1.5, wid * 0.08));   // 主脈
-    for (let i = 1; i <= veins; i++) {                                                        // 側脈
-      const vx = -len + (i / (veins + 1)) * len * 1.8;
-      [-1, 1].forEach(d => {
-        ctx.beginPath(); ctx.moveTo(vx, 0); ctx.quadraticCurveTo(vx + len * 0.12, d * wid * 0.5, vx + len * 0.3, d * wid * 0.85);
-        ctx.strokeStyle = 'rgba(230,255,235,.35)'; ctx.lineWidth = Math.max(1, wid * 0.04); ctx.stroke();
-      });
-    }
-    ctx.fillStyle = 'rgba(255,255,255,.18)';                                                  // 葉面反光
-    ctx.beginPath(); ctx.ellipse(-len * 0.2, -wid * 0.45, len * 0.4, wid * 0.18, -0.08, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
-  }
-  /** 會呼吸的金色提示圈 */
-  function hintRing(ctx, x, y, r) {
-    const k = 1 + Math.sin(S.t * 3) * 0.06;
-    ctx.save(); ctx.shadowColor = GOLD; ctx.shadowBlur = 14; ctx.setLineDash([7, 6]);
-    Lab.circle(x, y, r * k, 'rgba(255,209,102,.12)', GOLD, 3);
-    ctx.restore();
-  }
-
-  /* ---------- 是不是生物 ---------- */
-  $('things').innerHTML = THINGS.map((t, i) =>
-    `<button class="btn" data-k="${t.k}" aria-pressed="${i === 0}" style="flex-direction:column;display:flex;align-items:center;justify-content:center;gap:2px;min-height:58px"><span style="font-size:1.3rem">${t.emoji}</span><span style="font-size:.74rem">${t.name}</span></button>`).join('');
-  Lab.bindGroup('#things .btn', k => {
-    S.thing = THINGS.find(t => t.k === k); S.shown = 0;
-    $('verdict').textContent = `先猜猜看：「${S.thing.name}」是不是生物？再按上面的按鈕逐項檢查。`;
-  });
-  $('revealBtn').addEventListener('click', () => {
-    if (S.shown < TRAITS.length) { S.shown = TRAITS.length; S.revealT = 0; }
-    const t = S.thing;
-    $('verdict').innerHTML = `<b>${t.name}：${t.v}</b><br>${t.why}`;
-  });
-
-  function drawJudge(ctx, W, H, dt) {
-    if (S.shown && S.revealT < TRAITS.length + 1) S.revealT += dt * 2.2;  // 一項一項亮起來
-    const th = S.thing, n = TRAITS.length, wide = W >= 640;
-    // 版面：寬畫面左右兩欄（左：標本、右：檢查表），窄畫面上下排列
-    let R, sx, sy, lx, lw, ly, rowH, gap, nameY, pillY;
-    if (wide) {
-      R = Math.min(W * 0.17, H * 0.2, 120);
-      sx = W * 0.28; sy = H * 0.44;
-      lx = W * 0.5; lw = Math.min(420, W * 0.47);
-      gap = 10; rowH = Math.min(66, (H - 120) / n - gap);
-      ly = H / 2 - (n * (rowH + gap) - gap) / 2;
-      nameY = sy + R * 1.92; pillY = sy + R * 2.35;
-    } else {
-      R = Math.min(W * 0.18, H * 0.11, 80);
-      sx = W / 2; sy = R * 1.5 + 16;
-      nameY = sy + R * 1.62 + 12; pillY = nameY + 34;
-      // 左邊留空給「學習任務」與全螢幕按鈕
-      lw = Math.min(520, W - 80); lx = Math.max(64, (W - lw) / 2);
-      gap = 8; ly = pillY + 28;
-      rowH = Math.max(34, Math.min(56, (H - ly - 16) / n - gap));
-    }
-    backdrop(ctx, W, H, sx, sy, R * 3);
-
-    // 標本：放在「邊緣亮、中間透明」的玻璃球裡，輕輕浮動
-    const by = sy + Math.sin(S.t * 1.6) * R * 0.04;
-    for (let i = 0; i < n; i++) {                                       // 外圈五段：對應五項生命現象
-      const a0 = -Math.PI / 2 + i * 2 * Math.PI / n + 0.07, a1 = a0 + 2 * Math.PI / n - 0.14;
-      const on = S.shown && S.revealT > i, col = on ? statusCol(th.t[i]) : 'rgba(238,241,250,.14)';
-      ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = R * 0.09; ctx.strokeStyle = col;
-      if (on) { ctx.shadowColor = col; ctx.shadowBlur = 14; }
-      ctx.beginPath(); ctx.arc(sx, by, R * 1.18, a0, a1); ctx.stroke(); ctx.restore();
-      const am = (a0 + a1) / 2;
-      ctx.globalAlpha = on ? 1 : 0.35;
-      Lab.text(ICONS[i], sx + Math.cos(am) * R * 1.45, by + Math.sin(am) * R * 1.45, '#fff', R * 0.2);
-      ctx.globalAlpha = 1;
-    }
-    ctx.beginPath(); ctx.arc(sx, by, R, 0, Math.PI * 2);
-    ctx.fillStyle = Lab.rg(sx, by, R * 0.2, R, ['rgba(255,255,255,.03)', 'rgba(140,240,190,.10)', 'rgba(170,255,210,.34)']);
-    ctx.fill(); ctx.strokeStyle = 'rgba(210,255,230,.6)'; ctx.lineWidth = 2; ctx.stroke();
-    Lab.text(th.emoji, sx, by + R * 0.05, '#fff', R * 0.95);
-    ctx.fillStyle = 'rgba(255,255,255,.22)';                            // 玻璃反光
-    ctx.beginPath(); ctx.ellipse(sx - R * 0.42, by - R * 0.5, R * 0.3, R * 0.13, -0.7, 0, Math.PI * 2); ctx.fill();
-    Lab.text(th.name, sx, nameY, '#eef1fa', wide ? 24 : 18, 'center', 'bold');
-    if (S.shown && S.revealT >= n) {                                    // 最後的判定
-      const col = th.v === '是生物' ? '#4fd18b' : th.v === '不是生物' ? '#ff5d8f' : GOLD;
-      const k = easeBack(Math.min(1, (S.revealT - n) * 2));
-      ctx.save(); ctx.translate(sx, pillY); ctx.scale(k, k);
-      ctx.shadowColor = col; ctx.shadowBlur = 18; Lab.pill(th.v, 0, 0, col, wide ? 20 : 16);
-      ctx.restore();
-    }
-
-    // 檢查表：五張卡片，按下按鈕後依序亮起
-    if (wide) Lab.text('生命現象檢查表', lx + 4, ly - 22, 'rgba(238,241,250,.6)', 14, 'left', 'bold');
-    const fs = Math.max(13, Math.min(16, rowH * 0.28));
-    TRAITS.forEach((name, i) => {
-      const y = ly + i * (rowH + gap), r = rowH * 0.3, iy = y + rowH / 2;
-      const on = S.shown && S.revealT > i;
-      const p = on ? Math.min(1, (S.revealT - i) * 2) : 0;               // 這一張卡亮起的進度 0→1
-      const v = th.t[i], col = statusCol(v);
-      Lab.rr(lx, y, lw, rowH, r);
-      ctx.fillStyle = Lab.lg(0, y, 0, y + rowH, ['rgba(255,255,255,.08)', 'rgba(255,255,255,.03)']); ctx.fill();
-      if (p > 0) {                                                      // 由左往右刷上顏色
-        ctx.save(); Lab.rr(lx, y, lw, rowH, r); ctx.clip();
-        ctx.fillStyle = Lab.lg(lx, 0, lx + lw, 0, [Lab.alpha(col, 0.34), Lab.alpha(col, 0.06)]);
-        ctx.fillRect(lx, y, lw * p, rowH); ctx.restore();
-      }
-      Lab.rr(lx, y, lw, rowH, r);
-      ctx.strokeStyle = on ? Lab.alpha(col, 0.8) : 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.5; ctx.stroke();
-      const ir = rowH * 0.32, ix = lx + rowH * 0.52;
-      Lab.circle(ix, iy, ir, Lab.rg(ix, iy, 0, ir, on ? [Lab.alpha(col, 0.55), Lab.alpha(col, 0.15)] : ['rgba(255,255,255,.14)', 'rgba(255,255,255,.04)']));
-      Lab.text(ICONS[i], ix, iy + 1, '#fff', ir * 1.05);
-      Lab.text(name, ix + ir + 12, iy, '#eef1fa', fs, 'left', 'bold');
-      if (on) {
-        const mark = v === 1 ? '✓ 有' : v === 0.5 ? '△ 只是很像' : '✗ 沒有';
-        ctx.font = `bold 13px ${Lab.FONT}`;
-        const pw = ctx.measureText(mark).width + 20, k = easeBack(p);
-        ctx.save(); ctx.translate(lx + lw - pw / 2 - 12, iy); ctx.scale(k, k);
-        Lab.pill(mark, 0, 0, col, 13); ctx.restore();
-      } else Lab.text('？', lx + lw - 26, iy, 'rgba(238,241,250,.4)', 18, 'center', 'bold');
+  for (let i = 0; i < segs; i++) for (let j = 0; j < radial; j++) { const a = i * (radial + 1) + j, b = a + radial + 1; I.push(a, b, a + 1, b, b + 1, a + 1); }
+  if (o.caps !== false && a1 - a0 >= Math.PI * 2 - 1e-6) {          // 兩端封口
+    [[0, false], [segs, true]].forEach(([i, end]) => {
+      const c = frames[i][0], ci = P.length / 3; P.push(c.x, c.y, c.z); UV.push(end ? 1 : 0, 0.5);
+      for (let j = 0; j < radial; j++) { const a = i * (radial + 1) + j; end ? I.push(ci, a, a + 1) : I.push(ci, a + 1, a); }
     });
   }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I); g.computeVertexNormals();
+  g.userData.curve = curve; return g;
+}
+const tube = (points, r, segs = 48, radial = 12) => loft(points, typeof r === 'number' ? r : (u) => r(u), segs, radial);
+const ellipseR = (a, w, d) => 1 / Math.sqrt((Math.cos(a) / d) ** 2 + (Math.sin(a) / w) ** 2);   // a=0 朝前（深度 d），側面寬度 w
+const interp = (arr, y) => {
+  if (y <= arr[0][0]) return arr[0][1];
+  for (let i = 1; i < arr.length; i++) if (y <= arr[i][0]) { const [y0, v0] = arr[i - 1], [y1, v1] = arr[i], s = (1 - Math.cos((y - y0) / (y1 - y0) * Math.PI)) / 2; return v0 + (v1 - v0) * s; }
+  return arr[arr.length - 1][1];
+};
 
-  /* ---------- 組成層次 ---------- */
-  const LEVELS = {
-    animal: [
-      ['個體', '人', '一個完整的生物，能獨立生活。'],
-      ['器官系統', '消化系統', '好幾個器官合作完成同一項工作，例如消化系統：口、食道、胃、小腸、大腸。'],
-      ['器官', '胃', '由不同組織組成、有特定功能，例如胃可以磨碎與初步消化食物。'],
-      ['組織', '肌肉組織', '形態、功能相似的細胞聚在一起，例如肌肉組織能收縮。'],
-      ['細胞', '肌肉細胞', '生物構造與功能的基本單位。']
-    ],
-    plant: [
-      ['個體', '一株植物', '一個完整的生物。'],
-      ['器官', '葉', '植物沒有器官系統，器官（根、莖、葉、花、果實、種子）直接組成個體。葉是行光合作用的主要器官。'],
-      ['組織', '葉肉組織', '含有很多葉綠體的細胞聚在一起，負責光合作用。'],
-      ['細胞', '葉肉細胞', '有細胞壁、葉綠體和液胞的植物細胞。'],
-      ['細胞', '葉肉細胞', '有細胞壁、葉綠體和液胞的植物細胞。']
-    ]
-  };
-  Lab.bindGroup('#kindSeg button', k => { S.kind = k; const z = $('zoom'); z.max = k === 'plant' ? 3 : 4; if (+z.value > +z.max) z.value = z.max; z.dispatchEvent(new Event('input')); });
-  Lab.bindSlider('zoom', v => {
-    S.zoom = v;
-    const [lv, ex, info] = LEVELS[S.kind][v];
-    $('levelInfo').innerHTML = `<b>${lv}</b>：${ex}<br>${info}`;
-  }, v => (LEVELS[S.kind][v] || [''])[0]);
-
-  function drawLevel(ctx, W, H, dt) {
-    S.zoomAnim += (S.zoom - S.zoomAnim) * Math.min(1, dt * 6);
-    const levels = LEVELS[S.kind], n = S.kind === 'plant' ? 4 : 5;
-    // 上方：階梯
-    const stepW = Math.min(150, (W - 40) / n), sx = W / 2 - stepW * n / 2;
-    for (let i = 0; i < n; i++) {
-      const on = i === S.zoom, x0 = sx + i * stepW + 4, w = stepW - 8;
-      ctx.save();
-      if (on) { ctx.shadowColor = '#4fd18b'; ctx.shadowBlur = 16; }
-      Lab.rr(x0, 18, w, 46, 23);
-      ctx.fillStyle = on ? Lab.lg(0, 18, 0, 64, ['rgba(79,209,139,.5)', 'rgba(79,209,139,.2)']) : Lab.lg(0, 18, 0, 64, ['rgba(255,255,255,.08)', 'rgba(255,255,255,.03)']);
-      ctx.fill(); ctx.restore();
-      Lab.rr(x0, 18, w, 46, 23); ctx.strokeStyle = on ? '#4fd18b' : 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.5; ctx.stroke();
-      Lab.text(levels[i][0], x0 + w / 2, 42, on ? '#fff' : 'rgba(238,241,250,.6)', 15, 'center', on ? 'bold' : '');
-      if (i < n - 1) Lab.text('›', sx + (i + 1) * stepW, 41, 'rgba(238,241,250,.45)', 20, 'center', 'bold');
-    }
-    const cx = W / 2, cy = (H + 80) / 2, size = Math.min(W, H - 100) * 0.38;
-    backdrop(ctx, W, H, cx, cy, size * 1.6);
-    const z = Math.round(S.zoomAnim);
-    const fade = 1 - Math.min(1, Math.abs(S.zoomAnim - z) * 2);
-    ctx.globalAlpha = Math.max(0.15, fade);
-    (S.kind === 'animal' ? drawAnimal : drawPlant)(ctx, z, cx, cy, size);
-    ctx.globalAlpha = 1;
-    Lab.pill(`${levels[z][0]}：${levels[z][1]}`, cx, H - 34, '#4fd18b', 17);
-  }
-  /** 組織：很多形狀相似的細胞排在一起（細胞膜邊緣亮、中間透明） */
-  function cellGrid(ctx, cx, cy, size, plant) {
-    const n = 5, cw = size * 2 / n, ch = cw * 0.7, base = plant ? '#7ee0a0' : '#ff9fb4';
-    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-      const jx = (rnd(i * 7 + j) - 0.5) * cw * 0.06, jy = (rnd(i * 3 + j * 11) - 0.5) * ch * 0.06;   // 稍微不整齊，比較像真的
-      const x = cx - size + i * cw + jx, y = cy - n * ch / 2 + j * ch + jy, w = cw - 4, h = ch - 4;
-      Lab.rr(x + 2, y + 2, w, h, plant ? 4 : h * 0.4);
-      ctx.fillStyle = Lab.rg(x + 2 + w / 2, y + 2 + h / 2, 0, w * 0.62, [Lab.alpha(base, 0.04), Lab.alpha(base, 0.12), Lab.alpha(base, 0.42)]);
-      ctx.fill(); ctx.strokeStyle = plant ? '#4f9e4a' : Lab.alpha(base, 0.85); ctx.lineWidth = plant ? 2.5 : 1.5; ctx.stroke();
-      Lab.ball(x + cw / 2, y + ch * 0.48, cw * 0.1, plant ? '#7a63d9' : '#a072e0');
-      if (plant) for (let k = 0; k < 3; k++) Lab.ball(x + cw * (0.25 + k * 0.25), y + ch * 0.78, cw * 0.05, '#3fbf6a');
-    }
-  }
-  function drawAnimal(ctx, z, cx, cy, s) {
-    if (z === 0) {                                   // 人（個體）
-      const ps = s * 1.75 / 124, fy = cy + s * 0.88;
-      ctx.fillStyle = Lab.rg(cx, fy, 0, s * 0.6, ['rgba(79,209,139,.3)', 'rgba(79,209,139,0)']);
-      ctx.beginPath(); ctx.ellipse(cx, fy, s * 0.6, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-      Lab.person(cx, fy, ps, { shirt: '#5b9cff', pants: '#2f3d63', hand: [8, 40], hand2: [-8, 40] });
-      const gy = fy - 80 * ps;                        // 胃大約在這裡
-      hintRing(ctx, cx + 2 * ps, gy, 13 * ps);
-      Lab.text('放大看 →', cx + s * 0.55, gy, GOLD, 15, 'center', 'bold');
-    } else if (z === 1) {                            // 消化系統
-      // 淡淡的身體輪廓
-      Lab.circle(cx, cy - s * 1.05, s * 0.16, 'rgba(255,255,255,.05)', 'rgba(255,255,255,.12)', 1.5);
-      Lab.rr(cx - s * 0.62, cy - s * 0.85, s * 1.24, s * 1.6, s * 0.3);
-      ctx.fillStyle = Lab.lg(0, cy - s * 0.85, 0, cy + s * 0.75, ['rgba(255,255,255,.07)', 'rgba(255,255,255,.02)']); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1.5; ctx.stroke();
-      tube(ctx, () => { ctx.moveTo(cx - s * 0.45, cy + s * 0.55); ctx.lineTo(cx - s * 0.45, cy - s * 0.1); ctx.lineTo(cx + s * 0.45, cy - s * 0.1); ctx.lineTo(cx + s * 0.45, cy + s * 0.6); }, s * 0.09, '#d9849b');
-      tube(ctx, () => { for (let i = 0; i <= 40; i++) { const t = i / 40, x = cx + Math.sin(t * 18) * s * 0.3, y = cy - s * 0.05 + t * s * 0.55; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } }, s * 0.045, '#ff9fb4');
-      tube(ctx, () => { ctx.moveTo(cx, cy - s * 0.9); ctx.lineTo(cx, cy - s * 0.42); }, s * 0.06, '#ffb3c4');
-      ctx.save(); ctx.translate(cx + s * 0.12, cy - s * 0.32); ctx.rotate(0.5);   // 胃
-      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.24, s * 0.16, 0, 0, Math.PI * 2);
-      ctx.fillStyle = Lab.rg(0, 0, s * 0.02, s * 0.24, ['#ffc2d0', '#ff6f98', '#a8325a'], -s * 0.08, -s * 0.06); ctx.fill();
-      ctx.strokeStyle = '#7a2342'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-      [['食道', cx + s * 0.2, cy - s * 0.75], ['胃', cx + s * 0.55, cy - s * 0.32], ['小腸', cx, cy + s * 0.75], ['大腸', cx + s * 0.7, cy + s * 0.2]]
-        .forEach(([t, x, y]) => Lab.pill(t, x, y, GOLD, 13));
-    } else if (z === 2) {                            // 胃（器官）：由不同組織組成
-      const rot = -0.3, P = (r1, r2, a) => [cx + r1 * Math.cos(a) * Math.cos(rot) - r2 * Math.sin(a) * Math.sin(rot), cy + r1 * Math.cos(a) * Math.sin(rot) + r2 * Math.sin(a) * Math.cos(rot)];
-      ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
-      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.7, s * 0.45, 0, 0, Math.PI * 2);
-      ctx.fillStyle = Lab.rg(0, 0, s * 0.1, s * 0.72, ['#ffb3c4', '#e2577c', '#8f2a4a'], -s * 0.2, -s * 0.15); ctx.fill();
-      ctx.strokeStyle = '#6e1f3a'; ctx.lineWidth = 2.5; ctx.stroke();
-      ctx.save(); ctx.clip();                          // 肌肉組織的紋路
-      ctx.strokeStyle = 'rgba(120,20,50,.25)'; ctx.lineWidth = 2;
-      for (let i = -12; i <= 12; i++) { ctx.beginPath(); ctx.moveTo(i * s * 0.06, -s * 0.5); ctx.lineTo(i * s * 0.06 + s * 0.1, s * 0.5); ctx.stroke(); }
-      ctx.restore();
-      ctx.beginPath();                                 // 上皮組織（內層，有皺褶）
-      for (let i = 0; i <= 96; i++) { const a = i / 96 * Math.PI * 2, w = 1 + Math.sin(a * 16) * 0.04; const x = Math.cos(a) * s * 0.55 * w, y = Math.sin(a) * s * 0.32 * w; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
-      ctx.closePath(); ctx.fillStyle = Lab.rg(0, 0, s * 0.1, s * 0.55, ['#ffe7c2', '#ffc08a', '#f08a6a']); ctx.fill();
-      ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke();
-      ctx.beginPath(); ctx.ellipse(0, 0, s * 0.42, s * 0.2, 0, 0, Math.PI * 2);   // 胃腔
-      ctx.fillStyle = Lab.rg(0, 0, 0, s * 0.42, ['rgba(60,10,25,.75)', 'rgba(90,20,40,.55)']); ctx.fill();
-      ctx.restore();
-      const [mx, my] = P(s * 0.64, s * 0.4, -0.5), [ex, ey] = P(s * 0.5, s * 0.28, 2.4);
-      Lab.line(mx, my, cx + s * 0.85, cy - s * 0.55, 'rgba(255,255,255,.6)', 1.5); Lab.circle(mx, my, 4, '#fff');
-      Lab.line(ex, ey, cx - s * 0.8, cy + s * 0.55, 'rgba(255,255,255,.6)', 1.5); Lab.circle(ex, ey, 4, '#fff');
-      Lab.pill('肌肉組織', cx + s * 0.85, cy - s * 0.55, '#ff8fa8', 14);
-      Lab.pill('上皮組織', cx - s * 0.8, cy + s * 0.55, GOLD, 14);
-      Lab.text('胃由肌肉組織、上皮組織等多種組織組成', cx, cy + s * 0.8, 'rgba(238,241,250,.85)', 15);
-    } else if (z === 3) cellGrid(ctx, cx, cy, s * 0.8, false);
-    else drawCell(ctx, cx, cy, s * 0.8, 'animal', false);
-  }
-  function drawPlant(ctx, z, cx, cy, s) {
-    if (z === 0) {                                   // 一株植物（個體）
-      // 花盆和土
-      const py = cy + s * 0.72, ph = s * 0.22;
-      Lab.shadow(cx, py + ph + 4, s * 0.34, s * 0.06, 0.5);
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.28, py); ctx.lineTo(cx + s * 0.28, py); ctx.lineTo(cx + s * 0.2, py + ph); ctx.lineTo(cx - s * 0.2, py + ph); ctx.closePath();
-      ctx.fillStyle = Lab.lg(cx - s * 0.28, 0, cx + s * 0.28, 0, ['#a8603a', '#d98a5a', '#8a4a2a']); ctx.fill();
-      Lab.rr(cx - s * 0.31, py - s * 0.04, s * 0.62, s * 0.07, 4); ctx.fillStyle = Lab.lg(0, py - s * 0.04, 0, py + s * 0.03, ['#e09a6a', '#9a5532']); ctx.fill();
-      ctx.fillStyle = '#4a3020'; ctx.beginPath(); ctx.ellipse(cx, py - s * 0.035, s * 0.27, s * 0.03, 0, 0, Math.PI * 2); ctx.fill();
-      // 莖
-      ctx.save(); ctx.lineCap = 'round';
-      ctx.strokeStyle = Lab.lg(cx - 5, 0, cx + 5, 0, ['#4f8a3a', '#8fc06a', '#4f8a3a']); ctx.lineWidth = s * 0.045;
-      ctx.beginPath(); ctx.moveTo(cx, py - s * 0.03); ctx.quadraticCurveTo(cx - s * 0.04, cy + s * 0.1, cx, cy - s * 0.52); ctx.stroke(); ctx.restore();
-      // 葉
-      [[-1, -0.3], [1, -0.1], [-1, 0.15], [1, 0.4]].forEach(([d, y]) => leaf(ctx, cx + d * s * 0.28, cy + y * s, s * 0.26, s * 0.1, d * 0.4, 0));
-      // 花
-      const fx = cx, fy = cy - s * 0.62;
-      for (let i = 0; i < 6; i++) {
-        const a = i * Math.PI / 3 + S.t * 0.1;
-        ctx.save(); ctx.translate(fx + Math.cos(a) * s * 0.08, fy + Math.sin(a) * s * 0.08); ctx.rotate(a);
-        ctx.beginPath(); ctx.ellipse(0, 0, s * 0.09, s * 0.055, 0, 0, Math.PI * 2);
-        ctx.fillStyle = Lab.rg(0, 0, 0, s * 0.09, ['#ffe0ea', '#ff8fa8', '#e05a80'], -s * 0.03, 0); ctx.fill(); ctx.restore();
-      }
-      Lab.ball(fx, fy, s * 0.055, '#ffd166');
-      hintRing(ctx, cx + s * 0.28, cy - s * 0.1, s * 0.17);
-      Lab.text('放大看 →', cx + s * 0.72, cy - s * 0.1, GOLD, 15, 'center', 'bold');
-    } else if (z === 1) {                            // 葉（器官）
-      Lab.line(cx - s * 0.78, cy, cx - s * 1.0, cy + s * 0.12, '#4f8a3a', s * 0.035);   // 葉柄
-      leaf(ctx, cx, cy, s * 0.8, s * 0.38, 0, 5);
-      Lab.text('植物沒有器官系統：根、莖、葉等器官直接組成個體', cx, cy + s * 0.65, GOLD, 15, 'center', 'bold');
-    } else if (z === 2) cellGrid(ctx, cx, cy, s * 0.8, true);
-    else drawCell(ctx, cx, cy, s * 0.8, 'plant', false);
-  }
-
-  /* ---------- 細胞構造 ---------- */
-  const PARTS = {
-    wall: ['細胞壁', '只有植物細胞有。在細胞膜外面，堅硬，用來支持和保護細胞。'],
-    membrane: ['細胞膜', '控制物質進出細胞。'],
-    nucleus: ['細胞核', '含有遺傳物質（DNA），控制細胞的生命活動。'],
-    cytoplasm: ['細胞質', '細胞膜以內、細胞核以外的部分，許多化學反應在這裡進行。'],
-    mito: ['粒線體', '進行呼吸作用，分解養分、釋放能量。動物、植物細胞都有。'],
-    chloro: ['葉綠體', '只有植物（綠色部分）的細胞有。進行光合作用，製造養分。'],
-    vacuole: ['液胞', '植物細胞的液胞很大，儲存水分和物質，讓細胞保持飽滿。']
-  };
-  let hits = [];
-  function drawCell(ctx, cx, cy, s, kind, interactive) {
-    const plant = kind === 'plant', c = ctx;
-    hits = [];
-    const sel = k => interactive && S.part === k;
-    const glow = k => { if (sel(k)) { c.shadowColor = GOLD; c.shadowBlur = 20; } };   // 被點到的構造發金光
-    // 細胞質裡的小顆粒
-    const grains = () => DOTS.forEach(([u, v, r]) => {
-      if (!plant && u * u + (v * 0.62 / 0.72) ** 2 > 0.6) return;
-      Lab.circle(cx + u * s * 0.82, cy + v * s * 0.56, r * s * 0.006 + 0.6, 'rgba(230,255,240,.22)');
-    });
-    if (plant) {
-      // 細胞壁：厚而堅硬
-      c.save(); glow('wall');
-      Lab.rr(cx - s * 0.965, cy - s * 0.685, s * 1.93, s * 1.37, 12);
-      c.strokeStyle = Lab.lg(cx - s, cy - s * 0.72, cx + s, cy + s * 0.72, ['#9ad884', '#4f9e4a', '#3b7a3a']);
-      c.lineWidth = s * 0.07; c.stroke(); c.restore();
-      Lab.rr(cx - s, cy - s * 0.72, s * 2, s * 1.44, 15);
-      c.strokeStyle = sel('wall') ? GOLD : 'rgba(25,60,30,.9)'; c.lineWidth = sel('wall') ? 3 : 1.5; c.stroke();
-      // 細胞膜與細胞質：邊緣亮、中間透明
-      Lab.rr(cx - s * 0.93, cy - s * 0.65, s * 1.86, s * 1.3, 10);
-      c.fillStyle = Lab.rg(cx, cy, s * 0.2, s * 1.05, ['rgba(150,235,190,.05)', 'rgba(150,235,190,.10)', 'rgba(180,255,215,.30)']); c.fill();
-      c.save(); glow('membrane'); c.strokeStyle = sel('membrane') ? GOLD : 'rgba(225,255,238,.85)'; c.lineWidth = sel('membrane') ? 4 : 2.5; c.stroke(); c.restore();
-      hits.push(['wall', p => insideRect(p, cx - s, cy - s * 0.72, s * 2, s * 1.44) && !insideRect(p, cx - s * 0.9, cy - s * 0.62, s * 1.8, s * 1.24)]);
-      hits.push(['membrane', p => insideRect(p, cx - s * 0.93, cy - s * 0.65, s * 1.86, s * 1.3) && !insideRect(p, cx - s * 0.86, cy - s * 0.58, s * 1.72, s * 1.16)]);
-      grains();
-      // 大型液胞
-      Lab.rr(cx - s * 0.35, cy - s * 0.45, s * 0.95, s * 0.9, s * 0.3);
-      c.fillStyle = Lab.rg(cx + s * 0.125, cy, s * 0.1, s * 0.6, ['rgba(120,180,255,.08)', 'rgba(120,180,255,.16)', 'rgba(150,200,255,.42)']); c.fill();
-      c.save(); glow('vacuole'); c.strokeStyle = sel('vacuole') ? GOLD : 'rgba(160,205,255,.85)'; c.lineWidth = sel('vacuole') ? 3.5 : 2; c.stroke(); c.restore();
-      c.fillStyle = 'rgba(255,255,255,.13)';
-      c.beginPath(); c.ellipse(cx - s * 0.02, cy - s * 0.3, s * 0.2, s * 0.06, -0.25, 0, Math.PI * 2); c.fill();
-      hits.push(['vacuole', p => insideRect(p, cx - s * 0.35, cy - s * 0.45, s * 0.95, s * 0.9)]);
-      // 葉綠體（裡面有一疊疊的基粒）
-      [[-0.75, -0.45], [-0.5, -0.45], [-0.75, -0.15], [-0.5, -0.15], [0.74, -0.45], [0.74, 0.45]].forEach(([dx, dy]) => {
-        const x = cx + dx * s, y = cy + dy * s;
-        c.save(); c.translate(x, y); c.rotate(0.4); glow('chloro');
-        c.beginPath(); c.ellipse(0, 0, s * 0.09, s * 0.05, 0, 0, Math.PI * 2);
-        c.fillStyle = Lab.lg(0, -s * 0.05, 0, s * 0.05, ['#9af5b2', '#3fbf6a', '#1f7a42']); c.fill();
-        c.shadowBlur = 0; c.strokeStyle = sel('chloro') ? GOLD : '#1d5e35'; c.lineWidth = sel('chloro') ? 2.5 : 1.5; c.stroke();
-        c.fillStyle = 'rgba(20,90,45,.75)';
-        for (let k = -1; k <= 1; k++) c.fillRect(k * s * 0.04 - s * 0.012, -s * 0.022, s * 0.024, s * 0.044);
-        c.restore();
-        hits.push(['chloro', p => Math.hypot(p[0] - x, p[1] - y) < s * 0.1]);
-      });
-    } else {
-      // 動物細胞：只有細胞膜，邊緣亮、中間透明
-      c.beginPath(); c.ellipse(cx, cy, s, s * 0.72, 0, 0, Math.PI * 2);
-      c.fillStyle = Lab.rg(cx, cy, s * 0.2, s * 1.02, ['rgba(255,170,190,.05)', 'rgba(255,160,185,.10)', 'rgba(255,190,205,.34)']); c.fill();
-      c.save(); glow('membrane'); c.strokeStyle = sel('membrane') ? GOLD : 'rgba(255,225,232,.85)'; c.lineWidth = sel('membrane') ? 5 : 2.5; c.stroke(); c.restore();
-      hits.push(['membrane', p => { const d = ((p[0] - cx) / s) ** 2 + ((p[1] - cy) / (s * 0.72)) ** 2; return d < 1.08 && d > 0.85; }]);
-      grains();
-    }
-    // 粒線體（內膜有皺褶）
-    (plant ? [[0.74, 0.02], [-0.12, 0.52]] : [[0.55, 0.35], [-0.55, 0.38], [0.6, -0.35]]).forEach(([dx, dy]) => {
-      const x = cx + dx * s, y = cy + dy * s;
-      c.save(); c.translate(x, y); c.rotate(-0.5); glow('mito');
-      c.beginPath(); c.ellipse(0, 0, s * 0.12, s * 0.06, 0, 0, Math.PI * 2);
-      c.fillStyle = Lab.lg(0, -s * 0.06, 0, s * 0.06, ['#ffc684', '#ff9f43', '#c26a1a']); c.fill();
-      c.shadowBlur = 0; c.strokeStyle = sel('mito') ? GOLD : '#8a4a12'; c.lineWidth = sel('mito') ? 2.5 : 1.8; c.stroke();
-      c.clip(); c.beginPath();
-      for (let i = 0; i <= 8; i++) { const xx = -s * 0.1 + i * s * 0.025, yy = (i % 2 ? -1 : 1) * s * 0.035; i ? c.lineTo(xx, yy) : c.moveTo(xx, yy); }
-      c.strokeStyle = 'rgba(120,60,10,.7)'; c.lineWidth = 1.5; c.stroke();
-      c.restore();
-      hits.push(['mito', p => Math.hypot(p[0] - x, p[1] - y) < s * 0.12]);
-    });
-    // 細胞核（含核仁與染色質）
-    const nx = plant ? cx - s * 0.62 : cx - s * 0.1, ny = plant ? cy + s * 0.36 : cy, nr = s * 0.2;
-    c.save(); glow('nucleus');
-    c.beginPath(); c.arc(nx, ny, nr, 0, Math.PI * 2);
-    c.fillStyle = Lab.rg(nx, ny, nr * 0.1, nr, ['rgba(220,205,255,.92)', 'rgba(160,130,250,.82)', 'rgba(100,70,200,.88)'], nx - nr * 0.35, ny - nr * 0.35); c.fill();
-    c.shadowBlur = 0; c.strokeStyle = sel('nucleus') ? GOLD : '#cbb8ff'; c.lineWidth = sel('nucleus') ? 3.5 : 2; c.stroke(); c.restore();
-    [[-0.4, 0.3], [-0.1, -0.45], [0.45, -0.2], [0.1, 0.5], [-0.5, -0.1]].forEach(([u, v]) => Lab.circle(nx + u * nr, ny + v * nr, nr * 0.07, 'rgba(70,40,160,.55)'));
-    Lab.circle(nx + nr * 0.22, ny + nr * 0.12, nr * 0.27, Lab.rg(nx + nr * 0.22, ny + nr * 0.12, 0, nr * 0.27, ['rgba(90,55,190,.95)', 'rgba(60,30,150,.8)']));
-    c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); c.ellipse(nx - nr * 0.4, ny - nr * 0.45, nr * 0.25, nr * 0.1, -0.7, 0, Math.PI * 2); c.fill();
-    hits.push(['nucleus', p => Math.hypot(p[0] - nx, p[1] - ny) < s * 0.2]);
-    hits.push(['cytoplasm', p => plant ? insideRect(p, cx - s * 0.86, cy - s * 0.58, s * 1.72, s * 1.16) : ((p[0] - cx) / s) ** 2 + ((p[1] - cy) / (s * 0.72)) ** 2 < 0.85]);
-    if (interactive) {                               // 名稱標籤：被點到的那一個變金色
-      const L = plant
-        ? [['細胞壁', cx - s * 0.82, cy - s * 0.83, 'wall'], ['液胞', cx + s * 0.125, cy - s * 0.58, 'vacuole'], ['葉綠體', cx - s * 0.62, cy - s * 0.58, 'chloro'], ['細胞核', nx, ny - nr - 16, 'nucleus'], ['粒線體', cx + s * 0.74, cy + s * 0.15, 'mito']]
-        : [['細胞膜', cx + s * 0.75, cy - s * 0.65, 'membrane'], ['細胞核', nx, ny + nr + 18, 'nucleus'], ['粒線體', cx + s * 0.55, cy + s * 0.5, 'mito'], ['細胞質', cx - s * 0.5, cy - s * 0.3, 'cytoplasm']];
-      L.forEach(([t, x, y, k]) => Lab.pill(t, x, y, S.part === k ? GOLD : 'rgba(238,241,250,.85)', 13));
-    }
-  }
-  const insideRect = (p, x, y, w, h) => p[0] > x && p[0] < x + w && p[1] > y && p[1] < y + h;
-  Lab.bindGroup('#cellSeg button', k => { S.cell = k; S.part = null; $('partInfo').textContent = '點一下細胞裡的構造。'; });
-
-  /* ---------- 主程式 ---------- */
-  Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); });
-  Lab.init({
-    draw(ctx, W, H, dt, t) {
-      S.t = t;
-      if (S.mode === 'judge') drawJudge(ctx, W, H, dt);
-      else if (S.mode === 'level') drawLevel(ctx, W, H, dt);
-      else {
-        const s = Math.min(W * 0.36, H * 0.42);
-        backdrop(ctx, W, H, W / 2, H / 2 + 10, s * 1.6);
-        drawCell(ctx, W / 2, H / 2 + 10, s, S.cell, true);
-        Lab.pill(S.cell === 'plant' ? '植物細胞' : '動物細胞', W / 2, 32, '#4fd18b', 17);
-      }
-    },
-    down(x, y) {
-      if (S.mode !== 'cell') return false;
-      // 先檢查小構造，再檢查大範圍的液胞、膜、細胞質
-      const order = ['nucleus', 'mito', 'chloro', 'vacuole', 'membrane', 'wall', 'cytoplasm'];
-      const h = order.map(k => hits.find(([kk, f]) => kk === k && f([x, y]))).find(Boolean);
-      if (!h) return false;
-      S.part = h[0];
-      const [n, d] = PARTS[h[0]];
-      $('partInfo').innerHTML = `<b>${n}</b>：${d}`;
-      return false;
-    }
-  });
+/* ================= 材質與紋理 ================= */
+const glowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
 })();
+function glowSprite(color, size, opacity = 1) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }));
+  s.scale.set(size, size, 1); return s;
+}
+// 邊緣亮、中間透明（玻璃標本、細胞膜）；支援 InstancedMesh
+function rimMat(color, power = 2.2, intensity = 1, fill = 0) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: { color: { value: new THREE.Color(color) }, power: { value: power }, intensity: { value: intensity }, fill: { value: fill } },
+    vertexShader: `varying vec3 vN; varying vec3 vV;
+      void main(){ vec4 p = vec4(position, 1.0); vec3 n = normal;
+        #ifdef USE_INSTANCING
+          p = instanceMatrix * p; n = mat3(instanceMatrix) * n;
+        #endif
+        vec4 mv = modelViewMatrix * p; vN = normalize(normalMatrix * n); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+    fragmentShader: 'uniform vec3 color; uniform float power; uniform float intensity; uniform float fill; varying vec3 vN; varying vec3 vV; void main(){ float r = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), power); float a = (r + fill) * intensity; gl_FragColor = vec4(color * a, a); }',
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
+  });
+  m.userData.base = intensity; return m;
+}
+const lineMat = (color, opacity) => { const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }); m.userData.base = opacity; return m; };
+// 程式畫的紋理：斑駁的顏色＋細小血管（同時做凹凸貼圖）
+const TEX = {};
+function organTex(key, base, vessel, o = {}) {
+  if (TEX[key]) return TEX[key];
+  const N = o.size || 512, c = document.createElement('canvas'), b = document.createElement('canvas'); c.width = c.height = b.width = b.height = N;
+  const g = c.getContext('2d'), gb = b.getContext('2d');
+  g.fillStyle = base; g.fillRect(0, 0, N, N); gb.fillStyle = '#808080'; gb.fillRect(0, 0, N, N);
+  const mott = o.mottle ?? 0.22;
+  for (let i = 0; i < (o.spots ?? 1400); i++) {
+    const x = rnd() * N, y = rnd() * N, r = rr(2, o.spotR || 14), k = rnd() > 0.5, a = mott * rnd() * 0.5;
+    g.fillStyle = k ? `rgba(255,235,225,${a})` : `rgba(40,0,10,${a})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    gb.fillStyle = k ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`; gb.beginPath(); gb.arc(x, y, r, 0, Math.PI * 2); gb.fill();
+  }
+  if (o.speck) for (let i = 0; i < o.speck; i++) { g.fillStyle = o.speckColor || 'rgba(30,20,30,.5)'; g.fillRect(rnd() * N, rnd() * N, rr(1, 3), rr(1, 3)); }
+  const branch = (x, y, a, w, d) => {
+    for (let s = 0; s < 26 && w > 0.4; s++) {
+      const nx = x + Math.cos(a) * 7, ny = y + Math.sin(a) * 7;
+      g.strokeStyle = vessel; g.lineWidth = w; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); g.lineTo(nx, ny); g.stroke();
+      gb.strokeStyle = 'rgba(255,255,255,.55)'; gb.lineWidth = w * 1.3; gb.beginPath(); gb.moveTo(x, y); gb.lineTo(nx, ny); gb.stroke();
+      a += (rnd() - 0.5) * 0.5; x = nx; y = ny; w *= 0.965;
+      if (rnd() < 0.16 && d < 4) branch(x, y, a + (rnd() < 0.5 ? -1 : 1) * rr(0.5, 1.1), w * 0.7, d + 1);
+    }
+  };
+  if (vessel) for (let k = 0; k < (o.vessels ?? 7); k++) branch(rnd() * N, rnd() * N, rnd() * Math.PI * 2, rr(1.6, 3.4), 0);
+  if (o.lines) for (let i = 0; i < o.lines; i++) { g.strokeStyle = o.lineColor; g.lineWidth = rr(0.6, 1.6); g.beginPath(); const x = rnd() * N; g.moveTo(x, 0); g.lineTo(x + rr(-6, 6), N); g.stroke(); }
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  const bump = new THREE.CanvasTexture(b); bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+  if (o.repeat) { map.repeat.set(...o.repeat); bump.repeat.set(...o.repeat); }
+  return (TEX[key] = { map, bump });
+}
+// 寫實的器官材質：表面有一層濕潤的亮光（clearcoat）
+function organMat(color, tex, o = {}) {
+  const op = o.op ?? 0.97;
+  const m = new THREE.MeshPhysicalMaterial({
+    color, map: tex ? tex.map : null, bumpMap: tex ? tex.bump : null, bumpScale: o.bump ?? 0.5,
+    roughness: o.rough ?? 0.45, metalness: 0, clearcoat: o.coat ?? 0.6, clearcoatRoughness: 0.3, sheen: 0.4, sheenColor: new THREE.Color(o.sheen ?? 0xffd0d0), sheenRoughness: 0.6,
+    envMapIntensity: o.env ?? 0.75, transparent: op < 1, opacity: op, depthWrite: op > 0.6, side: o.side ?? THREE.FrontSide,
+    emissive: new THREE.Color(color).multiplyScalar(o.glow ?? 0.04)
+  });
+  m.userData.base = op; return m;
+}
+const flesh = (color, op = 0.92, o = {}) => organMat(color, null, { op, coat: 0.35, ...o });
+function organ(geo, mat, rim = 0xffffff, rimI = 0.28) { const g = new THREE.Group(); g.add(new THREE.Mesh(geo, mat)); if (rimI) g.add(new THREE.Mesh(geo, rimMat(rim, 2.6, rimI))); return g; }
+function setFade(obj, k) {
+  obj.traverse(o => {
+    const m = o.material; if (!m) return;
+    (Array.isArray(m) ? m : [m]).forEach(mm => {
+      if (mm.uniforms && mm.uniforms.intensity) mm.uniforms.intensity.value = mm.userData.base * k;
+      else if (mm.userData.base != null) { mm.opacity = mm.userData.base * k; mm.transparent = mm.opacity < 1 || mm.userData.base < 1; mm.depthWrite = mm.opacity > 0.6; }
+    });
+  });
+}
+const PICK = [];
+function pickable(obj, key) { obj.traverse(o => { if (o.isMesh || o.isLineSegments) o.userData.key = key; }); PICK.push(obj); return obj; }
+const named = (obj, label) => { obj.userData.labelName = label; return obj; };
+const DL = Array.from({ length: 20 }, () => { const it = L.label('', null, ''); it.show = false; return it; });
+function setLabels(list) {
+  DL.forEach((it, i) => {
+    const d = list[i];
+    if (!d) { it.show = false; it.where = null; return; }
+    it.set(d[0]); it.where = d[1]; it.show = true; it.el.className = 'lbl ' + (d[2] || '');
+  });
+}
+const selGlow = glowSprite(0xffd166, 1, 0); scene.add(selGlow);
+function selectGlow(obj) { selGlow.userData.obj = obj || null; selGlow.material.opacity = obj ? 0.7 : 0; }
+
+/* ================= 展示台 ================= */
+const stage = new THREE.Group(); scene.add(stage);
+{
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(2.3, 2.5, 0.35, 64), new THREE.MeshStandardMaterial({ color: 0x0b1118, metalness: 0.75, roughness: 0.3 }));
+  ped.position.y = -4.45; stage.add(ped);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.32, 0.025, 8, 96), lineMat(0x4fd18b, 0.9)); ring.rotation.x = Math.PI / 2; ring.position.y = -4.27; stage.add(ring);
+  const grid = new THREE.GridHelper(40, 40, 0x16324a, 0x0c1c2a); grid.position.y = -4.63; grid.material.transparent = true; grid.material.opacity = 0.35; stage.add(grid);
+  const n = 260, p = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { p[i * 3] = (rnd() - 0.5) * 24; p[i * 3 + 1] = rnd() * 12 - 4; p[i * 3 + 2] = (rnd() - 0.5) * 24; }
+  const dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  const dust = new THREE.Points(dg, new THREE.PointsMaterial({ color: 0x6fb7ff, size: 0.06, map: glowTex, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+  dust.name = 'dust'; scene.add(dust);
+}
+
+/* ================= 資料：器官、組織、細胞的說明 ================= */
+const ORG = {
+  mouth: { name: '口', sys: 'digest', info: '牙齒把食物咬碎，唾液開始消化澱粉。' },
+  esoph: { name: '食道', sys: 'digest', info: '肌肉一縮一放（蠕動），把食物往下推到胃。食物不在這裡消化。' },
+  stomach: { name: '胃', sys: 'digest', info: '胃壁肌肉收縮攪拌食物，胃液開始消化蛋白質。', tissue: 'stomach' },
+  liver: { name: '肝臟', sys: 'digest', info: '分泌膽汁（先存在膽囊），幫助脂肪的消化；也能儲存肝糖。食物不會經過肝臟。' },
+  gall: { name: '膽囊', sys: 'digest', info: '儲存肝臟製造的膽汁，再送到小腸。' },
+  pancreas: { name: '胰臟', sys: 'digest', info: '分泌胰液到小腸，含有多種消化酵素；也會分泌胰島素調節血糖。' },
+  small: { name: '小腸', sys: 'digest', info: '消化和吸收養分的主要場所，內壁有許多絨毛，增加吸收的面積。' },
+  large: { name: '大腸', sys: 'digest', info: '吸收水分，把剩下的殘渣形成糞便。' },
+  anus: { name: '肛門', sys: 'digest', info: '糞便由這裡排出體外。' },
+  heart: { name: '心臟', sys: 'circ', info: '主要由心肌構成，收縮時把血液送到全身和肺。表面的冠狀動脈供應心肌養分。', tissue: 'cardiac' },
+  artery: { name: '動脈', sys: 'circ', info: '把血液從心臟送出去，管壁厚、有彈性。' },
+  vein: { name: '靜脈', sys: 'circ', info: '把血液送回心臟，管壁較薄，有瓣膜防止血液倒流。' },
+  brain: { name: '腦', sys: 'nerve', info: '接收訊息、判斷並下達命令，是神經系統的中樞。大腦表面有許多皺褶（溝與迴）。', tissue: 'neural' },
+  cord: { name: '脊髓', sys: 'nerve', info: '腦和身體之間傳遞訊息的通道，也是反射的中樞，受到脊椎骨保護。', tissue: 'neural' },
+  nerves: { name: '神經', sys: 'nerve', info: '由許多神經細胞的突起組成，把訊息傳到身體各處。', tissue: 'neural' },
+  nose: { name: '鼻', sys: 'resp', info: '空氣進出的地方，鼻毛和黏液可以過濾灰塵。' },
+  trachea: { name: '氣管', sys: 'resp', info: '有 C 形的軟骨環支撐，讓空氣的通道保持暢通。' },
+  bronchi: { name: '支氣管', sys: 'resp', info: '氣管分成左右兩支進入肺，再分成更細的小支氣管。' },
+  lung: { name: '肺', sys: 'resp', info: '右肺分 3 葉、左肺分 2 葉（左邊要留空間給心臟）。由許多肺泡組成，在肺泡和微血管之間交換氣體。', tissue: 'alveoli' },
+  diaphragm: { name: '橫膈', sys: 'resp', info: '由肌肉構成，收縮下降時胸腔變大而吸氣，放鬆上升時呼氣。' },
+  skin: { name: '皮膚', sys: 'defense', info: '第一道防線：完整的皮膚和黏膜可以阻擋病原體進入身體。' },
+  node: { name: '淋巴結', sys: 'defense', info: '聚集了許多淋巴球（白血球的一種），會過濾淋巴、對抗病原體。感冒時脖子的淋巴結會腫大。', tissue: 'lymph' },
+  lymphv: { name: '淋巴管', sys: 'defense', info: '收集組織間的液體成為淋巴，送到淋巴結過濾，最後流回靜脈。' },
+  spleen: { name: '脾臟', sys: 'defense', info: '最大的淋巴器官，可以過濾血液、清除老舊的紅血球。' },
+  thymus: { name: '胸腺', sys: 'defense', info: '幫助某些淋巴球發育成熟，兒童時期比較大。' },
+  tonsil: { name: '扁桃腺', sys: 'defense', info: '位在喉嚨兩側，攔截從口鼻進入的病原體。' },
+  root: { name: '根', grp: 'veg', info: '吸收水分和礦物質，並把植物固定在土裡。根毛增加吸收面積；菜豆的根上還有<b>根瘤</b>。', tissue: 'root' },
+  stem: { name: '莖', grp: 'veg', info: '支持植物；莖裡的維管束運送水分和養分。', tissue: 'stem' },
+  leaf: { name: '葉', grp: 'veg', info: '進行光合作用、製造養分的主要器官。菜豆的葉是三片小葉組成的複葉。', tissue: 'leaf' },
+  flower: { name: '花', grp: 'rep', info: '有性生殖的器官。菜豆的花像蝴蝶（蝶形花）：旗瓣、翼瓣、龍骨瓣，雄蕊和雌蕊包在龍骨瓣裡。', tissue: 'petal' },
+  fruit: { name: '果實', grp: 'rep', info: '由子房發育而成，保護種子並幫助種子散播。菜豆的果實就是豆莢，成熟後會裂開。', tissue: 'fruit' },
+  seed: { name: '種子', grp: 'rep', info: '由胚珠發育而成，裡面的胚可以長成新的植物。', tissue: 'seed' }
+};
+const SYS = {
+  digest: { name: '消化系統', info: '把食物分解成小分子養分並吸收。食物的路徑：<b>口 → 食道 → 胃 → 小腸 → 大腸 → 肛門</b>；肝臟、胰臟分泌消化液幫忙，但食物不經過它們。', zoom: 'stomach' },
+  circ: { name: '循環系統', info: '由<b>心臟、血管、血液</b>組成，把氧氣和養分送到全身，再把二氧化碳和廢物帶走。紅色是動脈，藍色是靜脈。', zoom: 'heart' },
+  nerve: { name: '神經系統', info: '由<b>腦、脊髓和神經</b>組成，負責接收刺激、傳導訊息並下達命令。', zoom: 'brain' },
+  resp: { name: '呼吸系統', info: '空氣的路徑：<b>鼻 → 咽 → 喉 → 氣管 → 支氣管 → 肺（肺泡）</b>。橫膈上下移動，讓肺吸氣和呼氣。', zoom: 'lung' },
+  defense: { name: '防禦系統', info: '<b>皮膚與黏膜</b>是第一道防線；<b>白血球</b>和<b>淋巴系統</b>（淋巴管、淋巴結、脾臟、胸腺、扁桃腺）負責對抗入侵的病原體。', zoom: 'node' }
+};
+const TISSUE = {
+  stomach: { name: '上皮組織＋肌肉組織', cell: 'smooth', info: '胃壁由多種組織組成：最內層的<b>上皮組織</b>分泌胃液、保護胃壁；外面的<b>肌肉組織</b>收縮，攪拌食物。' },
+  cardiac: { name: '心肌組織', cell: 'cardiac', info: '心肌細胞彼此連接，可以一起收縮，讓心臟有規律地跳動。' },
+  neural: { name: '神經組織', cell: 'neuron', info: '由許多神經細胞連在一起組成，負責接收和傳遞訊息。' },
+  alveoli: { name: '肺泡', cell: 'squamous', info: '肺泡壁只有一層很薄的細胞，外面包著許多微血管，方便交換氧氣和二氧化碳。' },
+  lymph: { name: '淋巴組織', cell: 'lympho', info: '大量淋巴球聚集在一起，辨認並對抗入侵的病原體。' },
+  leaf: { name: '表皮組織與葉肉組織', cell: 'leafCell', info: '<b>表皮組織</b>保護葉片，下表皮有<b>氣孔</b>讓氣體進出；<b>葉肉組織</b>的細胞含有許多葉綠體，進行光合作用。' },
+  root: { name: '表皮組織（根毛）', cell: 'rootHair', info: '根的表皮細胞往外突出形成<b>根毛</b>，大大增加吸收水分的面積。' },
+  stem: { name: '輸導組織（維管束）', cell: 'stemCell', info: '<b>木質部</b>的導管把水分往上運送；<b>韌皮部</b>的篩管運送葉片製造的養分。' },
+  petal: { name: '花瓣的表皮組織', cell: 'petal', info: '花瓣的表皮細胞排列整齊，液胞裡的色素讓花瓣有顏色，吸引昆蟲來傳粉。' },
+  fruit: { name: '果皮（薄壁組織）', cell: 'fruit', info: '果皮的細胞大而壁薄，液胞儲存大量水分。' },
+  seed: { name: '子葉的儲藏組織', cell: 'seed', info: '菜豆種子的子葉細胞裡充滿澱粉粒，儲存種子發芽需要的養分。' }
+};
+const CELL = {
+  smooth: { name: '平滑肌細胞', info: '細長的紡錘形，可以收縮。動物細胞：有細胞膜、細胞核、細胞質、粒線體，<b>沒有細胞壁</b>。' },
+  cardiac: { name: '心肌細胞', info: '有分支、有橫紋，含有很多粒線體，提供心臟不停跳動的能量。' },
+  neuron: { name: '神經細胞（神經元）', info: '有樹突和軸突，可以接收與傳遞訊息。' },
+  squamous: { name: '肺泡壁細胞', info: '又扁又薄，氧氣和二氧化碳很容易通過。' },
+  lympho: { name: '淋巴球（白血球的一種）', info: '細胞核很大，能辨認病原體並產生抗體。' },
+  leafCell: { name: '葉肉細胞', info: '有細胞壁、很多葉綠體和液胞，是進行光合作用的地方。' },
+  rootHair: { name: '根毛細胞', info: '表皮細胞往外突出形成根毛；根照不到光，所以<b>沒有葉綠體</b>。' },
+  stemCell: { name: '莖的薄壁細胞', info: '維管束周圍的細胞，有細胞壁、液胞，靠近表面的細胞含有少量葉綠體。' },
+  petal: { name: '花瓣細胞', info: '液胞裡含有色素，所以花瓣有顏色；花瓣細胞<b>沒有葉綠體</b>。' },
+  fruit: { name: '果皮細胞', info: '有很大的液胞儲存水分；豆莢是綠色的，所以果皮細胞含有葉綠體。' },
+  seed: { name: '子葉細胞', info: '細胞裡充滿<b>澱粉粒</b>，儲存發芽需要的養分。' }
+};
+const PART = {
+  wall: ['細胞壁', '只有植物細胞有。在細胞膜外面，堅硬，用來支持和保護細胞。'],
+  membrane: ['細胞膜', '控制物質進出細胞。'],
+  nucleus: ['細胞核', '含有遺傳物質（DNA），控制細胞的生命活動。表面的小孔（核孔）讓物質進出。'],
+  cytoplasm: ['細胞質', '細胞膜以內、細胞核以外的部分，許多化學反應在這裡進行。'],
+  mito: ['粒線體', '進行呼吸作用，分解養分、釋放能量。內膜有很多皺褶。動物、植物細胞都有。'],
+  chloro: ['葉綠體', '只有植物（綠色部分）的細胞有。進行光合作用，製造養分；裡面一疊一疊的構造含有葉綠素。'],
+  vacuole: ['液胞', '植物細胞的液胞很大，儲存水分和物質，讓細胞保持飽滿。'],
+  pigment: ['液胞（含色素）', '花瓣細胞的液胞裡有色素，讓花瓣呈現顏色。'],
+  starch: ['澱粉粒', '儲存在細胞裡的養分，種子發芽時會被分解利用。'],
+  hair: ['根毛', '表皮細胞往外突出的部分，增加吸收水分的面積。'],
+  stripe: ['橫紋', '心肌細胞裡排列整齊的收縮構造，看起來像一條條橫紋。'],
+  dendrite: ['樹突', '接收其他神經細胞傳來的訊息。'],
+  axon: ['軸突', '把訊息傳給下一個細胞。'],
+  er: ['內質網（延伸）', '高中會學：細胞裡的膜狀通道，表面附著核糖體，參與製造與運送蛋白質。'],
+  golgi: ['高基氏體（延伸）', '高中會學：把物質加工、包裝，再送到需要的地方。']
+};
+const LEVELS = { animal: ['個體', '器官系統', '器官', '組織', '細胞'], plant: ['個體', '器官', '組織', '細胞'] };
+
+/* ================= 人體外觀（寫實的玻璃標本） ================= */
+const body = new THREE.Group(); scene.add(body);
+const skinRim = rimMat(0x58b8ff, 2.4, 0.5, 0.015);
+const skinFill = new THREE.MeshPhysicalMaterial({ color: 0x0d2030, transparent: true, opacity: 0.16, roughness: 0.15, clearcoat: 1, envMapIntensity: 0.5, depthWrite: false });
+skinFill.userData.base = 0.16;
+const skin = new THREE.Group(); body.add(skin);
+const skinPart = geo => { skin.add(new THREE.Mesh(geo, skinFill), new THREE.Mesh(geo, skinRim)); };
+// 軀幹：每個高度的寬度與厚度（含胸肌、腹部、臀部、背部脊椎溝）
+const TW = [[-0.8, 0.2], [-0.66, 0.5], [-0.4, 0.68], [-0.1, 0.66], [0.25, 0.58], [0.7, 0.62], [1.2, 0.72], [1.7, 0.8], [2.05, 0.86], [2.22, 0.84], [2.38, 0.55], [2.5, 0.26], [2.58, 0.2]];
+const TD = [[-0.8, 0.17], [-0.66, 0.32], [-0.4, 0.4], [-0.1, 0.34], [0.25, 0.3], [0.7, 0.32], [1.2, 0.36], [1.7, 0.38], [2.05, 0.33], [2.22, 0.28], [2.38, 0.24], [2.5, 0.2], [2.58, 0.19]];
+skinPart(loft([V(0, -0.8, 0), V(0, 0.9, 0), V(0, 2.58, 0)], (u, a) => {
+  const y = -0.8 + u * 3.38, c = Math.cos(a), s2 = Math.sin(a) ** 2;
+  let r = ellipseR(a, interp(TW, y), interp(TD, y));
+  r += 0.065 * gs(y - 1.62, 0.17) * pos(c) ** 2 * s2 * 4 * 0.5;          // 胸肌
+  r += 0.025 * gs(y - 0.55, 0.32) * pos(c) ** 3;                         // 腹部
+  r += 0.08 * gs(y + 0.4, 0.17) * pos(-c) ** 2 * s2 * 2;                 // 臀部
+  r += 0.035 * gs(y - 1.9, 0.2) * pos(-c) ** 2 * s2 * 2;                 // 肩胛骨
+  r -= 0.025 * gs(c + 1, 0.04) * sm(-0.5, 0.2, y);                       // 背部脊椎溝
+  return r;
+}, 120, 48));
+skinPart(loft([V(0, 2.45, -0.03), V(0, 2.75, 0), V(0, 3.02, 0.02)], (u, a) => 0.19 + 0.012 * gs(u - 0.45, 0.12) * pos(Math.cos(a)) ** 4, 16, 32));
+// 頭：鼻子、眉骨、眼窩、下巴
+const headFn = n => {
+  const p = V(n.x * 0.4, n.y * 0.5, n.z * 0.46);
+  if (n.y < -0.1) { const k = sm(-0.1, -1, n.y); p.x *= 1 - 0.38 * k; p.z *= 1 - 0.12 * k; }
+  if (n.z > 0 && n.y < -0.5) p.z += 0.05 * sm(-0.5, -0.92, n.y);
+  if (n.z < 0) p.z *= 1.06;
+  p.z += 0.075 * gs(n.x, 0.08) * gs(n.y + 0.06, 0.12) * pos(n.z);
+  p.z += 0.02 * gs(n.y - 0.22, 0.06) * pos(n.z) * (1 - Math.abs(n.x));
+  p.z -= 0.028 * gs(Math.abs(n.x) - 0.33, 0.09) * gs(n.y - 0.12, 0.07) * pos(n.z);
+  p.z += 0.02 * gs(n.y + 0.38, 0.05) * gs(n.x, 0.12) * pos(n.z);       // 嘴唇
+  return p;
+};
+{ const h = sculpt(5, headFn); h.translate(0, 3.4, 0.02); skinPart(h); }
+[1, -1].forEach(s => { const e = new THREE.SphereGeometry(1, 16, 12); e.scale(0.03, 0.09, 0.06); e.translate(0.405 * s, 3.37, -0.02); skinPart(e); });
+// 手臂（三角肌、二頭肌、三頭肌、前臂）＋手（五根手指）
+[1, -1].forEach(s => {
+  skinPart(loft([V(0.93 * s, 2.25, 0), V(1.06 * s, 1.6, 0), V(1.18 * s, 0.95, 0), V(1.24 * s, 0.35, 0.03), V(1.28 * s, -0.25, 0.05)], (u, a) => {
+    const c = Math.cos(a); let r = 0.17 + (0.1 - 0.17) * u;
+    r += 0.05 * gs(u - 0.06, 0.07) - 0.022 * gs(u - 0.5, 0.06) + 0.03 * gs(u - 0.28, 0.1) * pos(c) + 0.025 * gs(u - 0.3, 0.1) * pos(-c) + 0.028 * gs(u - 0.62, 0.1);
+    return r * (1 - 0.12 * Math.sin(a) ** 2);
+  }, 80, 28));
+  const w = V(1.28 * s, -0.25, 0.05), k = V(1.3 * s, -0.52, 0.06);
+  skinPart(loft([w, w.clone().lerp(k, 0.5), k], (u, a) => ellipseR(a, 0.035, 0.085 * (1 + 0.15 * u)), 12, 20, { front: V(1, 0, 0) }));
+  [[-0.06, 0.19], [-0.02, 0.22], [0.02, 0.21], [0.06, 0.16]].forEach(([dz, len]) => {
+    const b = k.clone().add(V(0, 0, dz)); skinPart(tube([b, b.clone().add(V(-0.02 * s, -len * 0.55, 0.004)), b.clone().add(V(-0.045 * s, -len, 0.01))], u => 0.018 * (1 - 0.3 * u), 12, 8));
+  });
+  const tb = V(1.29 * s, -0.36, 0.1); skinPart(tube([tb, tb.clone().add(V(-0.02 * s, -0.08, 0.05)), tb.clone().add(V(-0.05 * s, -0.16, 0.08))], u => 0.022 * (1 - 0.3 * u), 10, 8));
+  // 腿（股四頭肌、膝、小腿肚）＋腳
+  skinPart(loft([V(0.36 * s, -0.5, 0), V(0.4 * s, -1.4, 0.03), V(0.42 * s, -2.35, 0.05), V(0.42 * s, -3.1, 0.0), V(0.42 * s, -3.92, -0.02)], (u, a) => {
+    const c = Math.cos(a); let r = 0.28 + (0.085 - 0.28) * u;
+    r += 0.04 * gs(u - 0.2, 0.12) * pos(c) - 0.03 * gs(u - 0.48, 0.05) + 0.045 * gs(u - 0.63, 0.09) * pos(-c);
+    return r;
+  }, 90, 28));
+  skinPart(loft([V(0.42 * s, -4.0, -0.1), V(0.42 * s, -4.08, 0.15), V(0.43 * s, -4.12, 0.44)], (u, a) => ellipseR(a, 0.055 + 0.02 * u, 0.065 - 0.03 * u), 20, 20, { front: V(0, 1, 0) }));
+});
+pickable(skin, 'skin');
+
+// 骨架（淡淡的，當作位置參考）
+const skel = new THREE.Group(); body.add(skel);
+const boneMat = organMat(0xe8dcc0, organTex('bone', '#e2d6bc', null, { mottle: 0.12 }), { op: 0.16, coat: 0.2 });
+{
+  for (let k = 0; k < 10; k++) {
+    const y0 = 1.98 - k * 0.13; [1, -1].forEach(s => {
+      const pts = []; for (let i = 0; i <= 10; i++) { const th = i / 10 * Math.PI * (0.88 - k * 0.012), y = y0 - 0.32 * th / Math.PI, W = interp(TW, y) * 0.86, D = interp(TD, y) * 0.86; pts.push(V(s * W * Math.sin(th), y, -D * Math.cos(th))); }
+      skel.add(new THREE.Mesh(tube(pts, 0.022, 30, 6), boneMat));
+    });
+  }
+  skel.add(new THREE.Mesh(loft([V(0, 1.98, 0.3), V(0, 1.6, 0.33), V(0, 1.22, 0.33)], (u, a) => ellipseR(a, 0.06, 0.02), 12, 12), boneMat));
+  [1, -1].forEach(s => skel.add(new THREE.Mesh(tube([V(0.07 * s, 2.24, 0.22), V(0.45 * s, 2.3, 0.18), V(0.85 * s, 2.26, 0.02)], 0.025, 20, 6), boneMat)));
+  [1, -1].forEach(s => { const w = new THREE.Mesh(sculpt(3, n => V(n.x * 0.24, n.y * 0.2, n.z * 0.06)), boneMat); w.position.set(0.28 * s, -0.28, -0.08); w.rotation.set(0.3, 0.6 * s, 0.25 * s); skel.add(w); });
+  const vg = new THREE.CylinderGeometry(0.075, 0.085, 0.09, 14), cc = new THREE.CatmullRomCurve3([V(0, 2.95, -0.18), V(0, 2.4, -0.38), V(0, 1.5, -0.48), V(0, 0.8, -0.42), V(0, 0.0, -0.36), V(0, -0.45, -0.34)]);
+  for (let i = 0; i <= 24; i++) { const p = cc.getPointAt(i / 24), m = new THREE.Mesh(vg, boneMat); m.position.copy(p); skel.add(m); }
+}
+
+/* ================= 器官系統 ================= */
+const SG = {}; for (const k of Object.keys(SYS)) { SG[k] = new THREE.Group(); body.add(SG[k]); }
+const ORGOBJ = {};
+function addOrgan(key, obj, sys) { SG[sys].add(obj); pickable(obj, key); if (!ORGOBJ[key]) ORGOBJ[key] = obj; return obj; }
+
+// ---------- 消化系統 ----------
+const DIG = {};
+{
+  const tPink = organTex('gut', '#d9828a', 'rgba(150,20,40,.55)', { vessels: 9 }), tLiver = organTex('liver', '#6e2420', 'rgba(40,0,0,.5)', { vessels: 4, speck: 1500, speckColor: 'rgba(120,50,40,.35)' });
+  DIG.mouth = addOrgan('mouth', organ(sculpt(3, n => V(n.x * 0.1, n.y * 0.03, n.z * 0.05)), organMat(0xc85a6a, tPink)), 'digest'); DIG.mouth.position.set(0, 3.06, 0.4);
+  const esoPts = [V(0, 3.0, 0.3), V(0, 2.7, 0.05), V(0.02, 2.2, -0.12), V(0.05, 1.5, -0.12), V(0.12, 1.06, 0.05)];
+  DIG.esoph = addOrgan('esoph', organ(tube(esoPts, 0.04, 48, 14), organMat(0xd98a8a, tPink)), 'digest');
+  const stPts = [V(0.12, 1.06, 0.05), V(0.3, 1.14, 0.06), V(0.43, 0.92, 0.12), V(0.36, 0.64, 0.18), V(0.14, 0.58, 0.2), V(-0.05, 0.68, 0.18)];
+  DIG.stomach = addOrgan('stomach', organ(loft(stPts, (u, a) => (0.05 + 0.17 * Math.sin(Math.PI * Math.pow(u, 0.75)) * (1 - 0.45 * u)) * (1 + 0.025 * Math.sin(a * 9 + u * 30) * sm(0.2, 0.6, u)), 80, 32), organMat(0xd06a78, tPink, { bump: 0.8 })), 'digest');
+  const liverFn = n => {
+    const p = V(n.x * 1.4, n.y, n.z), t = sm(-1.2, 1.4, p.x);
+    p.y *= 0.8 - 0.5 * t; p.z *= 1 - 0.45 * t; if (n.y < 0) p.y *= 0.5;
+    p.y -= 0.12 * gs(p.x - 0.25, 0.15) * pos(n.y);   // 鐮狀韌帶的凹痕（分出左右葉）
+    return p.multiplyScalar(1 + 0.02 * (noise3(n.x * 4, n.y * 4, n.z * 4) - 0.5));
+  };
+  DIG.liver = addOrgan('liver', organ(sculpt(5, liverFn), organMat(0x7a2a24, tLiver, { coat: 0.8 })), 'digest'); DIG.liver.position.set(-0.12, 1.1, 0.12); DIG.liver.scale.setScalar(0.34); DIG.liver.rotation.z = -0.15;
+  DIG.gall = addOrgan('gall', organ(sculpt(3, n => V(n.x * 0.045, n.y * 0.09 * (n.y > 0 ? 0.8 : 1), n.z * 0.045 * (1 + 0.3 * pos(-n.y)))), organMat(0x4f7f2a, null, { coat: 0.9 })), 'digest'); DIG.gall.position.set(-0.22, 0.9, 0.28); DIG.gall.rotation.z = 0.4;
+  DIG.pancreas = addOrgan('pancreas', organ(loft([V(-0.05, 0.6, 0.0), V(0.2, 0.67, -0.02), V(0.45, 0.78, -0.06)], (u, a) => 0.06 * (1 - 0.5 * u) * (1 + 0.14 * (noise3(u * 30, a * 2, 1) - 0.5)), 40, 16), organMat(0xe8c27a, organTex('panc', '#e3be7a', 'rgba(170,80,40,.35)', { vessels: 3, spotR: 5, spots: 2500 }))), 'digest');
+  const si = [V(-0.05, 0.68, 0.18), V(-0.16, 0.6, 0.16), V(-0.18, 0.45, 0.14), V(-0.02, 0.4, 0.16)];
+  for (let k = 0; k < 7; k++) { const y = 0.32 - k * 0.1, dir = k % 2 ? 1 : -1; for (let j = 0; j <= 4; j++) si.push(V(dir * (-0.3 + 0.15 * j), y + Math.sin(j * 1.7 + k) * 0.025, 0.2 + 0.06 * Math.sin(j * 2.1 + k * 1.3))); }
+  si.push(V(-0.38, -0.38, 0.15));
+  DIG.small = addOrgan('small', organ(tube(si, 0.042, 380, 12), organMat(0xe39a8a, tPink)), 'digest');
+  const li = [V(-0.4, -0.4, 0.15), V(-0.45, 0.0, 0.15), V(-0.45, 0.5, 0.18), V(-0.3, 0.58, 0.27), V(0.0, 0.55, 0.3), V(0.3, 0.58, 0.27), V(0.46, 0.5, 0.15), V(0.46, 0.0, 0.12), V(0.42, -0.35, 0.1), V(0.2, -0.5, 0.05), V(0.02, -0.55, -0.05), V(0, -0.72, -0.1)];
+  DIG.large = addOrgan('large', organ(loft(li, (u, a) => 0.075 * (1 + 0.16 * Math.sin(u * 70)) * (u > 0.92 ? 0.7 : 1) * (1 - 0.06 * gs(Math.cos(a * 3), 0.08)), 240, 18), organMat(0xc98a74, organTex('colon', '#c48a72', 'rgba(140,30,40,.45)', { vessels: 8 }))), 'digest');
+  SG.digest.add(new THREE.Mesh(tube([V(-0.4, -0.42, 0.15), V(-0.36, -0.52, 0.18), V(-0.3, -0.56, 0.2)], u => 0.018 * (1 - 0.4 * u), 10, 8), organMat(0xc98a74, null)));   // 闌尾
+  DIG.anus = addOrgan('anus', organ(new THREE.TorusGeometry(0.035, 0.018, 10, 20), organMat(0xa85a5a)), 'digest'); DIG.anus.position.set(0, -0.78, -0.1); DIG.anus.rotation.x = Math.PI / 2;
+  DIG.path = [esoPts, stPts, si, li].map(p => new THREE.CatmullRomCurve3(p));
+  DIG.food = glowSprite(0xffb36b, 0.32, 0.95); SG.digest.add(DIG.food);
+}
+// ---------- 循環系統：心臟 ----------
+const CIRC = { flows: [] };
+const ventFn = n => {
+  const p = n.clone(), t = (n.y + 1) / 2, k = 0.35 + 0.65 * Math.pow(t, 0.55);
+  p.x *= k * 0.95; p.z *= k * 0.82; p.y *= 1.25;
+  p.multiplyScalar(1 + 0.08 * gs(n.x + 0.35, 0.3) * pos(n.z));                  // 右心室在右前方鼓起
+  p.multiplyScalar(1 - 0.05 * gs(n.x - 0.05 + 0.3 * n.y, 0.06) * pos(n.z));     // 心室間溝
+  if (n.y > 0.75) p.y = 1.25 * 0.75 + (p.y - 1.25 * 0.75) * 0.4;
+  return p.multiplyScalar(1 + 0.012 * (noise3(n.x * 5, n.y * 5, n.z * 5) - 0.5));
+};
+function buildHeart() {
+  const g = new THREE.Group();
+  const tH = organTex('heart', '#8e1f2c', 'rgba(240,200,120,.35)', { vessels: 5, mottle: 0.25 });
+  const vent = named(new THREE.Mesh(sculpt(5, ventFn), organMat(0x9a1f2c, tH, { coat: 0.75 })), '心室');
+  vent.scale.setScalar(0.24); vent.rotation.set(0.25, 0, 0.55); g.add(vent);
+  const lobe = (c, pos3, scl, name) => { const m = named(new THREE.Mesh(sculpt(4, n => n.multiplyScalar(1 + 0.05 * (noise3(n.x * 3, n.y * 3, n.z * 3) - 0.5))), organMat(c, tH)), name); m.position.copy(pos3); m.scale.copy(scl); g.add(m); return m; };
+  lobe(0x7a2a4a, V(-0.13, 0.17, 0.02), V(0.12, 0.11, 0.11), '右心房'); lobe(0x8a2a3a, V(0.08, 0.18, -0.1), V(0.11, 0.09, 0.1), '左心房');
+  const auricle = (p3, s) => { const m = new THREE.Mesh(sculpt(4, n => n.multiplyScalar(1 + 0.12 * Math.sin(n.y * 18) * 0.5)), organMat(0x8a2a40, tH)); m.position.copy(p3); m.scale.setScalar(s); g.add(m); };
+  auricle(V(-0.19, 0.14, 0.12), 0.06); auricle(V(0.15, 0.17, 0.08), 0.05);
+  const vessel = (pts, r, c, name) => { const m = named(new THREE.Mesh(tube(pts, r, 40, 16), organMat(c, null, { coat: 0.8 })), name); g.add(m); return m; };
+  const aortaPts = [V(0.0, 0.12, 0.02), V(0.0, 0.32, 0.03), V(-0.02, 0.43, -0.03), V(0.06, 0.43, -0.12), V(0.1, 0.3, -0.18), V(0.1, 0.05, -0.2), V(0.08, -0.3, -0.22)];
+  vessel(aortaPts, 0.045, 0xc8323c, '主動脈');
+  [[V(-0.01, 0.43, -0.02), V(-0.06, 0.62, 0.0)], [V(0.03, 0.44, -0.06), V(0.06, 0.64, -0.05)], [V(0.07, 0.42, -0.1), V(0.15, 0.58, -0.12)]].forEach(p => vessel(p, 0.017, 0xc8323c));
+  vessel([V(0.06, 0.08, 0.13), V(0.05, 0.25, 0.12), V(0.02, 0.33, 0.04)], 0.04, 0x6a4ab8, '肺動脈');
+  vessel([V(0.02, 0.33, 0.04), V(0.15, 0.34, -0.05), V(0.28, 0.3, -0.05)], 0.028, 0x6a4ab8); vessel([V(0.02, 0.33, 0.04), V(-0.12, 0.32, -0.05), V(-0.28, 0.28, -0.04)], 0.028, 0x6a4ab8);
+  vessel([V(-0.13, 0.52, 0.0), V(-0.13, 0.32, 0.0), V(-0.13, 0.2, 0.02)], 0.035, 0x3a5ac8, '上大靜脈'); vessel([V(-0.12, -0.1, -0.02), V(-0.12, -0.32, -0.05)], 0.038, 0x3a5ac8, '下大靜脈');
+  // 冠狀動脈：貼著心室表面走
+  const surf = d => ventFn(d.normalize()).multiplyScalar(0.24 * 1.04).applyEuler(vent.rotation);
+  const cor = (dirs, c, r, name) => { const m = named(new THREE.Mesh(tube(dirs.map(d => surf(V(...d))), r, 40, 6), organMat(c, null, { coat: 0.9 })), name); g.add(m); };
+  cor([[0.1, 0.9, 0.4], [0.15, 0.5, 0.85], [0.2, 0, 0.98], [0.25, -0.5, 0.8], [0.2, -0.9, 0.3]], 0xe03a44, 0.009, '冠狀動脈（供應心肌養分）');
+  cor([[-0.4, 0.85, 0.35], [-0.8, 0.5, 0.3], [-0.95, 0, 0.2], [-0.7, -0.5, -0.3]], 0xe03a44, 0.008);
+  cor([[0.4, 0.85, 0.2], [0.85, 0.4, -0.2], [0.7, 0, -0.7]], 0xe03a44, 0.008);
+  cor([[0.2, 0.85, 0.45], [0.26, 0.45, 0.85], [0.3, -0.1, 0.95], [0.3, -0.55, 0.75]], 0x4a5ad8, 0.007);
+  cor([[0.12, 0.88, 0.42], [0.17, 0.48, 0.86], [0.22, -0.02, 0.97], [0.26, -0.5, 0.8]], 0xe8cf8a, 0.016);   // 溝裡的脂肪
+  return g;
+}
+{
+  const heart = buildHeart(); heart.position.set(0.1, 1.5, 0.15); CIRC.heart = addOrgan('heart', heart, 'circ');
+  const art = (pts, r = 0.024) => { addOrgan('artery', organ(tube(pts, u => r * (1 - 0.35 * u), Math.max(24, pts.length * 14), 10), organMat(0xd02a3a, null, { op: 0.95, coat: 0.8 }), 0xff9aa0, 0.2), 'circ'); };
+  const ven = (pts, r = 0.026) => { addOrgan('vein', organ(tube(pts, u => r * (0.7 + 0.3 * u), Math.max(24, pts.length * 14), 10), organMat(0x3050c8, null, { op: 0.95, coat: 0.8 }), 0x9ab0ff, 0.2), 'circ'); };
+  const A = {
+    headL: [V(0.06, 1.98, 0.0), V(0.12, 2.6, 0.05), V(0.13, 3.1, 0.08)], headR: [V(0.04, 1.99, 0.0), V(-0.12, 2.6, 0.05), V(-0.13, 3.1, 0.08)],
+    armL: [V(0.1, 1.95, 0.0), V(0.5, 2.1, 0.0), V(0.95, 2.15, 0.03), V(1.18, 0.95, 0.05), V(1.28, -0.25, 0.08), V(1.3, -0.55, 0.08)],
+    armR: [V(0.0, 1.97, 0.0), V(-0.5, 2.1, 0.0), V(-0.95, 2.15, 0.03), V(-1.18, 0.95, 0.05), V(-1.28, -0.25, 0.08), V(-1.3, -0.55, 0.08)],
+    legL: [V(0, -0.3, -0.12), V(0.3, -0.65, 0.03), V(0.4, -1.4, 0.08), V(0.42, -2.35, 0.0), V(0.42, -3.85, 0.05)],
+    legR: [V(0, -0.3, -0.12), V(-0.3, -0.65, 0.03), V(-0.4, -1.4, 0.08), V(-0.42, -2.35, 0.0), V(-0.42, -3.85, 0.05)],
+    aorta: [V(0.18, 1.8, -0.07), V(0.1, 1.5, -0.25), V(0.04, 0.8, -0.22), V(0.02, 0.0, -0.18), V(0, -0.3, -0.12)]
+  };
+  art(A.aorta, 0.045); ['headL', 'headR', 'armL', 'armR', 'legL', 'legR'].forEach(k => art(A[k]));
+  // 往器官與末梢的小分支
+  [[V(0.04, 0.9, -0.2), V(0.25, 0.95, 0.0), V(0.35, 0.85, 0.12)], [V(0.03, 0.55, -0.2), V(0.0, 0.45, 0.05), V(-0.1, 0.25, 0.18)], [V(0.03, 0.6, -0.2), V(0.15, 0.45, 0.05), V(0.3, 0.2, 0.15)]].forEach(p => art(p, 0.015));
+  const twig = (p, d, len, r, depth) => { const e = p.clone().addScaledVector(d, len); art([p, p.clone().lerp(e, 0.5).add(V(rr(-0.03, 0.03), 0, rr(-0.03, 0.03))), e], r); if (depth > 0) [-1, 1].forEach(s => twig(e, d.clone().add(V(s * 0.6, 0, s * 0.3)).normalize(), len * 0.6, r * 0.7, depth - 1)); };
+  [1, -1].forEach(s => { twig(V(1.3 * s, -0.55, 0.08), V(0.1 * s, -1, 0.1).normalize(), 0.14, 0.01, 1); twig(V(0.42 * s, -3.85, 0.05), V(0, -0.3, 1).normalize(), 0.18, 0.012, 1); twig(V(0.13 * s, 3.1, 0.08), V(0.3 * s, 0.8, 0.5).normalize(), 0.18, 0.012, 1); });
+  const off = (pts, dx) => pts.map(p => V(p.x + (p.x >= 0 ? dx : -dx), p.y, p.z + 0.05)).reverse();
+  const Vn = { cava: [V(-0.06, -0.3, -0.04), V(-0.06, 0.8, -0.08), V(-0.06, 1.3, 0.05), V(-0.03, 1.38, 0.12)], top: [V(-0.08, 2.05, 0.04), V(-0.04, 1.85, 0.15), V(-0.03, 1.72, 0.15)] };
+  ven(Vn.cava, 0.042); ven(Vn.top, 0.038);
+  const VL = { headL: off(A.headL, 0.05), headR: off(A.headR, 0.05), armL: off(A.armL, 0.05), armR: off(A.armR, 0.05), legL: off(A.legL, 0.06), legR: off(A.legR, 0.06) };
+  Object.values(VL).forEach(p => ven(p));
+  const curves = [A.aorta, A.headL, A.headR, A.armL, A.armR, A.legL, A.legR].map(p => [new THREE.CatmullRomCurve3(p), 0xff5d6e]).concat([Vn.cava, Vn.top, ...Object.values(VL)].map(p => [new THREE.CatmullRomCurve3(p), 0x6f8cff]));
+  curves.forEach(([c, col], i) => { for (let k = 0; k < 5; k++) { const s = glowSprite(col, 0.14, 0.9); SG.circ.add(s); CIRC.flows.push({ s, c, u: k / 5 + i * 0.07 }); } });
+}
+// ---------- 神經系統 ----------
+const NERV = { pulses: [], curves: [] };
+// 大腦半球：溝（細細的凹槽）與迴（之間的隆起）、外側溝
+const hemiFn = side => n => {
+  const p = V(n.x * 0.62, n.y * 0.72, n.z);
+  if (n.y < -0.1 && Math.abs(n.z) < 0.7) p.x *= 1.06;                     // 顳葉
+  if (p.y < -0.35) p.y = -0.35 + (p.y + 0.35) * 0.4;                       // 底部比較平
+  if (n.x * side < 0) p.x *= 0.28;                                         // 內側平坦（兩半球之間的縱裂）
+  const q = n.clone().multiplyScalar(3.6), r1 = Math.abs(noise3(q.x, q.y, q.z) - 0.5), r2 = Math.abs(noise3(q.x * 2.1 + 5, q.y * 2.1, q.z * 2.1) - 0.5);
+  // 溝：雜訊等於 0.5 的地方挖出細長的凹槽；迴：凹槽之間圓圓鼓起
+  let d = -0.085 * Math.exp(-(r1 * r1) / 0.0035) - 0.04 * Math.exp(-(r2 * r2) / 0.0025) + 0.03 * Math.min(1, r1 * 4) * Math.min(1, r2 * 4);
+  d -= 0.06 * gs(n.y + 0.05 - 0.28 * n.z, 0.04) * sm(-0.4, 0.2, n.z) * pos(n.x * side);   // 外側溝
+  return p.multiplyScalar(1 + d);
+};
+function buildBrain() {
+  const g = new THREE.Group(), t = organTex('brain', '#d8a8b0', 'rgba(170,40,60,.55)', { vessels: 10, mottle: 0.15 });
+  [1, -1].forEach(s => { const h = named(new THREE.Mesh(sculpt(6, hemiFn(s)), organMat(0xd9a0b0, t, { bump: 0.4, coat: 0.5 })), '大腦'); h.position.set(0.07 * s, 0, 0); h.scale.setScalar(0.38); g.add(h); });
+  const cb = named(new THREE.Mesh(sculpt(5, n => { const p = V(n.x, n.y * 0.55, n.z * 0.7); p.x *= 1 - 0.12 * gs(n.x, 0.1); return p.multiplyScalar(1 - 0.03 * Math.abs(Math.sin(n.y * 34))); }), organMat(0xc8909e, t)), '小腦');
+  cb.scale.setScalar(0.17); cb.position.set(0, -0.23, -0.27); g.add(cb);
+  const st = named(new THREE.Mesh(tube([V(0, -0.08, -0.06), V(0, -0.22, -0.13), V(0, -0.36, -0.2), V(0, -0.46, -0.24)], u => 0.062 - 0.022 * u, 20, 16), organMat(0xd8b0a8, organTex('brain', '#d8a8b0', null))), '腦幹'); g.add(st);
+  return g;
+}
+{
+  const brain = buildBrain(); brain.position.set(0, 3.5, -0.03); addOrgan('brain', brain, 'nerve');
+  const cordPts = [V(0, 3.08, -0.2), V(0, 2.6, -0.33), V(0, 2.17, -0.38), V(0, 1.5, -0.44), V(0, 0.8, -0.38), V(0, 0.1, -0.33), V(0, -0.45, -0.31)];
+  addOrgan('cord', organ(tube(cordPts, u => 0.045 * (1 - 0.3 * u), 96, 12), organMat(0xf2dca8, null), 0xffe6a8, 0.4), 'nerve');
+  const nm = lineMat(0xffe6a8, 0.5);
+  const nerveTube = (pts, r = 0.014) => { const m = new THREE.Mesh(tube(pts, u => r * (1 - 0.5 * u), Math.max(16, pts.length * 10), 6), nm); SG.nerve.add(m); pickable(m, 'nerves'); NERV.curves.push(m.geometry.userData.curve); return m; };
+  [1, -1].forEach(s => {
+    nerveTube([V(0, 2.25, -0.36), V(0.5 * s, 2.25, -0.15), V(0.95 * s, 2.2, 0), V(1.18 * s, 0.95, 0.03), V(1.28 * s, -0.25, 0.06), V(1.3 * s, -0.6, 0.06)], 0.018);
+    nerveTube([V(1.18 * s, 0.95, 0.03), V(1.22 * s, 0.4, 0.09), V(1.26 * s, -0.3, 0.1)]);
+    nerveTube([V(0, -0.45, -0.31), V(0.3 * s, -0.7, -0.15), V(0.4 * s, -1.4, -0.05), V(0.42 * s, -2.35, -0.05), V(0.42 * s, -3.9, -0.02), V(0.42 * s, -4.05, 0.38)], 0.02);
+    nerveTube([V(0.42 * s, -2.35, -0.05), V(0.45 * s, -3.0, 0.08), V(0.43 * s, -3.85, 0.1)]);
+    [1.9, 1.6, 1.3, 1.0, 0.7, 0.4].forEach(y => { const pts = []; for (let k = 0; k <= 8; k++) { const th = k / 8 * Math.PI * 0.85, W = interp(TW, y) * 0.9, D = interp(TD, y) * 0.9; pts.push(V(s * W * Math.sin(th), y - 0.1 * th / Math.PI, -D * Math.cos(th))); } nerveTube(pts, 0.01); });
+    nerveTube([V(0.06 * s, 3.25, -0.05), V(0.28 * s, 3.18, 0.25), V(0.32 * s, 3.05, 0.42)], 0.01);
+  });
+  for (let i = 0; i < 8; i++) { const s = glowSprite(0xfff2c0, 0.28, 0); SG.nerve.add(s); NERV.pulses.push({ s, c: NERV.curves[(i * 3) % NERV.curves.length], u: i / 8 }); }
+}
+// ---------- 呼吸系統 ----------
+const RESP = { air: [] };
+const lungFn = left => n => {
+  const p = n.clone(), top = sm(-0.2, 1, n.y), w = 1 - 0.45 * top * top;
+  p.x *= w; p.z *= w;
+  if (n.y < -0.5) p.y = n.y + 0.4 * sm(-0.5, -1, n.y) * (1 - Math.min(1, Math.hypot(n.x, n.z) / 0.87));   // 底部凹（貼著橫膈）
+  if ((left ? -n.x : n.x) > 0) p.x *= 0.35;                                                              // 內側平坦
+  if (left) p.multiplyScalar(1 - 0.35 * gs(n.y + 0.25, 0.3) * gs(n.z - 0.6, 0.3) * pos(-n.x));          // 心切跡
+  let gr = 0.06 * gs(n.y + 0.7 * n.z - (left ? 0.05 : 0), 0.035);                                       // 斜裂
+  if (!left) gr += 0.05 * gs(n.y - 0.15, 0.035) * sm(-0.2, 0.6, n.z);                                     // 水平裂（右肺才有）
+  return p.multiplyScalar(1 - gr + 0.012 * (noise3(n.x * 5, n.y * 5, n.z * 5) - 0.5));
+};
+function buildLungs() {
+  const g = new THREE.Group(), t = organTex('lung', '#d98c98', 'rgba(120,40,90,.35)', { vessels: 5, speck: 2600, speckColor: 'rgba(60,40,50,.35)', spotR: 8 });
+  [[false, -0.34, V(0.33, 0.55, 0.3), '右肺（3 葉）'], [true, 0.34, V(0.3, 0.53, 0.29), '左肺（2 葉）']].forEach(([left, x, s, name]) => {
+    const m = named(new THREE.Mesh(sculpt(5, lungFn(left)), organMat(0xe29aa6, t, { op: 0.88, coat: 0.7, bump: 0.6 })), name); m.position.set(x, 0, 0); m.scale.copy(s); g.add(m);
+  });
+  return g;
+}
+{
+  RESP.nose = addOrgan('nose', organ(sculpt(3, n => V(n.x * 0.05, n.y * 0.08, n.z * 0.05)), organMat(0xd9909a, null)), 'resp'); RESP.nose.position.set(0, 3.33, 0.47);
+  const airPts = [V(0, 3.3, 0.42), V(0, 3.15, 0.3), V(0, 2.9, 0.16), V(0, 2.55, 0.12), V(0, 2.2, 0.08), V(0, 1.86, 0.05)];
+  const trach = new THREE.Group(); trach.add(organ(tube(airPts.slice(2), 0.048, 40, 16), organMat(0xe8d0c0, null, { op: 0.8 }), 0xbfeaff, 0.3));
+  const ringGeo = new THREE.TorusGeometry(0.052, 0.012, 6, 18, Math.PI * 1.6), ringMat = organMat(0xf4ead8, null, { coat: 0.4 }), tc = new THREE.CatmullRomCurve3(airPts.slice(3));
+  for (let i = 0; i <= 12; i++) { const r = new THREE.Mesh(ringGeo, ringMat); r.position.copy(tc.getPointAt(i / 12)); r.rotation.set(Math.PI / 2, 0, Math.PI * 0.7); trach.add(r); }
+  addOrgan('trachea', named(trach, '氣管'), 'resp');
+  const bron = new THREE.Group(), bm = organMat(0xe8d0c0, null, { op: 0.9 });
+  const branchB = (a, dir, len, r, depth) => {
+    const b = a.clone().addScaledVector(dir, len);
+    bron.add(new THREE.Mesh(tube([a, a.clone().lerp(b, 0.5).add(V(0, -0.02, 0)), b], u => r * (1 - 0.3 * u), 10, 8), bm));
+    if (depth > 0) [-1, 1].forEach(s => branchB(b, dir.clone().applyAxisAngle(V(0, 0, 1), s * 0.5).applyAxisAngle(UP, s * 0.5).normalize(), len * 0.7, r * 0.7, depth - 1));
+  };
+  [1, -1].forEach(s => branchB(V(0, 1.86, 0.05), V(0.75 * s, -0.66, 0).normalize(), 0.25, 0.034, 4));
+  addOrgan('bronchi', named(bron, '支氣管'), 'resp');
+  const lungs = buildLungs(); lungs.position.set(0, 1.55, 0); RESP.lungs = addOrgan('lung', lungs, 'resp');
+  const dia = organ(new THREE.SphereGeometry(0.75, 48, 14, 0, Math.PI * 2, 0, 0.9), organMat(0xb84a4a, organTex('muscle', '#a8404a', 'rgba(255,180,180,.2)', { lines: 220, lineColor: 'rgba(80,10,20,.35)', vessels: 2 }), { op: 0.6, side: THREE.DoubleSide }), 0xff9a9a, 0.3);
+  dia.scale.set(1, 0.45, 0.55); dia.position.set(0, 0.68, 0); RESP.dia = addOrgan('diaphragm', dia, 'resp');
+  RESP.curve = new THREE.CatmullRomCurve3(airPts);
+  for (let i = 0; i < 14; i++) { const s = glowSprite(0xbfeaff, 0.18, 0.9); SG.resp.add(s); RESP.air.push({ s, k: i / 14 }); }
+}
+// ---------- 防禦系統 ----------
+const DEF = { cells: [], curves: [] };
+{
+  const nodeGeo = sculpt(3, n => V(n.x * 1.2, n.y * 0.8, n.z * 0.8).multiplyScalar(1 - 0.25 * gs(n.x + 1, 0.3)));   // 豆子形，凹處是淋巴管進出的地方
+  const nm = organMat(0x6fcf8a, organTex('node', '#6fbf80', 'rgba(40,90,50,.4)', { vessels: 3 }), { coat: 0.8 });
+  [[0.15, 2.65, 0.1], [-0.15, 2.65, 0.1], [0.75, 2.0, 0.0], [-0.75, 2.0, 0.0], [0.12, 1.75, 0.1], [-0.12, 1.75, 0.1], [0.12, 0.35, 0.0], [-0.1, 0.25, 0.0], [0.0, 0.5, -0.05], [0.3, -0.55, 0.15], [-0.3, -0.55, 0.15], [1.2, 0.9, 0.08], [-1.2, 0.9, 0.08]].forEach(([x, y, z]) => {
+    const m = organ(nodeGeo, nm, 0xc8ffd0, 0.4); m.position.set(x, y, z); m.scale.setScalar(0.045); m.rotation.y = rnd() * 3; addOrgan('node', m, 'defense');
+  });
+  const lvm = organMat(0x5fcf7a, null, { op: 0.75 });
+  const lv = pts => { const m = new THREE.Mesh(tube(pts, 0.012, Math.max(16, pts.length * 10), 6), lvm); addOrgan('lymphv', m, 'defense'); DEF.curves.push(m.geometry.userData.curve); };
+  [1, -1].forEach(s => {
+    lv([V(1.3 * s, -0.6, 0.08), V(1.2 * s, 0.9, 0.08), V(0.95 * s, 1.9, 0.03), V(0.75 * s, 2.0, 0.0), V(0.3 * s, 2.15, -0.05)]);
+    lv([V(0.42 * s, -3.8, 0.08), V(0.42 * s, -2.3, 0.1), V(0.38 * s, -1.0, 0.12), V(0.3 * s, -0.55, 0.15), V(0.05 * s, -0.1, -0.1)]);
+    lv([V(0.15 * s, 3.0, 0.15), V(0.15 * s, 2.65, 0.1), V(0.1 * s, 2.3, 0.0)]);
+  });
+  lv([V(0, -0.1, -0.12), V(0, 0.5, -0.15), V(0.02, 1.2, -0.18), V(0.05, 1.9, -0.12), V(0.2, 2.15, -0.05)]);
+  const spleen = organ(sculpt(4, n => V(n.x * 0.55, n.y, n.z * 0.5).multiplyScalar(1 - 0.2 * gs(n.x + 0.6, 0.3))), organMat(0x6a3a7a, organTex('spleen', '#6a3a78', 'rgba(30,0,40,.4)', { vessels: 3 })));
+  spleen.position.set(0.52, 0.95, -0.15); spleen.scale.setScalar(0.15); spleen.rotation.z = 0.4; addOrgan('spleen', spleen, 'defense');
+  const thymus = new THREE.Group(); [-1, 1].forEach(s => { const m = organ(sculpt(3, n => V(n.x * 0.5, n.y, n.z * 0.3).multiplyScalar(1 + 0.08 * (noise3(n.x * 4, n.y * 4, n.z * 4) - 0.5))), organMat(0xe0b8a0, null)); m.position.set(0.04 * s, 0, 0); m.scale.setScalar(0.1); thymus.add(m); });
+  thymus.position.set(0, 1.97, 0.18); addOrgan('thymus', thymus, 'defense');
+  [1, -1].forEach(s => { const m = organ(sculpt(3, n => V(n.x * 0.7, n.y, n.z * 0.7).multiplyScalar(1 + 0.12 * (noise3(n.x * 5, n.y * 5, 0) - 0.5))), organMat(0xe08a9a, null)); m.position.set(0.06 * s, 3.0, 0.24); m.scale.setScalar(0.035); addOrgan('tonsil', m, 'defense'); });
+  for (let i = 0; i < 26; i++) { const s = glowSprite(0xe8f0ff, 0.16, 0.95); SG.defense.add(s); DEF.cells.push({ s, c: DEF.curves[i % DEF.curves.length], u: rnd() }); }
+}
+
+/* ================= 植物（菜豆） ================= */
+const plant = new THREE.Group(); scene.add(plant); plant.visible = false;
+const PG = { veg: new THREE.Group(), rep: new THREE.Group() }; plant.add(PG.veg, PG.rep);
+const PORG = {};
+function addP(key, obj) { PG[ORG[key].grp].add(obj); pickable(obj, key); if (!PORG[key]) PORG[key] = obj; return obj; }
+// 葉片紋理：卵形、尖端、網狀葉脈
+const leafTex = (() => {
+  const W = 256, H = 512, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const shape = () => { g.beginPath(); g.moveTo(W / 2, H - 6); g.bezierCurveTo(W * 0.02, H * 0.78, W * 0.02, H * 0.3, W / 2, 4); g.bezierCurveTo(W * 0.98, H * 0.3, W * 0.98, H * 0.78, W / 2, H - 6); g.closePath(); };
+  shape(); const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#2f7a32'); gr.addColorStop(0.5, '#4fa046'); gr.addColorStop(1, '#2f7a32'); g.fillStyle = gr; g.fill();
+  g.save(); shape(); g.clip();
+  for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(${rnd() > 0.5 ? '255,255,200' : '0,40,0'},${rnd() * 0.08})`; g.fillRect(rnd() * W, rnd() * H, 3, 3); }
+  g.strokeStyle = 'rgba(200,240,170,.75)'; g.lineWidth = 4; g.beginPath(); g.moveTo(W / 2, H); g.lineTo(W / 2, 6); g.stroke();
+  for (let i = 0; i < 8; i++) { const y = H * (0.86 - i * 0.1); [-1, 1].forEach(s => { g.lineWidth = 2; g.beginPath(); g.moveTo(W / 2, y); g.quadraticCurveTo(W / 2 + s * W * 0.22, y - 40, W / 2 + s * W * 0.42, y - 90); g.stroke(); }); }
+  g.strokeStyle = 'rgba(190,230,160,.28)'; g.lineWidth = 1;
+  for (let i = 0; i < 260; i++) { const x = rnd() * W, y = rnd() * H; g.beginPath(); g.moveTo(x, y); g.lineTo(x + rr(-14, 14), y + rr(-14, 14)); g.stroke(); }
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const leafMat = new THREE.MeshPhysicalMaterial({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.5, clearcoat: 0.35, clearcoatRoughness: 0.4, sheen: 0.3, sheenColor: new THREE.Color(0xd8ffb0), envMapIntensity: 0.6 });
+leafMat.userData.base = 1;
+function leafletGeo() {   // 葉片：沿 +x 長出，邊緣微微捲起、尖端下垂
+  const g = new THREE.PlaneGeometry(0.42, 0.85, 8, 16); g.rotateZ(-Math.PI / 2); g.translate(0.425, 0, 0);
+  const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i); p.setZ(i, -0.5 * y * y - 0.18 * x * x + 0.05 * Math.sin(x * 8) * Math.abs(y)); }
+  g.computeVertexNormals(); return g;
+}
+const LEAF_G = leafletGeo();
+const stemTex = organTex('stem', '#4f9a3c', null, { mottle: 0.1, lines: 160, lineColor: 'rgba(170,220,130,.4)', repeat: [1, 4] });
+const stemMat = organMat(0x5fae4a, stemTex, { coat: 0.3, sheen: 0xd8ffb0, op: 1 });
+function trifoliate(scale = 1) {
+  const g = new THREE.Group(), end = V(0.55, 0.15, 0);
+  g.add(new THREE.Mesh(tube([V(0, 0, 0), V(0.3, 0.13, 0), end], u => 0.02 * (1 - 0.3 * u) + 0.01 * gs(u, 0.06), 16, 8), stemMat));
+  [[0, 0, 1], [1.15, 0.5, 0.82], [-1.15, 0.5, 0.82]].forEach(([a, tilt, s]) => {
+    const l = new THREE.Mesh(LEAF_G, leafMat); l.position.copy(end); l.scale.setScalar(s); l.rotation.set(0.3 + tilt * 0.3, 0, a * 0.95); g.add(l);
+  });
+  [-1, 1].forEach(s => { const st = new THREE.Mesh(LEAF_G, leafMat); st.scale.setScalar(0.12); st.rotation.set(0.4, 0, s * 0.8); g.add(st); });   // 托葉
+  g.scale.setScalar(scale); return g;
+}
+// 蝶形花：旗瓣、翼瓣、龍骨瓣
+const petalTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  g.beginPath(); g.moveTo(128, 250); g.bezierCurveTo(10, 200, 0, 40, 128, 8); g.bezierCurveTo(256, 40, 246, 200, 128, 250); g.closePath();
+  const gr = g.createRadialGradient(128, 230, 10, 128, 120, 160); gr.addColorStop(0, '#fff8ff'); gr.addColorStop(0.35, '#d8b8f4'); gr.addColorStop(1, '#a87ad8'); g.fillStyle = gr; g.fill();
+  g.save(); g.clip(); g.strokeStyle = 'rgba(110,50,160,.45)'; g.lineWidth = 2;
+  for (let i = -6; i <= 6; i++) { g.beginPath(); g.moveTo(128, 250); g.quadraticCurveTo(128 + i * 12, 140, 128 + i * 20, 20); g.stroke(); }
+  g.restore();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const petalMat = new THREE.MeshPhysicalMaterial({ map: petalTex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(0xffffff), envMapIntensity: 0.5 });
+petalMat.userData.base = 1;
+function petalGeo(w, h, cup) { const g = new THREE.PlaneGeometry(w, h, 8, 10); const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i) / w, y = p.getY(i) / h + 0.5; p.setZ(i, cup * (x * x * 2) * w + 0.25 * h * y * y * (cup > 0 ? 1 : -1)); } g.translate(0, h / 2, 0); g.computeVertexNormals(); return g; }
+function flower(scale = 1) {
+  const g = new THREE.Group();
+  const calyx = named(new THREE.Mesh(new THREE.LatheGeometry([[0.001, -0.04], [0.035, -0.02], [0.045, 0.04], [0.05, 0.07]].map(([r, y]) => new THREE.Vector2(r, y)), 16), organMat(0x4f9a3a, null, { side: THREE.DoubleSide, op: 1 })), '花萼');
+  calyx.rotation.x = Math.PI / 2; g.add(calyx);
+  const banner = named(new THREE.Mesh(petalGeo(0.22, 0.2, 0.25), petalMat), '旗瓣（花瓣）'); banner.position.set(0, 0.03, 0.06); banner.rotation.x = -0.25; g.add(banner);
+  [-1, 1].forEach(s => { const w = named(new THREE.Mesh(petalGeo(0.1, 0.16, 0.4), petalMat), '翼瓣（花瓣）'); w.position.set(s * 0.04, 0, 0.07); w.rotation.set(1.2, s * 0.45, s * 0.3); g.add(w); });
+  const keel = named(new THREE.Mesh(loft([V(0, -0.01, 0.06), V(0, -0.025, 0.13), V(0, -0.005, 0.2)], (u, a) => ellipseR(a, 0.022 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.08)), 0.03 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.08))) + 0.002, 16, 16), organMat(0xf2e8f8, null, { op: 1 })), '龍骨瓣（花瓣）');
+  g.add(keel);
+  const sty = named(new THREE.Mesh(tube([V(0, -0.005, 0.18), V(0, 0.01, 0.215), V(0.01, 0.03, 0.22)], 0.004, 10, 5), organMat(0x9ad070, null, { op: 1 })), '雌蕊（子房會發育成豆莢）'); g.add(sty);
+  const st = named(new THREE.Group(), '雄蕊（產生花粉）');
+  for (let i = 0; i < 5; i++) { const a = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), organMat(0xffd23f, null, { op: 1 })); a.position.set((i - 2) * 0.005, -0.012, 0.185 + i * 0.003); st.add(a); }
+  g.add(st);
+  g.scale.setScalar(scale); return g;
+}
+// 豆莢：種子的地方鼓起來；opened = 成熟裂開（看得到種子）
+const podTex = organTex('pod', '#5fa846', null, { mottle: 0.12, speck: 1800, speckColor: 'rgba(30,70,20,.35)', lines: 40, lineColor: 'rgba(170,220,130,.25)' });
+const seedTex = organTex('seed', '#efe2c8', null, { mottle: 0.18, speck: 600, speckColor: 'rgba(150,110,80,.35)', spotR: 6 });
+const SEEDS_U = [0.2, 0.38, 0.56, 0.74];
+const podR = (u, a) => (0.05 * sm(0, 0.1, u) * (1 - 0.85 * sm(0.88, 1, u)) + 0.014 * SEEDS_U.reduce((s, k) => s + gs(u - k, 0.05), 0)) * (1 - 0.28 * Math.sin(a) ** 2) + 0.004 * gs(Math.cos(a) - 1, 0.02);
+const seedGeo = sculpt(4, n => V(n.x * 1.35, n.y, n.z * 0.75).multiplyScalar(1 - 0.18 * gs(n.y + 1, 0.35) * gs(n.x, 0.4)));   // 腎形種子（種臍凹進去）
+const seedMat = organMat(0xefe2c8, seedTex, { coat: 0.8, op: 1 });
+function pod(scale = 1, opened = false) {
+  const g = new THREE.Group(), pts = [V(0, 0, 0), V(0.03, -0.3, 0.02), V(0.09, -0.62, 0.04), V(0.18, -0.92, 0.03), V(0.22, -1.0, 0.02)];
+  const pm = organMat(0x6fb84a, podTex, { coat: 0.4, op: 1, side: THREE.DoubleSide });
+  if (!opened) g.add(named(new THREE.Mesh(loft(pts, podR, 60, 20, { front: V(1, 0, 0) }), pm), '果皮（豆莢）'));
+  else [[0, Math.PI, -1], [Math.PI, Math.PI * 2, 1]].forEach(([a0, a1, s]) => {
+    // 兩片果皮沿著背面的縫線（-x 那一側）像書一樣打開
+    const hinge = new THREE.Group(); hinge.position.set(-0.05, 0, 0); hinge.rotation.y = s * 0.95;
+    const v = named(new THREE.Mesh(loft(pts, podR, 60, 12, { a0, a1, front: V(1, 0, 0) }), pm), '果皮（豆莢）'); v.position.x = 0.05; hinge.add(v); g.add(hinge);
+  });
+  const c = new THREE.CatmullRomCurve3(pts), seeds = named(new THREE.Group(), '種子');
+  SEEDS_U.forEach(u => { const s = new THREE.Mesh(seedGeo, seedMat); s.position.copy(c.getPointAt(u)); s.scale.setScalar(0.042); s.rotation.set(0, Math.PI / 2, 0.2); seeds.add(s); });
+  g.add(seeds); g.userData.seeds = seeds;
+  g.scale.setScalar(scale); return g;
+}
+{
+  // 玻璃花盆、有紋理的土
+  const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.9, 1.6, 48, 1, true), new THREE.MeshPhysicalMaterial({ color: 0xaee6ff, transparent: true, opacity: 0.1, roughness: 0.05, clearcoat: 1, side: THREE.DoubleSide, depthWrite: false }));
+  pot.position.y = -3.3; plant.add(pot);
+  const pr = new THREE.Mesh(pot.geometry, rimMat(0x9fe6ff, 2.5, 0.6)); pr.position.y = -3.3; plant.add(pr);
+  const soilT = organTex('soil', '#4a3322', null, { mottle: 0.5, speck: 6000, speckColor: 'rgba(200,170,130,.4)', spotR: 4, spots: 3000 });
+  const soil = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 0.88, 1.3, 48, 1, true), new THREE.MeshStandardMaterial({ map: soilT.map, transparent: true, opacity: 0.42, roughness: 0.95, depthWrite: false, side: THREE.DoubleSide }));
+  soil.position.y = -3.4; plant.add(soil);
+  const top = new THREE.Mesh(new THREE.CircleGeometry(1.05, 48), new THREE.MeshStandardMaterial({ map: soilT.map, bumpMap: soilT.bump, bumpScale: 2, roughness: 1, transparent: true, opacity: 0.85 }));
+  top.rotation.x = -Math.PI / 2; top.position.y = -2.76; plant.add(top);
+  const pebG = new THREE.DodecahedronGeometry(0.04, 0), pebM = new THREE.MeshStandardMaterial({ color: 0x8a7a68, roughness: 0.9 });
+  for (let i = 0; i < 40; i++) { const a = rnd() * Math.PI * 2, r = rr(0.3, 1.0), p = new THREE.Mesh(pebG, pebM); p.position.set(Math.cos(a) * r, -2.75, Math.sin(a) * r); p.scale.setScalar(rr(0.5, 1.4)); p.rotation.set(rnd() * 3, rnd() * 3, 0); plant.add(p); }
+  // 根：主根、側根、根瘤、根毛
+  const rootG = new THREE.Group(), rootMat = organMat(0xf0dcb4, organTex('root', '#eedab2', null, { mottle: 0.15, lines: 90, lineColor: 'rgba(160,120,80,.35)' }), { coat: 0.3, op: 1 });
+  const main = [V(0, -2.7, 0), V(0.03, -3.1, 0.02), V(-0.02, -3.5, 0.0), V(0.02, -3.98, -0.02)];
+  rootG.add(new THREE.Mesh(tube(main, u => 0.055 * (1 - 0.8 * u), 40, 12), rootMat));
+  const mc = new THREE.CatmullRomCurve3(main), hairPos = [], nodG = sculpt(2, n => n.multiplyScalar(1 + 0.15 * (noise3(n.x * 3, n.y * 3, n.z * 3) - 0.5))), nodM = organMat(0xc89a7a, null, { op: 1 });
+  for (let i = 0; i < 8; i++) {
+    const a = i * 2.4, p = mc.getPointAt(0.12 + i * 0.1), d = V(Math.cos(a), -0.55, Math.sin(a)).normalize(), e = p.clone().addScaledVector(d, 0.6 - i * 0.04);
+    const pts = [p, p.clone().lerp(e, 0.5).add(V(0, -0.06, 0)), e];
+    rootG.add(new THREE.Mesh(tube(pts, u => 0.022 * (1 - 0.7 * u), 16, 6), rootMat));
+    const lc = new THREE.CatmullRomCurve3(pts);
+    for (let k = 0; k < 2; k++) { const q = lc.getPointAt(0.4 + k * 0.25), d2 = d.clone().applyAxisAngle(UP, k ? 0.8 : -0.8), e2 = q.clone().addScaledVector(d2, 0.22); rootG.add(new THREE.Mesh(tube([q, q.clone().lerp(e2, 0.5).add(V(0, -0.03, 0)), e2], 0.009, 8, 5), rootMat)); }
+    for (let k = 0; k < 3; k++) { const n = new THREE.Mesh(nodG, nodM); n.position.copy(lc.getPointAt(0.2 + k * 0.22)).add(V(rr(-0.02, 0.02), 0.015, rr(-0.02, 0.02))); n.scale.setScalar(rr(0.022, 0.035)); rootG.add(named(n, '根瘤')); }
+    for (let k = 0; k < 40; k++) { const q = lc.getPointAt(0.55 + rnd() * 0.43), dir = V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(); hairPos.push(q.x, q.y, q.z, q.x + dir.x * 0.05, q.y + dir.y * 0.05, q.z + dir.z * 0.05); }
+  }
+  const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hairPos, 3));
+  const hm = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }); hm.userData.base = 0.55; rootG.add(new THREE.LineSegments(hg, hm));
+  addP('root', rootG);
+  // 莖：節與節之間呈之字形，節的地方稍微膨大
+  const NODE_U = [0.22, 0.4, 0.58, 0.76, 0.92];
+  const stemPts = [V(0, -2.75, 0), V(0.0, -2.0, 0.0), V(0.05, -1.55, 0.02), V(-0.04, -0.95, 0), V(0.05, -0.35, -0.02), V(-0.03, 0.25, 0), V(0.03, 0.8, 0.01), V(0.0, 1.15, 0)];
+  const stem = new THREE.Mesh(loft(stemPts, (u) => 0.065 * (1 - 0.45 * u) + 0.012 * NODE_U.reduce((s, k) => s + gs(u - k, 0.012), 0), 120, 14), stemMat);
+  const sc = stem.geometry.userData.curve, hp = [];
+  for (let i = 0; i < 260; i++) { const u = rnd(), p = sc.getPointAt(u), a = rnd() * Math.PI * 2, r = 0.065 * (1 - 0.45 * u); hp.push(p.x + Math.cos(a) * r, p.y, p.z + Math.sin(a) * r, p.x + Math.cos(a) * (r + 0.03), p.y + 0.015, p.z + Math.sin(a) * (r + 0.03)); }
+  const hairG = new THREE.BufferGeometry(); hairG.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3));
+  const sg = new THREE.Group(); sg.add(stem, new THREE.LineSegments(hairG, new THREE.LineBasicMaterial({ color: 0xe8ffd8, transparent: true, opacity: 0.35 })));
+  addP('stem', sg);
+  // 葉
+  [[0.22, 0, 1.15], [0.4, Math.PI, 1.2], [0.58, 0.5, 1.1], [0.76, Math.PI + 0.5, 0.95], [0.92, 1.7, 0.75]].forEach(([u, rot, s]) => { const t = trifoliate(s); t.position.copy(sc.getPointAt(u)); t.rotation.y = rot; addP('leaf', t); });
+  // 花
+  [[0.58, 2.3], [0.76, -0.9], [0.9, 0.4]].forEach(([u, rot]) => {
+    const base = sc.getPointAt(u), dir = V(Math.cos(rot), 0.55, Math.sin(rot)).normalize(), f = flower(2.2);
+    f.position.copy(base).addScaledVector(dir, 0.32); f.lookAt(f.position.clone().add(dir)); addP('flower', f);
+    PG.rep.add(new THREE.Mesh(tube([base, base.clone().addScaledVector(dir, 0.3)], 0.01, 8, 5), stemMat));
+  });
+  // 果實（豆莢）：一個閉合、一個成熟裂開（看得到種子）
+  [[0.4, 1.0, false], [0.58, 3.6, true]].forEach(([u, rot, open]) => {
+    const p = pod(1.6, open), base = sc.getPointAt(u); p.position.copy(base).add(V(Math.cos(rot) * 0.12, -0.02, Math.sin(rot) * 0.12)); p.rotation.y = -rot; addP('fruit', p);
+    if (open) pickable(p.userData.seeds, 'seed');
+  });
+}
+
+/* ================= 器官畫面（特別做的模型） ================= */
+const detail = new THREE.Group(); scene.add(detail);
+let detailUpdate = null;
+function rootTip() {
+  const g = new THREE.Group(), m = organMat(0xf2dfb8, organTex('root', '#eedab2', null), { op: 0.96, coat: 0.3 });
+  g.add(new THREE.Mesh(tube([V(0, 2, 0), V(0, 0.8, 0), V(0, -0.6, 0), V(0, -1.6, 0)], u => 0.32 * (1 - 0.75 * u * u), 60, 24), m));
+  const cap = new THREE.Mesh(sculpt(4, n => V(n.x * 0.17, n.y * (n.y < 0 ? 0.26 : 0.1), n.z * 0.17)), organMat(0xe0c080, null, { op: 0.75 })); cap.position.y = -1.55; g.add(named(cap, '根冠（保護根尖）'));
+  const hm = organMat(0xfff6e0, null, { op: 0.85, coat: 0.2 }), hairs = named(new THREE.Group(), '根毛（吸收水分）');
+  for (let i = 0; i < 90; i++) { const y = rr(-0.3, 1.4), a = rnd() * Math.PI * 2, d = V(Math.cos(a), rr(-0.3, 0.2), Math.sin(a)).normalize(), len = rr(0.4, 1.0) * (1 - (y + 0.3) / 3), a0 = V(Math.cos(a) * 0.3, y, Math.sin(a) * 0.3); hairs.add(new THREE.Mesh(tube([a0, a0.clone().addScaledVector(d, len * 0.5).add(V(0, -0.04, 0)), a0.clone().addScaledVector(d, len)], u => 0.018 * (1 - 0.3 * u), 8, 5), hm)); }
+  g.add(hairs);
+  return { g, labels: [['根毛（吸收水分）', V(1.15, 0.9, 0)], ['根冠（保護根尖）', V(0.75, -1.75, 0)], ['菜豆的根尖', V(-0.9, 1.75, 0), 'big']] };
+}
+// 莖的橫切面：用畫的（表皮、皮層、維管束、髓），貼在切口上
+const stemCutTex = (() => {
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), C = N / 2;
+  g.fillStyle = '#2f7a32'; g.beginPath(); g.arc(C, C, C - 2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#d8efc0'; g.beginPath(); g.arc(C, C, C - 16, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = 'rgba(120,170,100,.5)'; g.lineWidth = 1.2;
+  for (let i = 0; i < 520; i++) { const a = rnd() * Math.PI * 2, r = rr(20, C - 20); g.beginPath(); g.arc(C + Math.cos(a) * r, C + Math.sin(a) * r, rr(6, 13), 0, Math.PI * 2); g.stroke(); }
+  for (let i = 0; i < 10; i++) {
+    const a = i / 10 * Math.PI * 2, x = C + Math.cos(a) * C * 0.6, y = C + Math.sin(a) * C * 0.6;
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.fillStyle = '#e8d070'; g.beginPath(); g.ellipse(26, 0, 18, 26, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#b8542a'; g.beginPath(); g.ellipse(-8, 0, 24, 28, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,230,200,.7)'; for (let k = 0; k < 6; k++) { g.beginPath(); g.arc(-12 + rr(-12, 12), rr(-16, 16), rr(3, 6), 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+function stemSection() {
+  const g = new THREE.Group();
+  const side = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2.4, 48, 1, true), organMat(0x5fae4a, stemTex, { op: 0.6, side: THREE.DoubleSide })); g.add(side);
+  const cap = new THREE.Mesh(new THREE.CircleGeometry(0.75, 64), new THREE.MeshPhysicalMaterial({ map: stemCutTex, roughness: 0.4, clearcoat: 0.7 })); cap.rotation.x = -Math.PI / 2; cap.position.y = 1.2; g.add(cap);
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, b = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.38, 12), organMat(0xb87a3a, null, { op: 0.35 })); b.position.set(Math.cos(a) * 0.45, 0, -Math.sin(a) * 0.45); g.add(b); }
+  g.rotation.x = 0.6;
+  return { g, labels: [['維管束：木質部（紅褐）＋韌皮部（黃）', V(1.6, 1.15, 0.7)], ['表皮', V(-1.25, 0.2, 0.3)], ['皮層', V(-0.6, 1.5, 0.5)], ['莖的橫切面', V(0, 1.95, 0.4), 'big']] };
+}
+// 把菜豆種子剝開：兩片子葉攤開，胚（胚根、胚芽）附在其中一片上；旁邊是剝下來的種皮
+function seedCut() {
+  const g = new THREE.Group();
+  const cot = sculpt(4, n => V(n.x * 1.3, n.y * 0.95, (n.z < 0 ? n.z * 0.36 : n.z * 0.03)).multiplyScalar(1 - 0.12 * gs(n.y + 1, 0.3) * gs(n.x, 0.35)));
+  const cm = organMat(0xf2e6c0, organTex('coty', '#f0e2bc', null, { mottle: 0.15, speck: 800, speckColor: 'rgba(200,170,110,.35)' }), { op: 1, coat: 0.5 });
+  const left = named(new THREE.Mesh(cot, cm), '子葉（儲存養分）'); left.position.x = -0.95; left.scale.setScalar(0.65); g.add(left);
+  const right = named(new THREE.Mesh(cot, cm), '子葉（儲存養分）'); right.position.x = 0.95; right.scale.setScalar(0.65); right.rotation.y = 0.2; g.add(right);
+  const rad = named(new THREE.Mesh(tube([V(-0.92, -0.4, 0.05), V(-1.02, -0.6, 0.06), V(-1.2, -0.75, 0.06)], u => 0.065 * (1 - 0.6 * u), 16, 12), organMat(0xe8d8a0, null, { op: 1 })), '胚根（長成根）'); g.add(rad);
+  const plum = named(new THREE.Group(), '胚芽（長成莖和葉）'); g.add(plum);
+  [-1, 1].forEach(s => { const l = new THREE.Mesh(LEAF_G, organMat(0xc8d890, null, { op: 1, side: THREE.DoubleSide })); l.scale.setScalar(0.22); l.position.set(-0.92, -0.38, 0.07); l.rotation.set(0, 0, 1.3 + s * 0.35); plum.add(l); });
+  const coat = named(new THREE.Mesh(sculpt(4, n => V(n.x * 1.35, n.y, n.z * 0.75 * (n.z > 0 ? 1 : 0.2))), organMat(0xb88a5a, seedTex, { op: 0.9, side: THREE.DoubleSide })), '種皮（保護）');
+  coat.scale.setScalar(0.42); coat.position.set(0, 1.0, -0.2); coat.rotation.set(-0.5, 0.3, 0.2); g.add(coat);
+  return { g, labels: [['菜豆種子剝開', V(0, 1.7, 0), 'big'], ['子葉（儲存養分）', V(0.95, -0.85, 0.4)], ['胚根（長成根）', V(-1.65, -0.95, 0.4)], ['胚芽（長成莖和葉）', V(-1.0, 0.05, 0.5)], ['種皮（保護）', V(0.95, 1.15, 0)]] };
+}
+function flowerBig() {
+  const f = flower(13); f.rotation.set(0.15, -0.55, 0);
+  const labels = [['菜豆的花（蝶形花）', V(0, 2.0, 0), 'big']], seen = new Set();
+  f.traverse(o => { const n = o.userData.labelName; if (n && !seen.has(n)) { seen.add(n); labels.push([n, () => new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3())]); } });
+  return { g: f, labels };
+}
+function podOpen() {
+  const p = pod(2.8, true); p.rotation.z = 0.25;
+  return { g: p, labels: [['果皮（豆莢）', V(-1.0, 0.0, 0.4)], ['種子（由胚珠發育而成）', V(1.25, -0.9, 0.5)], ['成熟裂開的豆莢', V(0, 0.75, 0), 'big']] };
+}
+function lymphNode() {
+  const g = new THREE.Group(), capm = new THREE.Mesh(sculpt(4, n => V(n.x * 1.5, n.y, n.z * 0.9).multiplyScalar(1 - 0.22 * gs(n.y + 1, 0.35))), organMat(0x6fcf8a, null, { op: 0.3, side: THREE.DoubleSide }));
+  g.add(capm); g.add(new THREE.Mesh(capm.geometry, rimMat(0xc8ffd0, 2.2, 0.8)));
+  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, f = new THREE.Mesh(sculpt(3, n => n.multiplyScalar(0.22 * (1 + 0.1 * (noise3(n.x * 4, n.y * 4, n.z * 4) - 0.5)))), organMat(0x8a6ad8, organTex('lymphf', '#8a6ad8', null, { speck: 3000, speckColor: 'rgba(60,30,120,.6)' }), { op: 0.9 })); f.position.set(Math.cos(a) * 1.05, Math.sin(a) * 0.62, 0); g.add(f); }
+  const lm = organMat(0x5fcf7a, null, { op: 0.9 });
+  [[-1.4, 1.2], [0, 1.6], [1.4, 1.2]].forEach(([x, y]) => g.add(new THREE.Mesh(tube([V(x * 1.4, y * 1.3, 0), V(x, y * 0.8, 0), V(x * 0.8, y * 0.55, 0)], 0.06, 12, 8), lm)));
+  g.add(new THREE.Mesh(tube([V(0, -0.8, 0), V(0.1, -1.4, 0), V(0.3, -2.0, 0)], 0.08, 12, 8), lm));
+  const cells = []; for (let i = 0; i < 18; i++) { const s = glowSprite(0xe8f0ff, 0.2, 0.9); g.add(s); cells.push({ s, u: rnd(), a: rnd() * Math.PI * 2 }); }
+  return { g, labels: [['淋巴管（流入）', V(-2.2, 1.7, 0)], ['淋巴球聚集處', V(1.9, 0.4, 0)], ['淋巴管（流出）', V(0.9, -1.9, 0)], ['淋巴結', V(0, 1.45, 0), 'big']],
+    update(dt, t) { cells.forEach(c => { c.u = (c.u + dt * 0.15) % 1; c.s.position.set(Math.cos(c.a + t * 0.3) * 1.2 * c.u, 1.6 - c.u * 3, Math.sin(c.a) * 0.3); }); } };
+}
+const SPECIAL = { root: rootTip, stem: stemSection, seed: seedCut, node: lymphNode, fruit: podOpen, flower: flowerBig };
+function organView(key) {
+  if (SPECIAL[key]) return SPECIAL[key]();
+  const src = (S.kind === 'animal' ? ORGOBJ : PORG)[key];
+  const c = src.clone(true); c.position.set(0, 0, 0); c.rotation.copy(src.rotation); c.scale.copy(src.scale);
+  setFade(c, 1);   // 器官畫面一定是完整亮度
+  const g = new THREE.Group(); g.add(c);
+  if (key === 'lung') { [ORGOBJ.trachea, ORGOBJ.bronchi].forEach(o => { const k = o.clone(true); setFade(k, 1); g.add(k); }); c.position.copy(ORGOBJ.lung.position); }
+  if (key === 'brain') g.rotation.y = -1.15;
+  if (key === 'heart') g.rotation.y = -0.25;
+  const inner = new THREE.Group(); while (g.children.length) inner.add(g.children[0]); g.add(inner);
+  const box = new THREE.Box3().setFromObject(inner), ctr = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
+  inner.position.sub(ctr); g.scale.setScalar(3.4 / Math.max(0.05, size));
+  // 器官上有名字的部位，標籤跟著那個部位
+  const labels = [[ORG[key].name, V(0, 2.0, 0), 'big']], seen = new Set();
+  g.traverse(o => { const n = o.userData.labelName; if (n && !seen.has(n)) { seen.add(n); labels.push([n, () => { const b = new THREE.Box3().setFromObject(o); return b.getCenter(new THREE.Vector3()).add(V(0, b.getSize(new THREE.Vector3()).y * 0.5 + 0.05, 0)); }]); } });
+  return { g, labels };
+}
+
+/* ================= 組織層次 ================= */
+const inst = (geo, mat, n) => new THREE.InstancedMesh(geo, mat, n);
+const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), EU = new THREE.Euler();
+function setI(m, i, p, scl = V(1, 1, 1), rot = [0, 0, 0], jit = 0) {
+  Q.setFromEuler(EU.set(rot[0] + rr(-jit, jit) * 0.4, rot[1] + rr(-jit, jit), rot[2] + rr(-jit, jit) * 0.4));
+  const k = 1 + rr(-jit, jit) * 0.6; M4.compose(p, Q, scl.clone().multiplyScalar(k)); m.setMatrixAt(i, M4);
+}
+const stripeTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 16; const g = c.getContext('2d'); for (let i = 0; i < 128; i += 8) { g.fillStyle = '#c03a48'; g.fillRect(i, 0, 5, 16); g.fillStyle = '#6a1420'; g.fillRect(i + 5, 0, 3, 16); } const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.set(2, 1); return t; })();
+const nucTex = organTex('nuc', '#6a4ac8', null, { mottle: 0.4, speck: 4000, speckColor: 'rgba(40,10,90,.55)', spotR: 7 });
+const cellBlob = (r, seed) => sculpt(3, n => n.multiplyScalar(r * (1 + 0.12 * (noise3(n.x * 2 + seed, n.y * 2, n.z * 2) - 0.5))));
+const TB = {
+  stomach() {
+    const g = new THREE.Group(), cols = 10, rows = 5;
+    const epi = inst(new THREE.CylinderGeometry(0.15, 0.16, 0.55, 6), organMat(0xf2a7b5, null, { op: 0.75 }), cols * rows), nuc = inst(new THREE.SphereGeometry(0.065, 10, 8), organMat(0x6a4ac8, nucTex, { op: 1 }), cols * rows);
+    let i = 0; for (let a = 0; a < cols; a++) for (let b = 0; b < rows; b++, i++) { const x = -1.45 + a * 0.3 + (b % 2) * 0.15, z = -0.6 + b * 0.27, h = rr(0.85, 1.1); setI(epi, i, V(x, 0.75, z), V(1, h, 1), [0, 0, 0], 0.08); setI(nuc, i, V(x, 0.58, z), V(1, 1.3, 1), [0, 0, 0], 0.1); }
+    g.add(epi, nuc, new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.05, 1.6), organMat(0xffe0e8, null, { op: 0.35 })).translateY(1.06), new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.03, 1.6), organMat(0xd8a0b0, null, { op: 0.6 })).translateY(0.46));
+    const n = 3 * 10 * 5, mus = inst(cellBlob(1, 3), organMat(0xc85a62, organTex('musc', '#c05a62', null, { lines: 60, lineColor: 'rgba(90,20,30,.3)' }), { op: 0.92 }), n), mn = inst(new THREE.SphereGeometry(1, 8, 6), organMat(0x5a3a9a, nucTex, { op: 1 }), n);
+    i = 0; for (let L2 = 0; L2 < 3; L2++) for (let a = 0; a < 10; a++) for (let b = 0; b < 5; b++, i++) {
+      const along = L2 % 2 === 0, x = -1.4 + a * 0.3 + (b % 2) * 0.12, z = -0.6 + b * 0.3, y = 0.22 - L2 * 0.27, rot = along ? [0, 0, 0] : [0, Math.PI / 2, 0];
+      setI(mus, i, V(x, y, z), V(0.1, 0.1, 0.42), rot, 0.15); setI(mn, i, V(x, y, z), V(0.035, 0.035, 0.12), rot, 0.1);
+    }
+    g.add(mus, mn);
+    return { g, labels: [['上皮組織（分泌胃液）', V(-2.4, 0.8, 0)], ['肌肉組織（收縮攪拌）', V(-2.4, -0.1, 0)], ['胃壁的組織', V(0, 1.6, 0), 'big']] };
+  },
+  cardiac() {
+    const g = new THREE.Group(), mat = organMat(0xffffff, { map: stripeTex, bump: null }, { op: 0.95 });
+    const n = 7 * 6, cells = inst(new RoundedBoxGeometry(0.95, 0.3, 0.3, 2, 0.07), mat, n), nuc = inst(new THREE.SphereGeometry(1, 10, 8), organMat(0x5a3a9a, nucTex, { op: 1 }), n), disc = inst(new THREE.BoxGeometry(0.03, 0.32, 0.32), organMat(0xffb0c0, null, { op: 1, glow: 0.3 }), n);
+    let i = 0; for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++, i++) {
+      const x = -3 + c * 1.0 + (r % 2) * 0.5, y = 1.0 - (r % 3) * 0.36, z = r < 3 ? -0.2 : 0.2;
+      setI(cells, i, V(x, y, z), V(rr(0.9, 1.05), rr(0.9, 1.15), 1), [0, 0, rr(-0.05, 0.05)]); setI(nuc, i, V(x, y, z), V(0.12, 0.065, 0.065), [0, 0, 0], 0.1); setI(disc, i, V(x + 0.49, y, z));
+    }
+    const br = inst(new RoundedBoxGeometry(0.4, 0.14, 0.14, 2, 0.04), mat, 12);
+    for (let k = 0; k < 12; k++) setI(br, k, V(-2.5 + k * 0.5, 0.82 - (k % 2) * 0.36, 0), V(1, 1, 1), [0, 0, (k % 2 ? 0.6 : -0.6)]);
+    const cap = new THREE.Mesh(tube([V(-3.2, 0.3, 0.45), V(-1, 0.45, 0.45), V(1.2, 0.2, 0.45), V(3.2, 0.4, 0.45)], 0.035, 40, 8), organMat(0xd02a3a, null, { op: 1 }));
+    g.add(cells, nuc, disc, br, cap);
+    return { g, labels: [['心肌細胞（有分支、有橫紋）', V(0, 1.5, 0)], ['細胞之間緊密相連', V(2.4, 0.0, 0.3)], ['微血管', V(-2.6, 0.15, 0.6)], ['心肌組織', V(0, 1.95, 0), 'big']] };
+  },
+  neural() {
+    const g = new THREE.Group(), memb = rimMat(0x52e0ff, 1.8, 1.0, 0.05), fill = organMat(0x1d4a5e, null, { op: 0.35 });
+    const P = []; for (let i = 0; i < 9; i++) P.push(V(-2 + (i % 3) * 2 + rr(-0.3, 0.3), 1.2 - Math.floor(i / 3) * 1.1 + rr(-0.2, 0.2), rr(-0.4, 0.4)));
+    const ax = [];
+    P.forEach((p, i) => {
+      const geo = cellBlob(0.22, i), s = new THREE.Mesh(geo, fill); s.position.copy(p); g.add(s); const sr = new THREE.Mesh(geo, memb); sr.position.copy(p); g.add(sr);
+      const n = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), organMat(0x8a6cff, nucTex, { op: 1 })); n.position.copy(p); g.add(n);
+      for (let k = 0; k < 5; k++) { const d = V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(); g.add(new THREE.Mesh(tube([p.clone().addScaledVector(d, 0.2), p.clone().addScaledVector(d, 0.45).add(V(rr(-0.1, 0.1), rr(-0.1, 0.1), 0)), p.clone().addScaledVector(d, 0.7)], u => 0.03 * (1 - 0.75 * u), 10, 6), memb)); }
+      const q = P[(i + 4) % 9]; const m = new THREE.Mesh(tube([p, p.clone().lerp(q, 0.5).add(V(0, 0.25, 0.2)), q], 0.022, 24, 6), memb); g.add(m); ax.push(m.geometry.userData.curve);
+    });
+    const glia = inst(cellBlob(0.06, 7), organMat(0x5a8aa8, null, { op: 0.7 }), 40); for (let i = 0; i < 40; i++) setI(glia, i, V(rr(-2.4, 2.4), rr(-1.4, 1.6), rr(-0.6, 0.6)), V(1, 1, 1), [0, 0, 0], 0.3); g.add(glia);
+    const pulses = ax.map((c, i) => { const s = glowSprite(0xfff2c0, 0.35, 0.9); g.add(s); return { s, c, u: i / 9 }; });
+    return { g, labels: [['神經細胞', V(-2.3, 1.75, 0)], ['支持細胞', V(2.4, -1.4, 0.4)], ['神經組織', V(0, 2.1, 0), 'big']], update(dt) { pulses.forEach(p => { p.u = (p.u + dt * 0.5) % 1; p.s.position.copy(p.c.getPointAt(p.u)); }); } };
+  },
+  alveoli() {
+    const g = new THREE.Group(), tubeM = organMat(0xe8c0c8, null, { op: 0.85 });
+    g.add(new THREE.Mesh(tube([V(0, 2.4, 0), V(0, 1.6, 0), V(0, 1.0, 0)], u => 0.28 - 0.08 * u, 20, 14), tubeM));
+    const sacFill = organMat(0xf2b0bc, organTex('alv', '#f0b0bc', 'rgba(200,40,60,.5)', { vessels: 14 }), { op: 0.4, side: THREE.DoubleSide }), sacRim = rimMat(0xffd0dc, 2.0, 0.8), rbc = [];
+    [[-1.1, -0.2], [0, -0.6], [1.1, -0.2]].forEach(([x, y], k) => {
+      const c = V(x, y, 0);
+      g.add(new THREE.Mesh(tube([V(0, 1.0, 0), V(x * 0.5, 0.55, 0), c.clone().add(V(0, 0.5, 0))], 0.15, 12, 10), tubeM));
+      for (let i = 0; i < 10; i++) { const d = V(rnd() - 0.5, rnd() - 0.6, rnd() - 0.5).normalize(), p = c.clone().addScaledVector(d, 0.45), geo = cellBlob(rr(0.26, 0.34), i + k * 10); const a = new THREE.Mesh(geo, sacFill); a.position.copy(p); g.add(a); const b = new THREE.Mesh(geo, sacRim); b.position.copy(p); g.add(b); }
+      for (let j = 0; j < 5; j++) {
+        const pts = [], a0 = rnd() * Math.PI * 2, tilt = rnd() * Math.PI;
+        for (let s = 0; s <= 10; s++) { const a = a0 + s / 10 * Math.PI * 1.5; pts.push(c.clone().add(V(Math.cos(a) * 0.82, Math.sin(a) * 0.82 * Math.cos(tilt), Math.sin(a) * 0.82 * Math.sin(tilt)))); }
+        const m = new THREE.Mesh(tube(pts, 0.028, 36, 6), organMat(j % 2 ? 0x4060d0 : 0xd03040, null, { op: 0.95 })); g.add(m);
+        const s = glowSprite(0xff5060, 0.13, 0.95); g.add(s); rbc.push({ s, c: m.geometry.userData.curve, u: rnd() });
+      }
+    });
+    return { g, labels: [['細支氣管', V(0.7, 2.1, 0)], ['肺泡', V(-2.0, -0.4, 0)], ['微血管', V(2.1, -0.9, 0)], ['肺泡與微血管', V(0, 2.65, 0), 'big']], update(dt) { rbc.forEach(r => { r.u = (r.u + dt * 0.35) % 1; r.s.position.copy(r.c.getPointAt(r.u)); }); } };
+  },
+  lymph() {
+    const g = new THREE.Group(), n = 170;
+    const cell = inst(cellBlob(0.16, 2), organMat(0xd8d0f0, null, { op: 0.4 }), n), nuc = inst(cellBlob(0.12, 5), organMat(0x5a3aa8, nucTex, { op: 1 }), n);
+    for (let i = 0; i < n; i++) { let p; do { p = V(rr(-2.2, 2.2), rr(-1.3, 1.3), rr(-0.8, 0.8)); } while ((p.x / 2.2) ** 2 + (p.y / 1.3) ** 2 + (p.z / 0.8) ** 2 > 1); setI(cell, i, p, V(1, 1, 1), [0, 0, 0], 0.2); setI(nuc, i, p.clone().add(V(0.02, 0, 0.02)), V(1, 1, 1), [0, 0, 0], 0.2); }
+    g.add(cell, nuc);
+    for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(bumpy(0.3, 3, 0.15, 7, i), organMat(0xf0e0c8, null, { op: 0.8 })); m.position.set(rr(-1.8, 1.8), rr(-1, 1), rr(-0.5, 0.5)); g.add(m); }
+    return { g, labels: [['淋巴球（白血球）', V(0, 1.6, 0)], ['巨噬細胞（吞噬病原體）', V(2.2, -1.0, 0.3)], ['淋巴組織', V(0, 2.05, 0), 'big']] };
+  },
+  leaf() {
+    const g = new THREE.Group(), w = 12, d = 4;
+    const ep = inst(cellBlob(0.2, 1), organMat(0xd8f0c8, null, { op: 0.5 }), w * d * 2);
+    let i = 0; for (let a = 0; a < w; a++) for (let b = 0; b < d; b++) { setI(ep, i++, V(-2.05 + a * 0.37, 1.15, -0.55 + b * 0.37), V(0.9, 0.5, 0.9), [0, 0, 0], 0.15); setI(ep, i++, V(-2.05 + a * 0.37, -0.75, -0.55 + b * 0.37), V(0.9, 0.45, 0.9), [0, 0, 0], 0.15); }
+    g.add(ep, new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.04, 1.6), organMat(0xe8ffd0, null, { op: 0.35, coat: 1 })).translateY(1.28));
+    const pal = inst(new THREE.CapsuleGeometry(0.14, 0.5, 6, 12), organMat(0x9ad884, null, { op: 0.38 }), w * d), chl = inst(sculpt(1, n => V(n.x * 1, n.y * 0.6, n.z * 0.75)), organMat(0x2f9a3a, null, { op: 1, glow: 0.08 }), w * d * 16);
+    i = 0; let k = 0;
+    for (let a = 0; a < w; a++) for (let b = 0; b < d; b++, i++) { const x = -2.05 + a * 0.37, z = -0.55 + b * 0.37; setI(pal, i, V(x, 0.62, z), V(1, rr(0.9, 1.1), 1), [0, 0, 0], 0.05); for (let c = 0; c < 16; c++) { const an = c / 16 * Math.PI * 4; setI(chl, k++, V(x + Math.cos(an) * 0.11, 0.33 + (c / 16) * 0.6, z + Math.sin(an) * 0.11), V(0.04, 0.04, 0.04), [0, an, 0], 0.2); } }
+    g.add(pal, chl);
+    const sp = 36, spm = inst(cellBlob(0.18, 4), organMat(0xb8e0a0, null, { op: 0.42 }), sp), spc = inst(sculpt(1, n => V(n.x, n.y * 0.6, n.z * 0.75)), organMat(0x2f9a3a, null, { op: 1 }), sp * 7);
+    for (let j = 0; j < sp; j++) { const p = V(rr(-2.1, 2.1), rr(-0.45, 0.1), rr(-0.6, 0.6)); setI(spm, j, p, V(1, 1, 1), [0, 0, 0], 0.3); for (let c = 0; c < 7; c++) setI(spc, j * 7 + c, p.clone().add(V(rr(-0.12, 0.12), rr(-0.1, 0.1), rr(-0.12, 0.12))), V(0.035, 0.035, 0.035), [rnd(), rnd(), 0]); }
+    g.add(spm, spc);
+    [-0.9, 0.9].forEach(x => [-1, 1].forEach(s => { const gc = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.05, 10, 18, Math.PI), organMat(0x4fae4a, null, { op: 1 })); gc.position.set(x, -0.86, 0); gc.rotation.set(Math.PI / 2, 0, s > 0 ? 0 : Math.PI); g.add(gc); }));
+    return { g, labels: [['上表皮（表皮組織）', V(-2.6, 1.35, 0)], ['柵狀組織（葉肉）', V(-2.75, 0.62, 0)], ['海綿組織（葉肉）', V(-2.75, -0.2, 0)], ['下表皮', V(-2.5, -0.95, 0)], ['氣孔', V(0.9, -1.2, 0.3)], ['葉片的切面', V(0, 1.75, 0), 'big']] };
+  },
+  root() {
+    const g = new THREE.Group(), n = 30;
+    const ep = inst(new RoundedBoxGeometry(0.42, 0.38, 0.42, 2, 0.08), organMat(0xf2e6c8, null, { op: 0.5 }), n);
+    for (let i = 0; i < n; i++) setI(ep, i, V(-2.0 + (i % 10) * 0.44, 0, -0.45 + Math.floor(i / 10) * 0.45), V(1, 1, 1), [0, 0, 0], 0.08);
+    const cx = inst(cellBlob(0.22, 6), organMat(0xe8d8b0, null, { op: 0.42 }), 40);
+    for (let i = 0; i < 40; i++) setI(cx, i, V(rr(-2, 2), rr(-1.2, -0.4), rr(-0.5, 0.5)), V(1, 1, 1), [0, 0, 0], 0.25);
+    g.add(ep, cx);
+    const hm = organMat(0xfff6e0, null, { op: 0.65 }), water = [];
+    for (let i = 0; i < 10; i += 2) {
+      const x = -2.0 + i * 0.44, len = rr(1.3, 2.0), pts = [V(x, 0.15, 0), V(x + 0.1, 0.15 + len * 0.5, 0.1), V(x + 0.2, 0.15 + len, 0.05)];
+      const m = new THREE.Mesh(tube(pts, u => 0.08 * (1 - 0.15 * u), 20, 12), hm); g.add(m);
+      const s = glowSprite(0x6fc8ff, 0.18, 0.95); g.add(s); water.push({ s, c: m.geometry.userData.curve, u: rnd() });
+    }
+    return { g, labels: [['根毛', V(1.6, 1.6, 0)], ['表皮細胞', V(-2.6, 0.25, 0)], ['皮層細胞', V(-2.6, -0.9, 0)], ['● 水分從根毛進入', V(0.2, 2.5, 0)], ['根的表皮組織', V(0, 3.0, 0), 'big']], update(dt) { water.forEach(w => { w.u = (w.u + dt * 0.4) % 1; w.s.position.copy(w.c.getPointAt(1 - w.u)); }); } };
+  },
+  stem() {
+    const g = new THREE.Group(), flows = [];
+    const ringGeo = new THREE.TorusGeometry(0.17, 0.025, 6, 16), ringMat = organMat(0xa0602a, null, { op: 1 });
+    [-0.9, -0.45, 0.0].forEach((x, k) => {
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.6, 16, 1, true), organMat(0xe8c890, null, { op: 0.3, side: THREE.DoubleSide })).translateX(x));
+      const r = inst(ringGeo, ringMat, 18); for (let i = 0; i < 18; i++) setI(r, i, V(x, -1.7 + i * 0.2, 0), V(1, 1, 1), [Math.PI / 2, 0, 0]); g.add(r);
+      for (let i = 0; i < 4; i++) { const s = glowSprite(0x6fc8ff, 0.22, 0.95); g.add(s); flows.push({ s, x, up: true, u: i / 4 + k * 0.1 }); }
+    });
+    [0.55, 0.85, 1.15].forEach((x, k) => {
+      g.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.6, 12, 1, true), organMat(0x8fd060, null, { op: 0.4, side: THREE.DoubleSide })).translateX(x));
+      for (let i = 0; i < 6; i++) { const p = new THREE.Mesh(new THREE.CircleGeometry(0.1, 12), organMat(0x6a9a3a, null, { op: 1, side: THREE.DoubleSide })); p.rotation.x = Math.PI / 2; p.position.set(x, -1.5 + i * 0.6, 0); g.add(p); }
+      for (let i = 0; i < 4; i++) { const s = glowSprite(0xffd166, 0.2, 0.95); g.add(s); flows.push({ s, x, up: false, u: i / 4 + k * 0.13 }); }
+    });
+    const par = inst(cellBlob(0.24, 9), organMat(0xc8e8b0, null, { op: 0.25 }), 26);
+    for (let i = 0; i < 26; i++) setI(par, i, V(i % 2 ? -1.5 : 1.7, -1.6 + Math.floor(i / 2) * 0.26, rr(-0.3, 0.3)), V(1, 1.1, 1), [0, 0, 0], 0.2);
+    g.add(par);
+    return { g, labels: [['木質部的導管（往上運送水分）', V(-1.1, 2.1, 0)], ['韌皮部的篩管（運送養分）', V(1.3, -2.1, 0)], ['輸導組織（維管束）', V(0, 2.6, 0), 'big']],
+      update(dt) { flows.forEach(f => { f.u = (f.u + dt * 0.25) % 1; f.s.position.set(f.x, f.up ? -1.8 + f.u * 3.6 : 1.8 - f.u * 3.6, 0); }); } };
+  },
+  petal() {
+    const g = new THREE.Group(), prof = [[0.001, 0.7], [0.12, 0.65], [0.22, 0.45], [0.26, 0.15], [0.26, 0]].map(([r, y]) => new THREE.Vector2(r, y));
+    const n = 9 * 6, c = inst(new THREE.LatheGeometry(prof, 16), organMat(0xe8c8f8, null, { op: 0.4, side: THREE.DoubleSide }), n), v = inst(new THREE.LatheGeometry(prof.map(p => p.clone().multiplyScalar(0.75)), 12), organMat(0xa060d8, null, { op: 0.85 }), n), nu = inst(new THREE.SphereGeometry(0.06, 8, 6), organMat(0x5a3a9a, nucTex, { op: 1 }), n);
+    for (let i = 0; i < n; i++) { const x = -2 + (i % 9) * 0.5 + (Math.floor(i / 9) % 2) * 0.25, z = -1.1 + Math.floor(i / 9) * 0.45, h = rr(0.85, 1.15); setI(c, i, V(x, 0, z), V(1, h, 1)); setI(v, i, V(x, 0.05, z), V(1, h, 1)); setI(nu, i, V(x + 0.15, 0.12, z)); }
+    g.add(c, v, nu, new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.3, 2.8), organMat(0xd8b8f0, null, { op: 0.35 })).translateY(-0.15));
+    return { g, labels: [['花瓣的表皮細胞', V(-1.6, 0.9, 0)], ['液胞裡有紫色色素', V(1.8, 0.95, 0)], ['花瓣的表皮組織', V(0, 1.5, 0), 'big']] };
+  },
+  fruit() {
+    const g = new THREE.Group(), n = 27;
+    const c = inst(new THREE.IcosahedronGeometry(0.55, 1), organMat(0xc8f0a0, null, { op: 0.35, flatShading: true }), n), vac = inst(new THREE.IcosahedronGeometry(0.42, 1), organMat(0xe8f8d8, null, { op: 0.28 }), n), chl = inst(new THREE.SphereGeometry(1, 8, 6), organMat(0x3f9a3a, null, { op: 1 }), n * 6), nu = inst(new THREE.SphereGeometry(0.08, 10, 8), organMat(0x5a3a9a, nucTex, { op: 1 }), n);
+    let i = 0; for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) for (let d = 0; d < 3; d++, i++) { const p = V(-1.1 + a * 1.1 + rr(-0.1, 0.1), -1.1 + b * 1.1 + rr(-0.1, 0.1), -1.1 + d * 1.1); setI(c, i, p, V(1, 1, 1), [0, 0, 0], 0.15); setI(vac, i, p); setI(nu, i, p.clone().add(V(0.38, 0.1, 0))); for (let k = 0; k < 6; k++) setI(chl, i * 6 + k, p.clone().add(V(rr(-0.4, 0.4), rr(-0.4, 0.4), 0.4)), V(0.05, 0.03, 0.03), [rnd(), rnd(), 0]); }
+    g.add(c, vac, chl, nu);
+    return { g, labels: [['果皮細胞（細胞大、壁薄）', V(0, 1.95, 0)], ['豆莢果皮的組織', V(0, 2.4, 0), 'big']] };
+  },
+  seed() {
+    const g = new THREE.Group(), n = 24;
+    const c = inst(new RoundedBoxGeometry(0.85, 0.85, 0.85, 2, 0.12), organMat(0xf2e6c8, null, { op: 0.28 }), n), st = inst(sculpt(1, q => V(q.x * 1.2, q.y * 0.9, q.z)), organMat(0xfffaf0, null, { op: 1, coat: 0.8 }), n * 14);
+    let k = 0; for (let i = 0; i < n; i++) { const p = V(-1.35 + (i % 4) * 0.9, -0.9 + Math.floor(i / 4) % 3 * 0.9, i < 12 ? -0.45 : 0.45); setI(c, i, p, V(1, 1, 1), [0, 0, 0], 0.08); for (let j = 0; j < 14; j++) setI(st, k++, p.clone().add(V(rr(-0.3, 0.3), rr(-0.3, 0.3), rr(-0.3, 0.3))), V(0.07, 0.07, 0.07), [rnd(), rnd(), 0], 0.3); }
+    g.add(c, st);
+    return { g, labels: [['子葉細胞', V(-2.2, 1.0, 0)], ['澱粉粒（儲存養分）', V(2.2, 0.2, 0.5)], ['子葉的儲藏組織', V(0, 1.6, 0), 'big']] };
+  }
+};
+
+/* ================= 細胞層次：寫實的胞器 ================= */
+const tagged = (obj, part) => { obj.userData.part = part; return obj; };
+// 細胞核：雙層核膜＋核孔＋染色質＋核仁
+const poreGeo = (() => { const gs2 = []; for (let i = 0; i < 70; i++) { const t = new THREE.TorusGeometry(0.06, 0.018, 4, 8); const d = V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize(); t.lookAt(d); t.translate(d.x, d.y, d.z); gs2.push(t); } return mergeGeometries(gs2); })();
+function nucleusObj(r) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(r * 0.94, 32, 24), organMat(0x6a4ac8, nucTex, { op: 0.9, bump: 1 })));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(r, 32, 24), rimMat(0xd8c8ff, 2.0, 0.7)));
+  const pores = new THREE.Mesh(poreGeo, organMat(0xb8a0ff, null, { op: 1 })); pores.scale.setScalar(r); g.add(pores);
+  const n = new THREE.Mesh(cellBlob(r * 0.3, 1), organMat(0x2a1068, null, { op: 1 })); n.position.set(r * 0.25, r * 0.15, r * 0.2); g.add(n);
+  return tagged(g, 'nucleus');
+}
+// 粒線體：外膜＋一片片內膜皺褶（嵴）
+const cristaeGeo = (() => { const gs2 = []; for (let i = 0; i < 9; i++) { const b = new THREE.BoxGeometry(0.62, 0.02, 0.5); b.translate((i % 2 ? 0.18 : -0.18), -0.62 + i * 0.155, 0); gs2.push(b); } return mergeGeometries(gs2); })();
+function mitoObj(len = 0.5) {
+  const g = new THREE.Group(), R = len * 0.22;
+  g.add(new THREE.Mesh(new THREE.CapsuleGeometry(R, len * 0.6, 8, 16), organMat(0xff9f43, null, { op: 0.55, coat: 0.8 })));
+  const c = new THREE.Mesh(cristaeGeo, organMat(0xc86a1a, null, { op: 1 })); c.scale.set(R * 1.7, len * 0.6, R * 1.6); g.add(c);
+  return tagged(g, 'mito');
+}
+// 葉綠體：外膜＋一疊疊的基粒＋連接的片層
+const granaGeo = (() => { const gs2 = []; for (let s = 0; s < 5; s++) for (let k = 0; k < 6; k++) { const d = new THREE.CylinderGeometry(0.085, 0.085, 0.022, 14); d.translate(-0.4 + s * 0.2, -0.07 + k * 0.028, (s % 2) * 0.05); gs2.push(d); } for (let k = 0; k < 3; k++) { const b = new THREE.BoxGeometry(0.9, 0.008, 0.12); b.translate(0, -0.04 + k * 0.04, 0.02); gs2.push(b); } return mergeGeometries(gs2); })();
+function chloroObj(s = 1) {
+  const g = new THREE.Group();
+  const o = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12), organMat(0x6fd06a, null, { op: 0.5, coat: 0.9 })); o.scale.set(0.24, 0.13, 0.15); g.add(o);
+  const gr = new THREE.Mesh(granaGeo, organMat(0x1f7a2a, null, { op: 1, glow: 0.1 })); gr.scale.setScalar(0.48); g.add(gr);
+  g.scale.setScalar(s); return tagged(g, 'chloro');
+}
+// 內質網（延伸）：繞著細胞核的波浪膜＋核糖體小點
+function erObj(r) {
+  const g = new THREE.Group(), m = organMat(0x6ab0e8, null, { op: 0.45, side: THREE.DoubleSide });
+  for (let k = 0; k < 3; k++) {
+    const geo = new THREE.SphereGeometry(r * (1.25 + k * 0.17), 32, 12, 0.3 + k * 0.4, Math.PI * 0.9, Math.PI * 0.25, Math.PI * 0.5), p = geo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); v.multiplyScalar(1 + 0.06 * Math.sin(v.x * 18 + k) * Math.cos(v.y * 14)); p.setXYZ(i, v.x, v.y, v.z); }
+    geo.computeVertexNormals(); g.add(new THREE.Mesh(geo, m));
+    const pts = []; for (let i = 0; i < p.count; i += 3) pts.push(p.getX(i) * 1.02, p.getY(i) * 1.02, p.getZ(i) * 1.02);
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    g.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: 0x2a3a8a, size: 0.035 })));
+  }
+  return tagged(g, 'er');
+}
+// 高基氏體（延伸）：一疊彎彎的扁囊
+function golgiObj(s = 1) {
+  const g = new THREE.Group(), m = organMat(0xffc86a, null, { op: 0.8, side: THREE.DoubleSide });
+  for (let k = 0; k < 5; k++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.4 + k * 0.03, 24, 6, 0, Math.PI * 2, 0, 0.55), m); d.scale.set(1, 0.35, 1); d.position.y = k * 0.06; g.add(d); }
+  for (let k = 0; k < 6; k++) { const v = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), m); v.position.set(rr(-0.4, 0.4), rr(0.1, 0.4), rr(-0.4, 0.4)); g.add(v); }
+  g.scale.setScalar(s); return tagged(g, 'golgi');
+}
+function grains(n, sx, sy, sz, inside) {
+  const p = []; while (p.length < n * 3) { const q = V(rr(-sx, sx), rr(-sy, sy), rr(-sz, sz)); if (!inside || inside(q)) p.push(q.x, q.y, q.z); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xe0fff0, size: 0.03, transparent: true, opacity: 0.55, depthWrite: false }));
+}
+function animalCell(geo, scl, o = {}) {
+  const g = new THREE.Group();
+  const f = new THREE.Mesh(geo, organMat(o.color || 0xf2b8c0, organTex('cyto', '#f0c0c8', null, { mottle: 0.3 }), { op: 0.16, side: THREE.DoubleSide })); f.scale.copy(scl);
+  const r = new THREE.Mesh(geo, rimMat(o.rim || 0xffd0dc, 2.0, 1.0, 0.02)); r.scale.copy(scl);
+  g.add(tagged(f, 'cytoplasm'), tagged(r, 'membrane'), grains(o.grains || 220, scl.x * 0.7, scl.y * 0.7, scl.z * 0.7, o.inside));
+  return g;
+}
+function plantCell(w, h, d, o = {}) {
+  const g = new THREE.Group();
+  const wall = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 3, 0.18), organMat(o.wall || 0x8fbf6a, organTex('wall', '#9ac478', null, { lines: 120, lineColor: 'rgba(60,110,40,.3)' }), { op: 0.22, side: THREE.DoubleSide }));
+  const mem = new THREE.Mesh(new RoundedBoxGeometry(w - 0.16, h - 0.16, d - 0.16, 3, 0.14), rimMat(0xe8fff0, 2.4, 0.55, 0.01));
+  const cyto = new THREE.Mesh(mem.geometry, organMat(0xd8f0e0, null, { op: 0.07 }));
+  g.add(tagged(wall, 'wall'), tagged(new THREE.Mesh(wall.geometry, rimMat(0xc8ff9a, 2.2, 0.8)), 'wall'), tagged(mem, 'membrane'), tagged(cyto, 'cytoplasm'));
+  if (o.vac !== false) {
+    const k = o.vacK || 0.68, vw = w * k, vh = h * k, vd = d * k;
+    const vac = new THREE.Mesh(new RoundedBoxGeometry(vw, vh, vd, 3, Math.min(vw, vh, vd) * 0.3), organMat(o.vacColor || 0x7ab8ff, null, { op: o.vacOp || 0.2, coat: 1 }));
+    g.add(tagged(vac, o.vacPart || 'vacuole'), tagged(new THREE.Mesh(vac.geometry, rimMat(o.vacRim || 0xa8d8ff, 2.0, 0.6)), o.vacPart || 'vacuole'));
+  }
+  for (let i = 0; i < (o.chloro || 0); i++) {
+    const c = chloroObj(o.chS || 1), face = i % 6, u = rr(-0.38, 0.38), v = rr(-0.38, 0.38), x = w / 2 - 0.22, y = h / 2 - 0.22, z = d / 2 - 0.22;
+    c.position.set(face === 0 ? x : face === 1 ? -x : u * w, face === 2 ? y : face === 3 ? -y : v * h, face === 4 ? z : face === 5 ? -z : (face < 2 ? v : u) * d);
+    c.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3); g.add(c);
+  }
+  g.add(grains(160, w * 0.4, h * 0.4, d * 0.4));
+  return g;
+}
+const CB = {
+  smooth() {
+    const g = animalCell(cellBlob(1, 4), V(2.8, 0.65, 0.65), { color: 0xe08a8a });
+    const n = nucleusObj(0.3); n.scale.set(2.0, 0.8, 0.8); g.add(n);
+    [-1.6, -1.0, 1.0, 1.6, -0.5, 0.5].forEach((x, i) => { const m = mitoObj(0.38); m.position.set(x, (i % 3 - 1) * 0.15, (i % 2 ? 0.22 : -0.22)); m.rotation.z = Math.PI / 2; g.add(m); });
+    return { g, labels: [['細胞膜', V(1.9, 0.75, 0.3)], ['細胞核', V(0, 0.95, 0.4)], ['粒線體', V(-1.6, -0.75, 0.3)], ['細胞質', V(1.0, -0.75, 0.4)], ['平滑肌細胞（細長的紡錘形）', V(0, 1.45, 0), 'big']] };
+  },
+  cardiac() {
+    const g = new THREE.Group(), geo = new RoundedBoxGeometry(4, 1.1, 1.1, 3, 0.35);
+    g.add(tagged(new THREE.Mesh(geo, organMat(0xc8505a, null, { op: 0.16 })), 'cytoplasm'), tagged(new THREE.Mesh(geo, rimMat(0xffb0b8, 2.0, 1.0)), 'membrane'));
+    [[-2.2, 0.5, 0.7], [2.2, -0.5, 0.7], [2.2, 0.5, -0.7]].forEach(([x, y, a]) => { const m = new THREE.Mesh(new RoundedBoxGeometry(1.0, 0.6, 0.6, 2, 0.2), rimMat(0xffb0b8, 2.0, 1.0)); m.position.set(x, y, 0); m.rotation.z = a; g.add(tagged(m, 'membrane')); });
+    const st = inst(new THREE.BoxGeometry(0.05, 0.95, 0.95), organMat(0xff7080, null, { op: 0.35 }), 24); for (let i = 0; i < 24; i++) setI(st, i, V(-1.8 + i * 0.157, 0, 0)); g.add(tagged(st, 'stripe'));
+    [-0.6, 0.6].forEach(x => { const n = nucleusObj(0.26); n.position.set(x, 0, 0); n.scale.set(1.4, 0.9, 0.9); g.add(n); });
+    for (let i = 0; i < 12; i++) { const m = mitoObj(0.3); m.position.set(-1.75 + i * 0.32, (i % 2 ? 0.32 : -0.32), (i % 3 - 1) * 0.25); m.rotation.z = Math.PI / 2; g.add(m); }
+    return { g, labels: [['橫紋', V(-1.4, 0.85, 0)], ['細胞核（1～2 個）', V(0.6, -0.9, 0.5)], ['很多粒線體', V(1.8, 0.9, 0.3)], ['分支', V(2.8, -1.0, 0)], ['心肌細胞', V(0, 1.45, 0), 'big']] };
+  },
+  neuron() {
+    const g = new THREE.Group(), memb = rimMat(0x52e0ff, 1.9, 1.1, 0.04), soma = cellBlob(0.9, 2);
+    g.add(tagged(new THREE.Mesh(soma, organMat(0x1d4a5e, null, { op: 0.3 })), 'cytoplasm'), tagged(new THREE.Mesh(soma, memb), 'membrane'));
+    const n = nucleusObj(0.32); n.position.set(-0.1, 0.05, 0.1); g.add(n);
+    for (let k = 0; k < 6; k++) { const d = V(-Math.abs(Math.cos(k)) - 0.2, Math.sin(k * 1.7), Math.cos(k * 2.3) * 0.6).normalize(), a = d.clone().multiplyScalar(0.8); g.add(tagged(new THREE.Mesh(tube([a, a.clone().addScaledVector(d, 0.8).add(V(0, rr(-0.3, 0.3), 0)), a.clone().addScaledVector(d, 1.6)], u => 0.12 * (1 - 0.8 * u), 20, 8), memb), 'dendrite')); }
+    const ax = [V(0.85, 0, 0), V(2.2, 0.15, 0), V(3.6, -0.1, 0), V(4.6, 0, 0)];
+    g.add(tagged(new THREE.Mesh(tube(ax, 0.08, 40, 8), memb), 'axon'));
+    const ac = new THREE.CatmullRomCurve3(ax);
+    [0.3, 0.55, 0.8].forEach(u => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.6, 6, 14), organMat(0xf3e7cc, null, { op: 0.85 })); m.position.copy(ac.getPointAt(u)); m.rotation.z = Math.PI / 2; g.add(tagged(m, 'axon')); });
+    for (let i = 0; i < 6; i++) { const m = mitoObj(0.25); m.position.set(rr(-0.5, 0.5), rr(-0.4, 0.4), rr(-0.3, 0.4)); m.rotation.set(rnd() * 3, rnd() * 3, 0); g.add(m); }
+    g.position.x = -1.2;
+    return { g, labels: [['樹突', V(-3.4, 1.0, 0)], ['細胞本體', V(-1.2, 1.15, 0)], ['細胞核', V(-1.3, -0.6, 0.6)], ['軸突', V(2.0, -0.55, 0)], ['神經細胞', V(0, 1.7, 0), 'big']] };
+  },
+  squamous() {
+    const g = animalCell(cellBlob(1, 8), V(2.4, 0.32, 2.0), { color: 0xf0b8c4, grains: 160 });
+    const n = nucleusObj(0.42); n.scale.set(1.2, 0.55, 1); g.add(n);
+    [[1.2, 0.5], [-1.2, -0.4], [0.3, 1.1]].forEach(([x, z]) => { const m = mitoObj(0.32); m.position.set(x, 0, z); m.rotation.z = Math.PI / 2; g.add(m); });
+    return { g, labels: [['又扁又薄，氣體容易通過', V(0, 0.9, 0)], ['細胞核', V(-1.0, 0.5, 0.6)], ['細胞膜', V(2.3, 0.3, 0)], ['肺泡壁細胞', V(0, 1.4, 0), 'big']] };
+  },
+  lympho() {
+    const g = animalCell(sculpt(4, n => n.multiplyScalar(1.1 * (1 + 0.04 * Math.sin(n.x * 30) * Math.sin(n.y * 30)))), V(1, 1, 1), { color: 0xd8d0f0, rim: 0xe8e0ff, grains: 80, inside: p => p.length() > 0.85 });
+    g.add(nucleusObj(0.82));
+    [[0.75, 0.5, 0.3], [-0.7, -0.5, 0.4], [0.2, -0.8, 0.5]].forEach(([x, y, z]) => { const m = mitoObj(0.25); m.position.set(x, y, z); g.add(m); });
+    return { g, labels: [['細胞核（很大）', V(-1.3, 0.8, 0)], ['細胞膜', V(1.4, -0.8, 0)], ['淋巴球', V(0, 1.6, 0), 'big']] };
+  },
+  leafCell() {
+    const g = plantCell(1.5, 3.0, 1.5, { chloro: 34 });
+    const n = nucleusObj(0.26); n.position.set(0.48, 0.6, 0.45); g.add(n);
+    [[-0.5, -1.0, 0.5], [0.5, 1.1, -0.5]].forEach(([x, y, z]) => { const m = mitoObj(0.26); m.position.set(x, y, z); g.add(m); });
+    return { g, labels: [['細胞壁', V(-1.1, 1.4, 0)], ['葉綠體', V(1.15, -0.4, 0)], ['液胞', V(0, 0, 1.0)], ['細胞核', V(1.0, 0.95, 0.5)], ['葉肉細胞', V(0, 1.95, 0), 'big']] };
+  },
+  rootHair() {
+    const g = plantCell(2.0, 1.4, 1.4, { chloro: 0, wall: 0xc8b88a, vacK: 0.62 }), hp = [V(0.3, 0.68, 0), V(0.6, 1.6, 0.05), V(1.0, 2.6, 0)];
+    const hg = tube(hp, u => 0.26 * (1 - 0.1 * u), 24, 16);
+    g.add(tagged(new THREE.Mesh(hg, organMat(0xc8b88a, null, { op: 0.2, side: THREE.DoubleSide })), 'hair'), tagged(new THREE.Mesh(hg, rimMat(0xfff0c0, 2.2, 0.9)), 'hair'));
+    const n = nucleusObj(0.24); n.position.set(0.35, 0.35, 0.3); g.add(n);
+    const m = mitoObj(0.26); m.position.set(-0.6, -0.3, 0.45); g.add(m);
+    g.position.y = -0.6;
+    return { g, labels: [['根毛（往外突出）', V(1.6, 2.0, 0)], ['細胞壁', V(-1.4, 0.1, 0)], ['液胞', V(-0.4, -0.6, 0.8)], ['細胞核', V(0.9, 0.0, 0.5)], ['沒有葉綠體', V(-1.0, -1.5, 0)], ['根毛細胞', V(0, 2.5, 0), 'big']] };
+  },
+  stemCell() {
+    const g = plantCell(1.8, 2.4, 1.6, { chloro: 6, chS: 0.8 });
+    const n = nucleusObj(0.25); n.position.set(-0.55, 0.6, 0.45); g.add(n);
+    const m = mitoObj(0.26); m.position.set(0.5, -0.9, 0.45); g.add(m);
+    return { g, labels: [['細胞壁', V(-1.2, 1.2, 0)], ['液胞', V(0, 0, 0.9)], ['少量葉綠體', V(1.25, 0.2, 0)], ['莖的薄壁細胞', V(0, 1.65, 0), 'big']] };
+  },
+  petal() {
+    const g = new THREE.Group(), prof = [[0.001, 2.1], [0.4, 1.9], [0.8, 1.3], [1.0, 0.5], [1.0, 0], [0.001, 0]].map(([r, y]) => new THREE.Vector2(r, y)), wall = new THREE.LatheGeometry(prof, 36);
+    g.add(tagged(new THREE.Mesh(wall, organMat(0xe8c8f8, null, { op: 0.2, side: THREE.DoubleSide })), 'wall'), tagged(new THREE.Mesh(wall, rimMat(0xf0d8ff, 2.2, 0.9)), 'wall'));
+    g.add(tagged(new THREE.Mesh(new THREE.LatheGeometry(prof.map(p => new THREE.Vector2(p.x * 0.72, p.y * 0.8 + 0.15)), 30), organMat(0x9a50d0, null, { op: 0.55, coat: 1 })), 'pigment'));
+    const n = nucleusObj(0.2); n.position.set(0.65, 0.35, 0.3); g.add(n);
+    const m = mitoObj(0.22); m.position.set(-0.7, 0.3, 0.3); g.add(m);
+    g.position.y = -1;
+    return { g, labels: [['液胞（含紫色色素）', V(1.4, 1.2, 0)], ['細胞壁', V(-1.4, 0.6, 0)], ['細胞核', V(1.0, -0.6, 0.4)], ['沒有葉綠體', V(-1.2, -1.2, 0)], ['花瓣細胞', V(0, 1.6, 0), 'big']] };
+  },
+  fruit() {
+    const g = plantCell(2.6, 2.4, 2.2, { chloro: 10, vacK: 0.8 });
+    const n = nucleusObj(0.25); n.position.set(1.05, 0.7, 0.8); g.add(n);
+    return { g, labels: [['很大的液胞', V(0, 0.1, 1.2)], ['細胞壁', V(-1.6, 1.2, 0)], ['葉綠體', V(1.6, -0.6, 0)], ['果皮細胞', V(0, 1.6, 0), 'big']] };
+  },
+  seed() {
+    const g = plantCell(2.4, 2.4, 2.4, { chloro: 0, vac: false, wall: 0xd8c8a0 });
+    for (let i = 0; i < 30; i++) { const s = new THREE.Mesh(sculpt(2, q => V(q.x * 1.3, q.y, q.z).multiplyScalar(1 + 0.04 * Math.sin(q.length() * 30))), organMat(0xfffaf0, null, { op: 0.95, coat: 0.9 })); s.position.set(rr(-0.85, 0.85), rr(-0.85, 0.85), rr(-0.85, 0.85)); s.scale.setScalar(0.17); s.rotation.set(rnd() * 3, rnd() * 3, 0); if (s.position.length() > 0.5) g.add(tagged(s, 'starch')); }
+    g.add(nucleusObj(0.3));
+    return { g, labels: [['澱粉粒', V(1.6, 0.6, 0)], ['細胞核', V(-1.0, 0.0, 1.2)], ['細胞壁', V(-1.6, 1.3, 0)], ['子葉細胞', V(0, 1.75, 0), 'big']] };
+  },
+  animalDemo() {
+    const g = animalCell(sculpt(5, n => n.multiplyScalar(2.2 * (1 + 0.04 * (noise3(n.x * 2, n.y * 2, n.z * 2) - 0.5)))), V(1.1, 0.85, 1), { color: 0xf2b8c0, grains: 420, inside: p => p.length() > 0.9 });
+    const n = nucleusObj(0.72); n.position.set(-0.2, 0.05, 0); g.add(n);
+    const er = erObj(0.72); er.position.copy(n.position); g.add(er);
+    const go = golgiObj(1); go.position.set(1.1, 0.25, 0.3); go.rotation.z = -0.6; g.add(go);
+    [[1.3, 0.6, 0.6], [-1.5, -0.7, 0.5], [1.0, -0.9, -0.6], [-1.2, 0.8, -0.5], [0.5, 1.1, 0.8], [1.6, -0.2, -0.3], [-0.6, -1.0, 0.7]].forEach(([x, y, z], i) => { const m = mitoObj(0.5); m.position.set(x, y, z); m.rotation.set(i, i * 1.3, i * 0.7); g.add(m); });
+    for (let i = 0; i < 8; i++) { const ly = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), organMat(0xd87a9a, null, { op: 0.9 })); ly.position.set(rr(-1.6, 1.6), rr(-1.1, 1.1), rr(-0.9, 0.9)); if (ly.position.length() > 1.1) g.add(ly); }
+    return { g, labels: [['細胞膜', V(2.55, 1.1, 0)], ['細胞核', V(-0.2, 1.05, 0.6)], ['粒線體', V(1.75, -1.2, 0.5)], ['細胞質', V(-1.9, -1.0, 0.8)], ['內質網（延伸）', V(-1.6, 0.9, 0.4)], ['高基氏體（延伸）', V(1.6, 0.85, 0.4)], ['動物細胞', V(0, 2.4, 0), 'big']] };
+  },
+  plantDemo() {
+    const g = plantCell(4.6, 3.0, 2.6, { chloro: 28, chS: 1.3, vacK: 0.62 });
+    const n = nucleusObj(0.5); n.position.set(-1.6, 0.7, 0.6); g.add(n);
+    const er = erObj(0.5); er.position.copy(n.position); er.scale.setScalar(0.9); g.add(er);
+    const go = golgiObj(0.7); go.position.set(1.7, 0.95, 0.75); g.add(go);
+    [[1.6, -0.9, 0.7], [-1.5, -0.9, -0.6], [1.4, 1.0, -0.6]].forEach(([x, y, z], i) => { const m = mitoObj(0.45); m.position.set(x, y, z); m.rotation.set(i, i * 2, 0); g.add(m); });
+    return { g, labels: [['細胞壁', V(-2.6, 1.7, 0)], ['細胞膜', V(2.6, 1.7, 0)], ['液胞', V(0, 0, 1.0)], ['葉綠體', V(2.6, -0.4, 0.8)], ['細胞核', V(-1.6, 1.45, 0.6)], ['粒線體', V(1.9, -1.5, 0.7)], ['高基氏體（延伸）', V(1.7, 1.5, 0.75)], ['植物細胞', V(0, 2.25, 0), 'big']] };
+  }
+};
+
+/* ================= 切換畫面 ================= */
+const PICKD = [];
+function clearDetail() { while (detail.children.length) detail.remove(detail.children[0]); detailUpdate = null; }
+function showDetail(made, k = 1.2) {
+  clearDetail(); detail.add(made.g); detailUpdate = made.update || null;
+  made.g.traverse(o => { if (o.userData.part) PICKD.push(o); });
+  // 手機寬度放不下那麼多標籤：只留大標題和前兩個（其他的可以點一下看）
+  const list = L.W < 500 ? made.labels.filter(([, , c], i) => c === 'big' || i <= 2) : made.labels;
+  setLabels(list.map(([t, p, c]) => [t, typeof p === 'function' ? p : p.clone(), c]));
+  const box = new THREE.Box3().setFromObject(made.g);
+  made.labels.forEach(([, p]) => { if (typeof p !== 'function') box.expandByPoint(p); });
+  fit(box, L.W / L.H < 1 ? k * 1.3 : k);   // 窄畫面多留一點邊，長標籤才不會被切掉
+}
+function fit(box, k = 1.15) {
+  const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() / 2;
+  const fov = L.camera.fov * Math.PI / 180, aspect = L.W / L.H;
+  let dist = r / Math.sin(fov / 2) * k; if (aspect < 1) dist /= aspect * 0.95;
+  L.fly([c.x + dist * 0.12, c.y + r * 0.12, c.z + dist], [c.x, c.y, c.z], 0.9);
+}
+function bodyLabels() {
+  if (S.kind === 'plant') {
+    const want = S.grp === 'all' ? ['root', 'stem', 'leaf', 'flower', 'fruit', 'seed'] : Object.keys(ORG).filter(k => ORG[k].grp === S.grp);
+    const P = { root: V(0.9, -3.6, 0.6), stem: V(-0.55, -1.6, 0.3), leaf: V(-1.25, 0.6, 0.6), flower: V(0.95, 1.0, 0.6), fruit: V(1.3, -0.65, 0.6), seed: V(-0.7, -0.95, 0.9) };
+    return want.map(k => [ORG[k].name + (ORG[k].grp === 'veg' ? '（營養器官）' : '（生殖器官）'), P[k], ORG[k].grp === 'veg' ? '' : 'big']);
+  }
+  const L2 = {
+    digest: [['口', V(0.45, 3.1, 0.5)], ['食道', V(-0.45, 2.3, 0.1)], ['胃', V(0.75, 1.0, 0.2)], ['肝臟', V(-0.85, 1.25, 0.2)], ['膽囊', V(-0.6, 0.8, 0.35)], ['胰臟', V(0.85, 0.66, 0)], ['小腸', V(-0.25, 0.05, 0.45)], ['大腸', V(0.85, 0.1, 0.2)], ['肛門', V(0.35, -0.85, 0)]],
+    circ: [['心臟', V(0.6, 1.55, 0.3)], ['動脈（紅）', V(1.65, 0.4, 0.1)], ['靜脈（藍）', V(-1.7, 0.4, 0.1)], ['主動脈', V(0.5, 0.4, -0.2)]],
+    nerve: [['腦', V(0.6, 3.85, 0)], ['脊髓', V(0.35, 1.0, -0.4)], ['神經', V(1.65, 0.5, 0.1)]],
+    resp: [['鼻', V(0.4, 3.35, 0.5)], ['氣管', V(0.45, 2.35, 0.15)], ['支氣管', V(0.55, 1.85, 0.2)], ['肺', V(-0.9, 1.6, 0.2)], ['橫膈', V(0.95, 0.75, 0.1)]],
+    defense: [['皮膚（第一道防線）', V(-1.6, 2.5, 0)], ['扁桃腺', V(0.5, 3.0, 0.3)], ['淋巴結', V(0.6, 2.7, 0.1)], ['胸腺', V(-0.6, 1.98, 0.2)], ['脾臟', V(0.95, 0.95, -0.1)], ['淋巴管', V(1.65, 0.4, 0.1)]]
+  };
+  return S.sys === 'all' ? Object.keys(SYS).map(k => [SYS[k].name, { digest: V(0.95, 0.4, 0.3), circ: V(0.7, 1.7, 0.3), nerve: V(0.6, 3.9, 0), resp: V(-0.95, 1.7, 0.3), defense: V(-1.6, 2.65, 0) }[k], 'big']) : L2[S.sys];
+}
+const BODYCAM = { all: [[0, 0.4, 11.5], [0, 0.2, 0]], digest: [[0.3, 1.0, 5.6], [0, 1.0, 0]], circ: [[0.4, 0.4, 11], [0, 0.3, 0]], nerve: [[0.4, 0.4, 11], [0, 0.3, 0]], resp: [[0.3, 2.0, 5.0], [0, 2.0, 0]], defense: [[0.4, 0.6, 10], [0, 0.6, 0]], plant: [[0, -0.6, 9.5], [0, -1.0, 0]] };
+function flyCam([p, t]) { const f = Math.max(1, 1.05 / (L.W / L.H)); L.fly(p.map((v, i) => t[i] + (v - t[i]) * f), t, 0.9); }
+function applyBody() {
+  clearDetail(); PICKD.length = 0;
+  const animal = S.kind === 'animal';
+  body.visible = animal; plant.visible = !animal; stage.visible = true;
+  if (animal) {
+    for (const k of Object.keys(SYS)) setFade(SG[k], S.sys === 'all' || S.sys === k ? 1 : 0.06);
+    skinRim.uniforms.color.value.set(S.sys === 'defense' ? 0x7dff9a : 0x58b8ff); skinRim.uniforms.intensity.value = S.sys === 'defense' ? 1.0 : 0.5;
+    flyCam(BODYCAM[S.sys]);
+  } else {
+    setFade(PG.veg, S.grp === 'rep' ? 0.12 : 1); setFade(PG.rep, S.grp === 'veg' ? 0.12 : 1);
+    flyCam(BODYCAM.plant);
+  }
+  setLabels(bodyLabels());
+}
+function go(view) {
+  S.view = view; selectGlow(null);
+  if (view === 'body') applyBody();
+  else {
+    body.visible = false; plant.visible = false; stage.visible = false; PICKD.length = 0;
+    if (view === 'organ') showDetail(organView(S.organ), 1.3);
+    else if (view === 'tissue') showDetail(TB[ORG[S.organ].tissue](), 0.95);
+    else if (view === 'cell') showDetail(CB[TISSUE[ORG[S.organ].tissue].cell](), 0.95);
+  }
+  renderUI();
+}
+function levelIndex() {
+  const animal = S.kind === 'animal';
+  if (S.view === 'body') return animal ? (S.sys === 'all' ? 0 : 1) : 0;
+  return (animal ? 2 : 1) + ['organ', 'tissue', 'cell'].indexOf(S.view);
+}
+function renderUI() {
+  const animal = S.kind === 'animal', lv = LEVELS[S.kind], li = levelIndex();
+  $('sysGroup').hidden = !animal || S.view !== 'body'; $('grpGroup').hidden = animal || S.view !== 'body';
+  document.querySelectorAll('#sysBtns .btn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === S.sys)));
+  const o = S.organ && ORG[S.organ];
+  const reach = i => i <= li || !!o || (animal && i === 1);
+  $('crumbs').innerHTML = lv.map((t, i) => `<button data-i="${i}" class="${i === li ? 'now' : i < li ? 'on' : ''}" ${reach(i) ? '' : 'disabled'}>${t}</button>`).join('');
+  $('upBtn').disabled = li === 0;
+  let down = '', info = '';
+  if (S.view === 'body') {
+    if (animal) {
+      info = S.sys === 'all' ? '人體由許多<b>器官系統</b>一起合作組成，這就是<b>個體</b>。選一個器官系統來看。' : `<b>${SYS[S.sys].name}</b>：${SYS[S.sys].info}`;
+      down = o ? `放大看${o.name} →` : (S.sys !== 'all' ? `放大看${ORG[SYS[S.sys].zoom].name} →` : '選一個系統');
+    } else {
+      info = '一株菜豆就是一個<b>個體</b>。<b>營養器官</b>（根、莖、葉）負責吸收、運輸、製造養分；<b>生殖器官</b>（花、果實、種子）負責繁殖後代。植物<b>沒有器官系統</b>。';
+      down = o ? `放大看${o.name} →` : '先點一個器官';
+    }
+    if (o) info += `<br><br><b>${o.name}</b>：${o.info}`;
+  } else if (S.view === 'organ') { info = `<b>器官：${o.name}</b>。${o.info}`; down = `看${o.name}的組織 →`; }
+  else if (S.view === 'tissue') { const t = TISSUE[o.tissue]; info = `<b>組織：${t.name}</b>。${t.info}<br>形態、功能相似的細胞聚在一起，就是組織。`; down = `看${CELL[t.cell].name} →`; }
+  else { const c = CELL[TISSUE[o.tissue].cell]; info = `<b>細胞：${c.name}</b>。${c.info}<br>細胞是生物構造和功能的基本單位。`; down = '已經是最小的層次'; }
+  $('downBtn').textContent = down;
+  $('downBtn').disabled = S.view === 'cell' || (S.view === 'body' && !o && (!animal || S.sys === 'all'));
+  $('levelInfo').innerHTML = info;
+}
+// 沒有組織資料的器官，往下放大時改看同一個系統的代表器官
+function zoomable() { if (S.organ && !ORG[S.organ].tissue) S.organ = S.kind === 'animal' ? SYS[ORG[S.organ].sys].zoom : 'leaf'; }
+function down() {
+  if (S.view === 'body') { if (!S.organ && S.kind === 'animal' && S.sys !== 'all') S.organ = SYS[S.sys].zoom; if (!S.organ) return; go('organ'); }
+  else if (S.view === 'organ') { zoomable(); go('tissue'); }
+  else if (S.view === 'tissue') go('cell');
+}
+function up() {
+  if (S.view === 'cell') go('tissue');
+  else if (S.view === 'tissue') go('organ');
+  else if (S.view === 'organ') go('body');
+  else if (S.kind === 'animal' && S.sys !== 'all') { S.sys = 'all'; S.organ = null; go('body'); }
+}
+$('downBtn').addEventListener('click', down);
+$('upBtn').addEventListener('click', up);
+$('crumbs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  const i = +b.dataset.i, animal = S.kind === 'animal';
+  if (animal && i === 0) { S.sys = 'all'; S.organ = null; return go('body'); }
+  if (animal && i === 1) { if (S.sys === 'all') S.sys = S.organ ? ORG[S.organ].sys : 'digest'; return go('body'); }
+  if (!animal && i === 0) return go('body');
+  const v = ['organ', 'tissue', 'cell'][i - (animal ? 2 : 1)];
+  if (!S.organ && animal) S.organ = SYS[S.sys === 'all' ? 'digest' : S.sys].zoom;
+  if (v !== 'organ') zoomable();
+  go(v);
+});
+document.querySelectorAll('#sysBtns .btn').forEach(b => b.addEventListener('click', () => { S.sys = b.dataset.k; S.organ = null; go('body'); }));
+Lab.bindGroup('#grpSeg button', k => { S.grp = k; S.organ = null; if (S.mode === 'level' && S.kind === 'plant') go('body'); });
+Lab.bindGroup('#kindSeg button', k => { S.kind = k; S.organ = null; if (S.mode === 'level') go('body'); });
+function showCellMode() {
+  body.visible = false; plant.visible = false; stage.visible = false; PICKD.length = 0; selectGlow(null);
+  showDetail(CB[S.cellKind === 'animal' ? 'animalDemo' : 'plantDemo']());
+  $('partInfo').textContent = '點一下細胞裡的構造。拖曳可以轉動，兩指可以放大。';
+}
+Lab.bindGroup('#cellSeg button', k => { S.cellKind = k; if (S.mode === 'cell') showCellMode(); });
+Lab.bindGroup('.mode', k => { S.mode = k; Lab.showMode(k); if (k === 'cell') showCellMode(); else { S.view = 'body'; go('body'); } });
+
+/* ================= 點選 ================= */
+const ray = new THREE.Raycaster();
+function hitsAt(x, y, objs) { ray.setFromCamera(new THREE.Vector2(x / L.W * 2 - 1, -(y / L.H) * 2 + 1), L.camera); return ray.intersectObjects(objs, true); }
+const shown = o => { let p = o; while (p) { if (!p.visible) return false; p = p.parent; } return true; };
+const PRIORITY = { nucleus: 0, mito: 0, chloro: 0, starch: 0, golgi: 0, stripe: 1, vacuole: 1, pigment: 1, hair: 1, dendrite: 1, axon: 1, er: 1, wall: 2, membrane: 3, cytoplasm: 4 };
+function tap(x, y) {
+  if (S.view === 'body' && S.mode === 'level') {
+    const ok = key => {
+      if (!key || !ORG[key]) return false;
+      if (S.kind === 'animal') return key === 'skin' && S.sys !== 'defense' ? false : (S.sys === 'all' || ORG[key].sys === S.sys);
+      return S.grp === 'all' || ORG[key].grp === S.grp;
+    };
+    const hit = hitsAt(x, y, PICK.filter(shown)).find(h => ok(h.object.userData.key));
+    if (!hit) return;
+    const key = hit.object.userData.key;
+    if (S.kind === 'animal' && S.sys === 'all') S.sys = ORG[key].sys;
+    S.organ = key;
+    let obj = hit.object; while (obj.parent && !PICK.includes(obj)) obj = obj.parent;
+    selectGlow(obj); setLabels(bodyLabels()); renderUI(); return;
+  }
+  const hits = hitsAt(x, y, PICKD).map(h => { let o = h.object; while (o && !o.userData.part) o = o.parent; return o && PART[o.userData.part] ? { h, o } : null; }).filter(Boolean);
+  if (!hits.length) return;
+  hits.sort((a, b) => (PRIORITY[a.o.userData.part] ?? 2) - (PRIORITY[b.o.userData.part] ?? 2) || a.h.distance - b.h.distance);
+  let o = hits[0].o;
+  if (['membrane', 'cytoplasm'].includes(o.userData.part)) {   // 點在邊緣算細胞膜、點在中間算細胞質
+    const f = hits[0].h.face, n = f ? f.normal.clone().transformDirection(hits[0].h.object.matrixWorld) : null;
+    const want = n && Math.abs(n.dot(ray.ray.direction)) < 0.45 ? 'membrane' : 'cytoplasm', alt = hits.find(e => e.o.userData.part === want);
+    if (alt) o = alt.o;
+  }
+  const p = PART[o.userData.part];
+  selectGlow(o);
+  const html = `<b>${p[0]}</b>：${p[1]}`;
+  if (S.mode === 'cell') $('partInfo').innerHTML = html; else $('levelInfo').innerHTML = html + '<br><br>' + $('levelInfo').innerHTML.split('<br><br>').pop();
+}
+
+/* ================= 每一幀 ================= */
+const tv = new THREE.Vector3(), selBox = new THREE.Box3();
+function frame(dt) {
+  S.time += dt;
+  scene.getObjectByName('dust').rotation.y += dt * 0.01;
+  if (selGlow.userData.obj) {
+    selBox.setFromObject(selGlow.userData.obj); const r = selBox.getSize(tv).length();
+    selBox.getCenter(selGlow.position); selGlow.scale.setScalar(Math.min(6, r * 1.6 + 0.3)); selGlow.material.opacity = 0.45 + Math.sin(S.time * 4) * 0.2;
+  }
+  if (detailUpdate) detailUpdate(dt, S.time);
+  if (body.visible) {
+    const on = k => S.sys === 'all' || S.sys === k;
+    if (on('digest')) { const u = (S.time * 0.07) % 1, seg = Math.min(3, Math.floor(u * 4)), f = u * 4 - seg; DIG.food.position.copy(DIG.path[seg].getPointAt(seg === 1 ? Math.min(1, f * 1.3) : f)); DIG.food.visible = true; } else DIG.food.visible = false;
+    CIRC.heart.scale.setScalar(1 + Math.max(0, Math.sin(S.time * Math.PI * 2 * 1.2)) * 0.06);
+    CIRC.flows.forEach(f => { f.u = (f.u + dt * 0.18) % 1; f.s.position.copy(f.c.getPointAt(f.u)); f.s.visible = on('circ'); });
+    NERV.pulses.forEach(p => { p.u = (p.u + dt * 0.45) % 1; p.s.position.copy(p.c.getPointAt(p.u)); p.s.material.opacity = on('nerve') ? 0.95 : 0; });
+    const b = Math.sin(S.time * 1.4);
+    RESP.lungs.scale.set(1 + 0.035 * b, 1 + 0.045 * b, 1 + 0.035 * b); RESP.dia.position.y = 0.68 - 0.05 * b;
+    RESP.air.forEach(a => { const u = (S.time * 0.2 + a.k) % 1; a.s.position.copy(RESP.curve.getPointAt(Math.cos(S.time * 1.4) > 0 ? u : 1 - u)); a.s.visible = on('resp'); });
+    DEF.cells.forEach(c => { c.u = (c.u + dt * 0.12) % 1; c.s.position.copy(c.c.getPointAt(c.u)); c.s.visible = on('defense'); });
+  }
+  if (plant.visible) plant.rotation.y = Math.sin(S.time * 0.15) * 0.15;
+}
+function ui() {}
+
+window.life = { S, go, ORG };   // 除錯／驗證用
+go('body');
 </script>
 <script src="lesson.js" defer></script>
 </body>
